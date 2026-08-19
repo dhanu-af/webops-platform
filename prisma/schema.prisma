@@ -1,0 +1,688 @@
+// WEB OPS — Digital Facility Operations & Compliance Platform
+// Schema is organised into: Identity & Access, Facility Hierarchy,
+// Checklist Definition & Versioning, Scheduling, Verification Workflow,
+// Inspections & Responses, Evidence, Findings & Corrective Actions,
+// Area Release, Notifications, Audit Trail.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =========================================================================
+// IDENTITY & ACCESS
+// =========================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+  TEAM_LEADER
+  SUPERVISOR
+  QA
+  MANAGEMENT
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  employeeId   String?  @unique
+  role         UserRole
+  jobTitle     String?
+  phone        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  operatorInspections   Inspection[]      @relation("OperatorInspections")
+  supervisorInspections Inspection[]      @relation("SupervisorInspections")
+  qaInspections         Inspection[]      @relation("QaInspections")
+  scheduleAssignments   ChecklistSchedule[]
+  photoUploads          PhotoEvidence[]
+  findingsCreated       Finding[]         @relation("FindingCreatedBy")
+  correctiveActionsOwned    CorrectiveAction[] @relation("CorrectiveActionResponsible")
+  correctiveActionsClosed   CorrectiveAction[] @relation("CorrectiveActionClosedBy")
+  correctiveActionsVerified CorrectiveAction[] @relation("CorrectiveActionVerifiedBy")
+  verificationRecords   VerificationRecord[]
+  areaReleaseSupervised AreaRelease[]     @relation("AreaReleaseSupervisor")
+  areaReleaseQaVerified AreaRelease[]     @relation("AreaReleaseQa")
+  notifications         Notification[]
+  auditLogEntries       AuditLog[]
+  checklistVersionsCreated ChecklistVersion[]
+
+  @@index([role])
+}
+
+// =========================================================================
+// FACILITY HIERARCHY — configurable, not hard-coded
+// FACILITY -> SECTION -> AREA -> EQUIPMENT
+// =========================================================================
+
+model Facility {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  timezone  String   @default("Australia/Brisbane")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections           Section[]
+  checklistSchedules ChecklistSchedule[]
+  inspections        Inspection[]
+}
+
+model Section {
+  id         String   @id @default(cuid())
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  name       String
+  code       String
+  sortOrder  Int      @default(0)
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  areas              Area[]
+  checklistSchedules ChecklistSchedule[]
+  inspections        Inspection[]
+
+  @@unique([facilityId, code])
+}
+
+model Area {
+  id        String   @id @default(cuid())
+  sectionId String
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  name      String
+  code      String
+  sortOrder Int      @default(0)
+  archived  Boolean  @default(false)
+  qrToken   String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  equipment          Equipment[]
+  checklistSchedules ChecklistSchedule[]
+  inspections        Inspection[]
+  findings           Finding[]
+  photoEvidence      PhotoEvidence[]
+  correctiveActions  CorrectiveAction[]
+  areaReleases       AreaRelease[]
+
+  @@unique([sectionId, code])
+}
+
+model Equipment {
+  id           String   @id @default(cuid())
+  areaId       String
+  area         Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  name         String
+  code         String
+  serialNumber String?
+  sortOrder    Int      @default(0)
+  archived     Boolean  @default(false)
+  qrToken      String   @unique @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  checklistSchedules ChecklistSchedule[]
+  inspections        Inspection[]
+  findings           Finding[]
+  photoEvidence      PhotoEvidence[]
+  correctiveActions  CorrectiveAction[]
+
+  @@unique([areaId, code])
+}
+
+// =========================================================================
+// VERIFICATION WORKFLOW — configurable per checklist, not hard-coded
+// e.g. Operator -> Supervisor -> QA, or Operator -> Supervisor only
+// =========================================================================
+
+enum WorkflowRole {
+  OPERATOR
+  TEAM_LEADER
+  SUPERVISOR
+  QA
+}
+
+model VerificationWorkflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  requiresAreaRelease Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps      VerificationStep[]
+  checklists Checklist[]
+}
+
+model VerificationStep {
+  id         String       @id @default(cuid())
+  workflowId String
+  workflow   VerificationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order      Int
+  role       WorkflowRole
+
+  @@unique([workflowId, order])
+}
+
+// =========================================================================
+// CHECKLIST DEFINITION & VERSION CONTROL
+// =========================================================================
+
+enum ChecklistCategory {
+  PRE_START
+  POST_OPERATION_CLEANING
+  FIVE_S
+  EQUIPMENT_CHECK
+  FACILITY_INSPECTION
+  WAREHOUSE_INSPECTION
+  PER_SHIFT
+  CUSTOM
+}
+
+enum Frequency {
+  PER_SHIFT
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  AD_HOC
+  BEFORE_PRODUCTION
+  AFTER_PRODUCTION
+  AFTER_CLEANING
+  AFTER_MAINTENANCE
+}
+
+enum ItemType {
+  PASS_FAIL
+  YES_NO
+  NA
+  NUMERIC
+  TEXT
+  PHOTO
+  MULTIPLE_CHOICE
+  ACKNOWLEDGEMENT
+}
+
+model Checklist {
+  id          String            @id @default(cuid())
+  name        String
+  category    ChecklistCategory
+  description String?
+  workflowId  String?
+  workflow    VerificationWorkflow? @relation(fields: [workflowId], references: [id])
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  versions  ChecklistVersion[]
+  schedules ChecklistSchedule[]
+}
+
+model ChecklistVersion {
+  id            String    @id @default(cuid())
+  checklistId   String
+  checklist     Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  versionNumber String // e.g. "1.0", "1.1"
+  publishedAt   DateTime  @default(now())
+  createdById   String
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  isCurrent     Boolean   @default(true)
+
+  items       ChecklistItem[]
+  inspections Inspection[]
+
+  @@unique([checklistId, versionNumber])
+}
+
+model ChecklistItem {
+  id                String           @id @default(cuid())
+  checklistVersionId String
+  checklistVersion  ChecklistVersion @relation(fields: [checklistVersionId], references: [id], onDelete: Cascade)
+  groupLabel        String // e.g. "PRODUCT CLEARANCE", "SORT", "EQUIPMENT"
+  sortOrder         Int              @default(0)
+  prompt            String
+  helpText          String?
+  type              ItemType
+  required          Boolean          @default(true)
+  choices           Json? // for MULTIPLE_CHOICE: string[]
+  minValue          Float?
+  maxValue          Float?
+  requiresPhotoOnFail Boolean        @default(false)
+  criticalFailure   Boolean          @default(false) // FAIL here forces severity >= MAJOR
+
+  responses InspectionResponse[]
+  findings  Finding[]
+
+  @@index([checklistVersionId])
+}
+
+// =========================================================================
+// SCHEDULING ENGINE — generates recurring Inspection instances
+// =========================================================================
+
+model ChecklistSchedule {
+  id          String    @id @default(cuid())
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  frequency    Frequency
+  startDate    DateTime
+  endDate      DateTime?
+  dueTime      String? // "HH:mm" local facility time
+  dueWindowMins Int      @default(120)
+  // Recurrence detail: for WEEKLY, day-of-week 0-6 (Sun-Sat); for MONTHLY, day-of-month or "first working day"
+  recurrenceDays Int[]   @default([])
+
+  facilityId  String
+  facility    Facility  @relation(fields: [facilityId], references: [id])
+  sectionId   String?
+  section     Section?  @relation(fields: [sectionId], references: [id])
+  areaId      String?
+  area        Area?     @relation(fields: [areaId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+
+  assignedRole UserRole?
+  assignedUserId String?
+  assignedUser User?     @relation(fields: [assignedUserId], references: [id])
+
+  priority   Priority @default(NORMAL)
+  photoRequired Boolean @default(false)
+  active     Boolean  @default(true)
+
+  lastGeneratedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inspections Inspection[]
+
+  @@index([facilityId, active])
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+// =========================================================================
+// INSPECTIONS — one instance of a checklist being carried out
+// =========================================================================
+
+enum InspectionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  AWAITING_SUPERVISOR
+  SUPERVISOR_APPROVED
+  AWAITING_QA
+  QA_APPROVED
+  CLOSED
+  RETURNED
+  REJECTED
+  OVERDUE
+}
+
+model Inspection {
+  id                 String    @id @default(cuid())
+  checklistVersionId String
+  checklistVersion   ChecklistVersion @relation(fields: [checklistVersionId], references: [id])
+  scheduleId         String?
+  schedule           ChecklistSchedule? @relation(fields: [scheduleId], references: [id])
+
+  facilityId  String
+  facility    Facility  @relation(fields: [facilityId], references: [id])
+  sectionId   String?
+  section     Section?  @relation(fields: [sectionId], references: [id])
+  areaId      String?
+  area        Area?     @relation(fields: [areaId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+
+  frequency Frequency
+  priority  Priority  @default(NORMAL)
+  shift     String?
+  product   String?
+  batchNumber String?
+
+  status    InspectionStatus @default(NOT_STARTED)
+  score     Float? // % pass rate at close
+
+  dueAt       DateTime?
+  startedAt   DateTime?
+  submittedAt DateTime?
+
+  operatorId   String?
+  operator     User?   @relation("OperatorInspections", fields: [operatorId], references: [id])
+  supervisorId String?
+  supervisor   User?   @relation("SupervisorInspections", fields: [supervisorId], references: [id])
+  qaId         String?
+  qa           User?   @relation("QaInspections", fields: [qaId], references: [id])
+
+  returnedReason String?
+  rejectedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responses           InspectionResponse[]
+  photoEvidence        PhotoEvidence[]
+  findings             Finding[]
+  verificationRecords  VerificationRecord[]
+  areaRelease          AreaRelease?
+  auditLogEntries      AuditLog[]
+
+  @@index([facilityId, status])
+  @@index([areaId, status])
+  @@index([dueAt])
+}
+
+model InspectionResponse {
+  id              String        @id @default(cuid())
+  inspectionId    String
+  inspection      Inspection    @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  checklistItemId String
+  checklistItem   ChecklistItem @relation(fields: [checklistItemId], references: [id])
+
+  passFail   ResponseValue?
+  numericValue Float?
+  textValue    String?
+  choiceValue  String?
+  comment      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photoEvidence PhotoEvidence[]
+  finding       Finding?
+
+  @@unique([inspectionId, checklistItemId])
+}
+
+enum ResponseValue {
+  PASS
+  FAIL
+  NA
+}
+
+// =========================================================================
+// PHOTO EVIDENCE — metadata only; binary lives in object storage (Vercel Blob)
+// =========================================================================
+
+enum PhotoKind {
+  GENERAL
+  BEFORE
+  AFTER
+}
+
+model PhotoEvidence {
+  id           String     @id @default(cuid())
+  inspectionId String?
+  inspection   Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  responseId   String?
+  response     InspectionResponse? @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  findingId    String?
+  // SetNull, not Cascade: a photo is durable evidence of what was observed —
+  // it must survive even if the Finding bookkeeping row it was attached to
+  // later gets deleted (e.g. an operator's auto-cleanup correction), per
+  // spec §14 "never create orphaned photos" / never silently destroy evidence.
+  finding      Finding?   @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  correctiveActionId String?
+  correctiveAction   CorrectiveAction? @relation(fields: [correctiveActionId], references: [id], onDelete: Cascade)
+
+  areaId      String?
+  area        Area?      @relation(fields: [areaId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+
+  kind         PhotoKind @default(GENERAL)
+  storagePath  String // Vercel Blob URL
+  thumbnailPath String?
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  caption      String?
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([inspectionId])
+  @@index([areaId])
+  @@index([findingId])
+}
+
+// =========================================================================
+// FINDINGS & CORRECTIVE ACTIONS
+// =========================================================================
+
+enum Severity {
+  CRITICAL
+  MAJOR
+  MINOR
+}
+
+enum FindingStatus {
+  OPEN
+  CORRECTIVE_ACTION_CREATED
+  CLOSED
+}
+
+model Finding {
+  id           String     @id @default(cuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  responseId   String?    @unique
+  response     InspectionResponse? @relation(fields: [responseId], references: [id])
+  checklistItemId String?
+  checklistItem   ChecklistItem? @relation(fields: [checklistItemId], references: [id])
+
+  areaId      String?
+  area        Area?      @relation(fields: [areaId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+
+  description       String
+  reason             String?
+  severity           Severity
+  status             FindingStatus @default(OPEN)
+  immediateCorrection String?
+
+  createdById String
+  createdBy   User   @relation("FindingCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  photoEvidence     PhotoEvidence[]
+  correctiveAction  CorrectiveAction?
+
+  @@index([areaId, status])
+  @@index([severity])
+}
+
+enum CorrectiveActionStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_VERIFICATION
+  CLOSED
+  OVERDUE
+}
+
+model CorrectiveAction {
+  id          String  @id @default(cuid())
+  findingId   String  @unique
+  finding     Finding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  areaId      String?
+  area        Area?      @relation(fields: [areaId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+
+  rootCause          String?
+  immediateCorrection String?
+  correctiveAction    String
+  preventiveAction    String?
+
+  responsibleUserId String
+  responsibleUser   User   @relation("CorrectiveActionResponsible", fields: [responsibleUserId], references: [id])
+  dueDate           DateTime
+  status            CorrectiveActionStatus @default(OPEN)
+
+  closedById String?
+  closedBy   User?    @relation("CorrectiveActionClosedBy", fields: [closedById], references: [id])
+  closedAt   DateTime?
+
+  verifiedById String?
+  verifiedBy   User?    @relation("CorrectiveActionVerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photoEvidence PhotoEvidence[]
+
+  @@index([status, dueDate])
+}
+
+// =========================================================================
+// THREE-LEVEL VERIFICATION — sign-off log (segregation of duties)
+// =========================================================================
+
+enum VerificationAction {
+  APPROVE
+  RETURN
+  REJECT
+}
+
+model VerificationRecord {
+  id           String     @id @default(cuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  stepRole     WorkflowRole
+  actorId      String
+  actor        User       @relation(fields: [actorId], references: [id])
+  action       VerificationAction
+  comment      String?
+  createdAt    DateTime   @default(now())
+
+  @@index([inspectionId])
+}
+
+// =========================================================================
+// AREA RELEASE — controlled cleaning/production release
+// =========================================================================
+
+enum AreaReleaseStatus {
+  NOT_RELEASED
+  AWAITING_SUPERVISOR
+  AWAITING_QA
+  QA_RELEASED
+}
+
+model AreaRelease {
+  id           String   @id @default(cuid())
+  areaId       String
+  area         Area     @relation(fields: [areaId], references: [id])
+  inspectionId String   @unique
+  inspection   Inspection @relation(fields: [inspectionId], references: [id])
+
+  status         AreaReleaseStatus @default(NOT_RELEASED)
+  supervisorId   String?
+  supervisor     User?    @relation("AreaReleaseSupervisor", fields: [supervisorId], references: [id])
+  supervisorAt   DateTime?
+  qaId           String?
+  qa             User?    @relation("AreaReleaseQa", fields: [qaId], references: [id])
+  qaAt           DateTime?
+  releasedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([areaId, status])
+}
+
+// =========================================================================
+// NOTIFICATIONS
+// =========================================================================
+
+enum NotificationType {
+  CHECK_DUE
+  CHECK_OVERDUE
+  SUPERVISOR_VERIFICATION_REQUIRED
+  QA_VERIFICATION_REQUIRED
+  CORRECTIVE_ACTION_DUE
+  CORRECTIVE_ACTION_OVERDUE
+  RETURNED
+  REJECTED
+  AREA_RELEASED
+}
+
+model Notification {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  @@index([userId, read])
+}
+
+// =========================================================================
+// AUDIT TRAIL — immutable log of every state-changing action
+// =========================================================================
+
+enum AuditAction {
+  CREATED
+  STARTED
+  EDITED
+  SUBMITTED
+  ITEM_FAILED
+  PHOTO_UPLOADED
+  FINDING_CREATED
+  CORRECTIVE_ACTION_CREATED
+  SUPERVISOR_REVIEWED
+  SUPERVISOR_APPROVED
+  RETURNED
+  REJECTED
+  QA_REVIEWED
+  QA_APPROVED
+  CLOSED
+  AREA_RELEASED
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  entityType   String // "Inspection" | "CorrectiveAction" | "Finding" | ...
+  entityId     String
+  inspectionId String?
+  inspection   Inspection? @relation(fields: [inspectionId], references: [id])
+  action       AuditAction
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  oldValue     Json?
+  newValue     Json?
+  reason       String?
+  createdAt    DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([inspectionId])
+}
