@@ -283,6 +283,21 @@ async function main() {
     "ATP swab — Per-run rotating — 1-2 critical FCS (NJP-2500C dosing disc, tamping pins) (per C.103 § 7); record RLU + Surface ID in Comments; if CAUTION/FAIL follow C.103 § 6.5 OOS Response",
   ];
 
+  // 5S mini-check — Sort/Set in Order/Shine/Standardise/Sustain, embedded as
+  // Section C on every Capsule Room cleaning checklist (not the separate,
+  // more detailed 0-5-scored Weekly 5S Audit). Each is PASS_FAIL, which now
+  // always carries an optional photo attach (spec §18), regardless of outcome.
+  const FIVE_S_CHECK_ITEMS = [
+    { prompt: "Sort (Seiri) — remove anything that is not needed", helpText: "Keep only what is required for the current job." },
+    { prompt: "Set in Order (Seiton) — everything has a place", helpText: "Keep tools, materials and equipment clearly labelled and organised." },
+    { prompt: "Shine (Seiso) — clean and inspect", helpText: "Clean spills, dust and equipment, and report damage or abnormalities." },
+    { prompt: "Standardise (Seiketsu) — follow the same standard every time", helpText: "Use SOPs, checklists, labels and visual standards." },
+    { prompt: "Sustain (Shitsuke) — maintain the standard every day", helpText: "Make 5S part of normal work, not just before an audit." },
+  ] as const;
+  function fiveSCheckItems() {
+    return FIVE_S_CHECK_ITEMS.map((i) => ({ prompt: i.prompt, helpText: i.helpText, type: "PASS_FAIL" as const, requiresPhotoOnFail: true }));
+  }
+
   const capsuleDaily = await makeChecklist(
     "Daily Cleaning Checklist — Capsule Room",
     "POST_OPERATION_CLEANING",
@@ -290,6 +305,7 @@ async function main() {
     [
       { label: "A. Equipment / Area — Daily Tasks", items: capsuleEquipmentDaily.flatMap(([n, eq, req]) => equipmentGroup(n, eq, req).items.map((i) => ({ ...i, prompt: `${n} — ${i.prompt}` }))) },
       { label: "B. Area & GMP Inspection", items: capsuleGmpDaily.map(gmpCheckItem) },
+      { label: "C. 5S Check", items: fiveSCheckItems() },
     ],
     "C-FORM-002B1 · Zone: ORANGE — Capsule Room · Cadence: Daily · Cleaning agents: CHM-011 (Neutral Detergent), CHM-021 (Pure IPA) per C-REG-001 Rev 07 · Verification: ATP swab per C.103 (QA-MGR risk-based spot check) · Rev V1 (Draft)"
   );
@@ -338,6 +354,7 @@ async function main() {
     [
       { label: "A. Equipment / Area — Weekly Tasks", items: capsuleEquipmentWeekly.flatMap(([n, eq, req]) => equipmentGroup(n, eq, req).items.map((i) => ({ ...i, prompt: `${n} — ${i.prompt}` }))) },
       { label: "B. Area & GMP Inspection", items: capsuleGmpWeekly.map(gmpCheckItem) },
+      { label: "C. 5S Check", items: fiveSCheckItems() },
     ],
     "C-FORM-002B2 · Zone: ORANGE — Capsule Room · Cadence: Weekly · Cleaning agents: CHM-011 (Neutral Detergent), CHM-021 (Pure IPA) per C-REG-001 Rev 07 · Verification: ATP swab per C.103 (QA-MGR risk-based spot check) · Rev V1 (Draft)"
   );
@@ -393,6 +410,7 @@ async function main() {
     [
       { label: "A. Equipment / Area — Monthly Deep Clean Tasks", items: capsuleEquipmentMonthly.flatMap(([n, eq, req]) => equipmentGroup(n, eq, req).items.map((i) => ({ ...i, prompt: `${n} — ${i.prompt}` }))) },
       { label: "B. Area & GMP Inspection", items: capsuleGmpMonthly.map(gmpCheckItem) },
+      { label: "C. 5S Check", items: fiveSCheckItems() },
     ],
     "C-FORM-002B3 · Zone: ORANGE — Capsule Room · Cadence: Monthly Deep Clean · Cleaning agents: CHM-011 (Neutral Detergent), CHM-021 (Pure IPA) per C-REG-001 Rev 07 · Verification: ATP swab per C.103 (QA-MGR risk-based spot check) · Rev V1 (Draft)"
   );

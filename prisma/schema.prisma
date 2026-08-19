@@ -56,6 +56,7 @@ model User {
   notifications         Notification[]
   auditLogEntries       AuditLog[]
   checklistVersionsCreated ChecklistVersion[]
+  respondedItems        InspectionResponse[]
 
   @@index([role])
 }
@@ -404,6 +405,14 @@ model InspectionResponse {
   textValue    String?
   choiceValue  String?
   comment      String?
+
+  // Who actually ticked this specific item and when — distinct from the
+  // Inspection's overall operatorId, since a supervisor/admin can fill in
+  // items on someone else's behalf and GMP forms expect per-task attribution
+  // (e.g. "record operator initials" on several items in the real C-FORM-002
+  // documents), not just one signature for the whole form.
+  respondedById String?
+  respondedBy   User?    @relation(fields: [respondedById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

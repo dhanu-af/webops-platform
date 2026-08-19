@@ -66,7 +66,7 @@ export async function getInspection(inspectionId: string) {
       operator: true,
       supervisor: true,
       qa: true,
-      responses: { include: { photoEvidence: true, finding: { include: { correctiveAction: true, photoEvidence: true } } } },
+      responses: { include: { photoEvidence: true, respondedBy: true, finding: { include: { correctiveAction: true, photoEvidence: true } } } },
       photoEvidence: true,
       verificationRecords: { include: { actor: true }, orderBy: { createdAt: "asc" } },
       areaRelease: true,
@@ -101,6 +101,7 @@ export async function saveResponse(input: {
       textValue: input.textValue,
       choiceValue: input.choiceValue,
       comment: input.comment,
+      respondedById: user.id,
     },
     update: {
       passFail: input.passFail,
@@ -108,6 +109,7 @@ export async function saveResponse(input: {
       textValue: input.textValue,
       choiceValue: input.choiceValue,
       comment: input.comment,
+      respondedById: user.id,
     },
   });
 
@@ -270,9 +272,9 @@ export async function submitInspection(inspectionId: string) {
     if (item.required && !response) {
       throw new Error(`"${item.prompt}" is required.`);
     }
-    // An ACKNOWLEDGEMENT item has no PASS/FAIL state — it's only "done" once
-    // ticked, which is recorded as choiceValue "DONE" (see checklist-item-card.tsx).
-    if (item.required && item.type === "ACKNOWLEDGEMENT" && response?.choiceValue !== "DONE") {
+    // An ACKNOWLEDGEMENT item has no PASS/FAIL state — it's answered once
+    // marked "DONE" or "NA" (see checklist-item-card.tsx / equipment-task-row.tsx).
+    if (item.required && item.type === "ACKNOWLEDGEMENT" && response?.choiceValue !== "DONE" && response?.choiceValue !== "NA") {
       throw new Error(`"${item.prompt}" is required.`);
     }
     if (response?.passFail === "FAIL" && (item.requiresPhotoOnFail || item.criticalFailure)) {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { saveResponse, createFindingDetail } from "@/lib/actions/inspections";
 import { PhotoUpload } from "./photo-upload";
+import { formatAttribution } from "@/lib/format-attribution";
 import type { ResponseValue, Severity } from "@/app/generated/prisma/client";
 
 // Debounced auto-save, not onBlur: mobile virtual keyboards and rapid
@@ -36,6 +37,8 @@ type ItemResponse = {
   textValue: string | null;
   choiceValue: string | null;
   comment: string | null;
+  updatedAt: Date;
+  respondedBy: { name: string } | null;
   photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }>;
   finding: { id: string; severity: Severity; reason: string | null; photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }> } | null;
 } | null;
@@ -80,8 +83,8 @@ export function ChecklistItemCard({
     });
   }
 
-  function toggleAcknowledgement() {
-    const next = response?.choiceValue === "DONE" ? "" : "DONE";
+  function setAcknowledgement(value: "DONE" | "NA") {
+    const next = response?.choiceValue === value ? "" : value;
     startTransition(async () => {
       await saveResponse({ inspectionId, checklistItemId: item.id, choiceValue: next });
     });
@@ -180,31 +183,46 @@ export function ChecklistItemCard({
         )}
 
         {item.type === "ACKNOWLEDGEMENT" && (
-          <button
-            type="button"
-            disabled={!editable}
-            onClick={toggleAcknowledgement}
-            className={cn(
-              "flex h-12 w-full items-center gap-3 rounded-xl border px-4 text-sm font-medium transition-colors",
-              response?.choiceValue === "DONE"
-                ? "border-status-pass/40 bg-status-pass-soft text-status-pass"
-                : "border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
-            )}
-          >
-            <span
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!editable}
+              onClick={() => setAcknowledgement("DONE")}
               className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-md border-2",
-                response?.choiceValue === "DONE" ? "border-status-pass bg-status-pass text-white" : "border-border-strong"
+                "flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors",
+                response?.choiceValue === "DONE"
+                  ? "border-status-pass/40 bg-status-pass-soft text-status-pass"
+                  : "border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
               )}
             >
-              {response?.choiceValue === "DONE" && (
-                <svg viewBox="0 0 16 16" fill="none" className="size-3">
-                  <path d="M3 8.5L6 11.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <span
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-md border-2",
+                  response?.choiceValue === "DONE" ? "border-status-pass bg-status-pass text-white" : "border-border-strong"
+                )}
+              >
+                {response?.choiceValue === "DONE" && (
+                  <svg viewBox="0 0 16 16" fill="none" className="size-3">
+                    <path d="M3 8.5L6 11.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              {response?.choiceValue === "DONE" ? "Done" : "Mark as done"}
+            </button>
+            <button
+              type="button"
+              disabled={!editable}
+              onClick={() => setAcknowledgement("NA")}
+              className={cn(
+                "h-12 rounded-xl border text-sm font-semibold transition-colors",
+                response?.choiceValue === "NA"
+                  ? "border-status-neutral/40 bg-status-neutral-soft text-status-neutral"
+                  : "border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
               )}
-            </span>
-            {response?.choiceValue === "DONE" ? "Done" : "Mark as done"}
-          </button>
+            >
+              N/A
+            </button>
+          </div>
         )}
 
         {item.type === "TEXT" && (
@@ -219,6 +237,12 @@ export function ChecklistItemCard({
         )}
       </div>
 
+      {response?.respondedBy && (
+        <p className="mt-2 font-mono-tabular text-[11px] text-muted">
+          {formatAttribution(response.respondedBy.name, response.updatedAt)}
+        </p>
+      )}
+
       {failed && (
         <FindingDetail
           findingId={response?.finding?.id}
@@ -228,7 +252,11 @@ export function ChecklistItemCard({
         />
       )}
 
-      {(needsPhoto || allPhotos.length > 0) && (
+      {/* Photo evidence is always optionally attachable on a judgement item,
+          not just when it failed — spec §18 "Allow photos for each 5S
+          category" applies beyond just failures (before/after, general
+          proof), so only NUMERIC/TEXT data-entry items skip it. */}
+      {(item.type === "PASS_FAIL" || item.type === "YES_NO" || item.type === "ACKNOWLEDGEMENT" || needsPhoto || allPhotos.length > 0) && (
         <div className="mt-3">
           <PhotoUpload
             inspectionId={inspectionId}

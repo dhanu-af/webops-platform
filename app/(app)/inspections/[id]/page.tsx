@@ -29,7 +29,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const answered = items.filter((i) => {
     const r = responseByItem.get(i.id);
     if (!r) return false;
-    return i.type === "ACKNOWLEDGEMENT" ? r.choiceValue === "DONE" : true;
+    return i.type === "ACKNOWLEDGEMENT" ? r.choiceValue === "DONE" || r.choiceValue === "NA" : true;
   }).length;
 
   const canActSupervisor =
@@ -84,12 +84,17 @@ export default async function InspectionDetailPage({ params }: { params: Promise
                     editable={editable}
                     equipmentName={row.equipmentName}
                     helpText={row.helpText}
-                    items={row.items.map((item) => ({
-                      id: item.id,
-                      stage: item.prompt.split(" — ").pop() as "Clean" | "Sanitised" | "Dry",
-                      required: item.required,
-                      choiceValue: responseByItem.get(item.id)?.choiceValue ?? null,
-                    }))}
+                    items={row.items.map((item) => {
+                      const r = responseByItem.get(item.id);
+                      return {
+                        id: item.id,
+                        stage: item.prompt.split(" — ").pop() as "Clean" | "Sanitised" | "Dry",
+                        required: item.required,
+                        choiceValue: r?.choiceValue ?? null,
+                        respondedByName: r?.respondedBy?.name ?? null,
+                        respondedAt: r?.updatedAt ?? null,
+                      };
+                    })}
                   />
                 ) : (
                   <ChecklistItemCard
