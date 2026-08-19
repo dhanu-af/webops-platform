@@ -26,11 +26,19 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
   const responseByItem = new Map(inspection.responses.map((r) => [r.checklistItemId, r]));
   const items = inspection.checklistVersion.items;
-  const answered = items.filter((i) => {
+
+  // An equipment triplet (Clean/Sanitised/Dry) counts as one item toward the
+  // "answered / total" tally shown in the SubmitBar, matching how it renders
+  // as a single row — answered as soon as any one of the three is set, not
+  // only once all three are.
+  const isItemAnswered = (i: (typeof items)[number]) => {
     const r = responseByItem.get(i.id);
     if (!r) return false;
     return i.type === "ACKNOWLEDGEMENT" ? r.choiceValue === "DONE" || r.choiceValue === "NA" : true;
-  }).length;
+  };
+  const renderRows = buildChecklistRenderRows(items);
+  const total = renderRows.length;
+  const answered = renderRows.filter((row) => (row.kind === "equipment-triplet" ? row.items.some(isItemAnswered) : isItemAnswered(row.item))).length;
 
   const canActSupervisor =
     inspection.status === "AWAITING_SUPERVISOR" &&
@@ -125,7 +133,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
         </div>
       ) : null}
 
-      {editable && <SubmitBar inspectionId={inspection.id} answered={answered} total={items.length} />}
+      {editable && <SubmitBar inspectionId={inspection.id} answered={answered} total={total} />}
     </div>
   );
 }
