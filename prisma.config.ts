@@ -10,6 +10,11 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrations need Neon's direct, unpooled connection — PgBouncer's
+    // transaction-mode pooling (what DATABASE_URL points at) doesn't
+    // reliably support the session-level operations `migrate deploy` needs,
+    // and hangs rather than failing fast. Runtime queries still use the
+    // pooled DATABASE_URL via the adapter in lib/db.ts.
+    url: process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"],
   },
 });
