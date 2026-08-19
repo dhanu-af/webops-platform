@@ -11,6 +11,11 @@ import { VerificationTimeline } from "@/components/inspection/verification-timel
 import { canVerifyOwnWork } from "@/lib/permissions";
 import { buildChecklistRenderRows } from "@/lib/checklist-render";
 
+// Headroom for submitInspection's several sequential DB round-trips against
+// Neon under a cold compute — the platform default has been observed timing
+// out mid-submit in production (surfaces as a generic redacted RSC error).
+export const maxDuration = 30;
+
 export default async function InspectionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();

@@ -258,7 +258,25 @@ export async function closeCorrectiveAction(id: string) {
 // off to the next verification step (spec §15).
 export async function submitInspection(inspectionId: string) {
   const user = await requireUser();
-  const inspection = await getInspection(inspectionId);
+  // Deliberately narrower than getInspection() (used for page rendering) — this
+  // only needs items/responses for validation and a couple of display fields
+  // for the notify() message, not the full page's supervisor/qa/verification/
+  // areaRelease graph. Fewer joins means less query time on a cold Neon compute.
+  const inspection = await db.inspection.findUniqueOrThrow({
+    where: { id: inspectionId },
+    select: {
+      operatorId: true,
+      area: { select: { name: true } },
+      checklistVersion: {
+        select: {
+          items: { orderBy: { sortOrder: "asc" } },
+          checklist: { select: { name: true, workflow: { select: { steps: true } } } },
+        },
+      },
+      responses: { select: { checklistItemId: true, passFail: true, choiceValue: true, id: true, finding: { select: { photoEvidence: { select: { id: true } } } } } },
+      photoEvidence: { select: { responseId: true } },
+    },
+  });
 
   if (inspection.operatorId && inspection.operatorId !== user.id) {
     throw new Error("Only the assigned operator can submit this inspection.");
@@ -291,31 +309,38 @@ export async function submitInspection(inspectionId: string) {
   const nextStep = steps.find((s) => s.role !== "OPERATOR");
   const nextStatus = nextStep?.role === "SUPERVISOR" || nextStep?.role === "TEAM_LEADER" ? "AWAITING_SUPERVISOR" : nextStep?.role === "QA" ? "AWAITING_QA" : "CLOSED";
 
-  await db.inspection.update({
-    where: { id: inspectionId },
-    data: { status: nextStatus, submittedAt: new Date(), score, operatorId: inspection.operatorId ?? user.id, returnedReason: null },
-  });
-  await logAudit({ entityType: "Inspection", entityId: inspectionId, inspectionId, action: "SUBMITTED", userId: user.id, newValue: { status: nextStatus, score } });
+  // These three are independent of each other's results — fire them as one
+  // round-trip instead of three sequential ones (each additional sequential
+  // query adds a full network round-trip to Neon, which matters under a cold
+  // compute; see HANDOVER.md's "Minified React error #441" investigation).
+  const role: WorkflowRole | null = nextStatus === "AWAITING_SUPERVISOR" ? "SUPERVISOR" : nextStatus === "AWAITING_QA" ? "QA" : null;
+  const [, , reviewers] = await Promise.all([
+    db.inspection.update({
+      where: { id: inspectionId },
+      data: { status: nextStatus, submittedAt: new Date(), score, operatorId: inspection.operatorId ?? user.id, returnedReason: null },
+    }),
+    logAudit({ entityType: "Inspection", entityId: inspectionId, inspectionId, action: "SUBMITTED", userId: user.id, newValue: { status: nextStatus, score } }),
+    role
+      ? db.user.findMany({ where: { role: role === "SUPERVISOR" ? { in: ["SUPERVISOR", "TEAM_LEADER"] } : "QA", active: true } })
+      : Promise.resolve([]),
+  ]);
 
-  if (nextStatus === "AWAITING_SUPERVISOR" || nextStatus === "AWAITING_QA") {
-    const role: WorkflowRole = nextStatus === "AWAITING_SUPERVISOR" ? "SUPERVISOR" : "QA";
-    const reviewers = await db.user.findMany({ where: { role: role === "SUPERVISOR" ? { in: ["SUPERVISOR", "TEAM_LEADER"] } : "QA", active: true } });
-    // Notifications are best-effort: the submission itself (status update + audit
-    // log above) has already succeeded by this point, so a transient failure
-    // notifying one reviewer must not surface as a submission error to the user.
-    for (const reviewer of reviewers) {
-      try {
-        await notify(
+  if (role) {
+    // Notifications are best-effort and independent of each other: fire them
+    // concurrently rather than one sequential round-trip per reviewer, so N
+    // reviewers cost roughly the same latency as one. A failed notification
+    // (this submission has already succeeded by this point) is logged, not thrown.
+    await Promise.allSettled(
+      reviewers.map((reviewer) =>
+        notify(
           reviewer.id,
           role === "SUPERVISOR" ? "SUPERVISOR_VERIFICATION_REQUIRED" : "QA_VERIFICATION_REQUIRED",
           `${inspection.checklistVersion.checklist.name} needs verification`,
           `${inspection.area?.name ?? "Facility"} — submitted by ${user.name}`,
           `/inspections/${inspectionId}`
-        );
-      } catch (e) {
-        console.error(`Failed to notify reviewer ${reviewer.id} of inspection ${inspectionId}:`, e);
-      }
-    }
+        ).catch((e) => console.error(`Failed to notify reviewer ${reviewer.id} of inspection ${inspectionId}:`, e))
+      )
+    );
   }
 
   revalidatePath("/inspections");
