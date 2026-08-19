@@ -38,6 +38,8 @@ model User {
   jobTitle     String?
   phone        String?
   active       Boolean  @default(true)
+  sectionId    String?
+  section      Section? @relation(fields: [sectionId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -94,6 +96,7 @@ model Section {
 
   areas              Area[]
   checklistSchedules ChecklistSchedule[]
+  users              User[]
   inspections        Inspection[]
 
   @@unique([facilityId, code])
@@ -675,6 +678,7 @@ enum AuditAction {
   QA_REVIEWED
   QA_APPROVED
   CLOSED
+  LOGIN
   AREA_RELEASED
 }
 
