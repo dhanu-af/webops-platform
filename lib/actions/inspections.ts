@@ -300,14 +300,21 @@ export async function submitInspection(inspectionId: string) {
   if (nextStatus === "AWAITING_SUPERVISOR" || nextStatus === "AWAITING_QA") {
     const role: WorkflowRole = nextStatus === "AWAITING_SUPERVISOR" ? "SUPERVISOR" : "QA";
     const reviewers = await db.user.findMany({ where: { role: role === "SUPERVISOR" ? { in: ["SUPERVISOR", "TEAM_LEADER"] } : "QA", active: true } });
+    // Notifications are best-effort: the submission itself (status update + audit
+    // log above) has already succeeded by this point, so a transient failure
+    // notifying one reviewer must not surface as a submission error to the user.
     for (const reviewer of reviewers) {
-      await notify(
-        reviewer.id,
-        role === "SUPERVISOR" ? "SUPERVISOR_VERIFICATION_REQUIRED" : "QA_VERIFICATION_REQUIRED",
-        `${inspection.checklistVersion.checklist.name} needs verification`,
-        `${inspection.area?.name ?? "Facility"} — submitted by ${user.name}`,
-        `/inspections/${inspectionId}`
-      );
+      try {
+        await notify(
+          reviewer.id,
+          role === "SUPERVISOR" ? "SUPERVISOR_VERIFICATION_REQUIRED" : "QA_VERIFICATION_REQUIRED",
+          `${inspection.checklistVersion.checklist.name} needs verification`,
+          `${inspection.area?.name ?? "Facility"} — submitted by ${user.name}`,
+          `/inspections/${inspectionId}`
+        );
+      } catch (e) {
+        console.error(`Failed to notify reviewer ${reviewer.id} of inspection ${inspectionId}:`, e);
+      }
     }
   }
 

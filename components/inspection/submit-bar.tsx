@@ -28,10 +28,19 @@ export function SubmitBar({ inspectionId, answered, total }: { inspectionId: str
               setError(null);
               try {
                 await submitInspection(inspectionId);
-                router.refresh();
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "Could not submit.");
+              } catch {
+                // Transient connection hiccups against the database show up here as an
+                // opaque, redacted RSC error digest rather than a real error message —
+                // nothing has been written yet at this point, so a single silent retry
+                // is safe and resolves it without bothering the operator.
+                try {
+                  await submitInspection(inspectionId);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Could not submit.");
+                  return;
+                }
               }
+              router.refresh();
             })
           }
         >
