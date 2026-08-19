@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import { LogOut } from "lucide-react";
 
@@ -10,10 +11,10 @@ export function Topbar({ name, role }: { name: string; role: string }) {
         </span>
       </div>
       <div className="flex items-center gap-4">
-        <div className="text-right">
+        <Link href="/account" className="text-right hover:opacity-80" title="My Account">
           <div className="text-sm font-medium text-foreground">{name}</div>
           <div className="text-xs text-muted">{role.replace(/_/g, " ")}</div>
-        </div>
+        </Link>
         <form
           action={async () => {
             "use server";

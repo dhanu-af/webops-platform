@@ -54,6 +54,19 @@ export async function getSectionsForUserForm() {
   return db.section.findMany({ include: { facility: true }, orderBy: [{ facility: { name: "asc" } }, { sortOrder: "asc" }] });
 }
 
+export async function changePassword(input: { currentPassword: string; newPassword: string }) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Not authenticated");
+
+  const user = await db.user.findUniqueOrThrow({ where: { id: session.user.id } });
+  const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!valid) throw new Error("Current password is incorrect.");
+
+  const passwordHash = await bcrypt.hash(input.newPassword, 10);
+  await db.user.update({ where: { id: user.id }, data: { passwordHash } });
+  await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: user.id, reason: "Password changed" });
+}
+
 export async function getRecentLogins(take = 20) {
   await requireUserManager();
   return db.auditLog.findMany({
