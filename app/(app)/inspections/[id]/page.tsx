@@ -4,10 +4,12 @@ import { getInspection } from "@/lib/actions/inspections";
 import { Badge } from "@/components/ui/badge";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 import { ChecklistItemCard } from "@/components/inspection/checklist-item-card";
+import { EquipmentTaskRow } from "@/components/inspection/equipment-task-row";
 import { SubmitBar } from "@/components/inspection/submit-bar";
 import { VerificationActions, ResubmitButton } from "@/components/inspection/verification-actions";
 import { VerificationTimeline } from "@/components/inspection/verification-timeline";
 import { canVerifyOwnWork } from "@/lib/permissions";
+import { buildChecklistRenderRows } from "@/lib/checklist-render";
 
 export default async function InspectionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -74,15 +76,31 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           <div key={groupLabel} className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">{groupLabel}</h2>
             <div className="space-y-3">
-              {groupItems.map((item) => (
-                <ChecklistItemCard
-                  key={item.id}
-                  inspectionId={inspection.id}
-                  editable={editable}
-                  item={item}
-                  response={responseByItem.get(item.id) ?? null}
-                />
-              ))}
+              {buildChecklistRenderRows(groupItems).map((row) =>
+                row.kind === "equipment-triplet" ? (
+                  <EquipmentTaskRow
+                    key={row.items[0].id}
+                    inspectionId={inspection.id}
+                    editable={editable}
+                    equipmentName={row.equipmentName}
+                    helpText={row.helpText}
+                    items={row.items.map((item) => ({
+                      id: item.id,
+                      stage: item.prompt.split(" — ").pop() as "Clean" | "Sanitised" | "Dry",
+                      required: item.required,
+                      choiceValue: responseByItem.get(item.id)?.choiceValue ?? null,
+                    }))}
+                  />
+                ) : (
+                  <ChecklistItemCard
+                    key={row.item.id}
+                    inspectionId={inspection.id}
+                    editable={editable}
+                    item={row.item}
+                    response={responseByItem.get(row.item.id) ?? null}
+                  />
+                )
+              )}
             </div>
           </div>
         ))}
