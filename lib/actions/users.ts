@@ -124,6 +124,21 @@ export async function setUserActive(userId: string, active: boolean) {
   return user.active;
 }
 
+// For a user who's forgotten their password entirely (self-service change
+// requires knowing the *current* password, so it can't help here) — an admin
+// sets a new one directly, no email/reset-token infra needed.
+export async function adminResetPassword(userId: string, newPassword: string) {
+  const actor = await requireUserManager();
+
+  if (newPassword.length < 8) throw new Error("Password must be at least 8 characters.");
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await db.user.update({ where: { id: userId }, data: { passwordHash } });
+  await logAudit({ entityType: "User", entityId: userId, action: "EDITED", userId: actor.id, reason: "Password reset by admin" });
+
+  revalidatePath("/admin/users");
+}
+
 export async function getRecentLogins(take = 20) {
   await requireUserManager();
   return db.auditLog.findMany({

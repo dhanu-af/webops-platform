@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { EditUserForm } from "./edit-user-form";
+import { ResetPasswordForm } from "@/components/admin/reset-password-form";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -30,6 +31,20 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         initialJobTitle={user.jobTitle ?? ""}
         sections={sections.map((s) => ({ id: s.id, label: `${s.facility.name} / ${s.name}` }))}
       />
+
+      {user.id === session.user.id ? (
+        <div>
+          <h2 className="text-sm font-semibold tracking-tight text-foreground">Password</h2>
+          <p className="mt-1 text-sm text-muted">
+            Change your own password from <a href="/account" className="text-accent hover:underline">Account settings</a> instead.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Reset Password</h2>
+          <ResetPasswordForm userId={user.id} />
+        </div>
+      )}
     </div>
   );
 }
