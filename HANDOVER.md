@@ -26,19 +26,33 @@ Build **WEB OPS**, a standalone digital facility operations & compliance platfor
   - **Login history**: new `LOGIN` value on the `AuditAction` enum, logged in `lib/auth.ts`'s `authorize()` on every successful sign-in, shown as a "Recent Logins" panel on the Users page.
 - **Self-service password change** (`b78508b`) — new `/account` page (linked from the topbar name/role), any logged-in user can change their own password (current password verified via bcrypt before allowing the change). No password-reset-for-others / forgot-password flow exists yet.
 
-## "Minified React error #441" on Submit — RESOLVED
+## "Minified React error #441" on Submit — mitigated with high confidence, watch for recurrence
 
-This was the user's main recurring complaint tonight: after filling out a checklist and hitting "Submit for Verification," the page would show `Minified React error #441` instead of submitting.
+This was the user's main recurring complaint tonight: after filling out a checklist and hitting "Submit for Verification," the page would show `Minified React error #441` instead of submitting. This section went through several wrong theories before landing on real evidence — the final understanding is at the top; the discarded theories are kept below since the techniques (digest decoding, raw-SQL isolation) are reusable.
 
-**What it actually was**: `submitInspection` (in `lib/actions/inspections.ts`) was making 4+ sequential database round-trips per submission (fetch the full inspection via the page's heavyweight `getInspection()` — supervisor/qa/verification/areaRelease graph and all — then update status, then write an audit log, then look up reviewers, then one more write per reviewer notified). On Neon (serverless Postgres, cold-starts after idling) combined with Vercel's function timeout, this was long enough to fail intermittently — never locally (instant local Postgres, no cold starts), but repeatedly in production across different users, different checklist types, and different specific records. Confirmed as connection-level failures are a real, demonstrated failure mode for this exact stack (independently hit "Server has closed the connection" against local Postgres tonight after script-hygiene issues — same error class Neon would produce under a dropped/cold connection).
+**The decisive evidence**: for one specific stuck record, ran the *exact* Postgres `UPDATE` that `submitInspection` performs directly in Neon's SQL Editor (bypassing the app entirely) — it succeeded instantly, no constraint violation, nothing wrong with the data. This ruled out a data-level cause conclusively and pointed at the Prisma client's connection layer in production specifically (never reproduces locally against instant local Postgres). Independently, a direct SQL check on a "failed" record consistently showed `status: IN_PROGRESS`, `submittedAt: null` — the write never even committed, ruling out a rendering-phase bug (an already-committed write wouldn't look like this).
 
-**The fix (`dc9be5d`)**:
-1. `submitInspection` now runs its own narrow, purpose-built query (`select`, not the page's full `include` graph) — only items, responses, and the couple of display fields it actually needs.
-2. The status update, audit log write, and reviewer lookup now run concurrently via `Promise.all` instead of three sequential `await`s.
-3. Reviewer notifications fire concurrently via `Promise.allSettled` instead of one round-trip per reviewer (also wrapped so a failed notification — non-critical — can't fail the submission itself).
-4. `maxDuration = 30` added to the inspection detail page/action as headroom against any remaining cold-start latency.
+**Most likely root cause**: a Neon/Prisma/serverless connection-pool issue — either a stale pooled connection reused across warm Vercel function invocations (fails on Neon compute scale-to-zero), or a `P2024` pool-timeout under concurrent load. Three consecutive production failures on the same record produced three *different* error digests across three different deploys, which is consistent with a connection-layer error whose exact digest depends on which query happens to hit it, not a fixed application bug.
 
-**Verified working**: after this deployed, tested three fresh submissions on production (Blending Room Post-Op, and — critically — a fresh instance of the *exact* Monthly Cleaning Checklist — Capsule Room checklist the user had been stuck on, same 38 items) — all three submitted cleanly to `AWAITING_SUPERVISOR` with zero errors.
+**Fixes shipped, in order (`dc9be5d` → `6dc3d64` → `3be7bb1`)**:
+1. `submitInspection` uses its own narrow query (only items/responses/display fields) instead of the page's full `getInspection()` graph — fewer joins, less time per round-trip.
+2. The critical status-update write runs on its own, retried independently — not bundled into a `Promise.all` with other writes (reverted that: if a sibling promise rejects first, that doesn't guarantee the critical write's own promise has settled, an unnecessary risk once each write is independently retried anyway).
+3. **`withDbRetry()` in `lib/db.ts`** — wraps every DB call on the submit path, retrying up to twice (300ms backoff) on connection/timeout-class errors: `P1001`, `P1008`, `P1017`, `P2024`, and message patterns for `connection ... terminated/closed/reset/error`, `timed? ?out`, `ECONNRESET`/`ETIMEDOUT`/`EPIPE`. The first version only matched `P1001`/`P1017` and missed pool-timeout errors — broadened after the raw-SQL test above ruled out everything else.
+4. `maxDuration = 30` on the inspection detail page/action, as headroom against cold-start latency.
+5. Reviewer notifications fire concurrently (`Promise.allSettled`) and can't fail the submission itself (best-effort).
+
+**Verified**: the specific record that had failed 3 times (`cmt15kp7e000104jyxw6ss833`) was fixed directly via the raw SQL update above, then 4 consecutive fresh rapid-fire submissions across different checklist types (Blending Post-Op, Weekly/Monthly Capsule Room) all succeeded cleanly post-deploy.
+
+**Not 100% certain this is fully eliminated** — the failure was always intermittent, and "4 in a row worked" doesn't prove a rare connection issue can't still occur. If it recurs: check whether it's now actually being *caught and retried* (should be mostly invisible to the user, just a beat slower) vs. still surfacing as an error — the latter would mean either the error message doesn't match `isTransientConnectionError`'s patterns (broaden them further, using the real error text if a Vercel log/CLI token is ever available) or this genuinely isn't a connection issue at all and needs a fresh look.
+
+<details>
+<summary>Discarded theories from earlier in this investigation (click to expand)</summary>
+
+- **Isolated to old "contaminated" records** — disproven by wiping all inspection data and testing fresh; still recurred.
+- **Tied to the submitting user's role** (every failure seemed to be SUPER_ADMIN, every success OPERATOR) — disproven by a clean test: SUPER_ADMIN succeeded on a fresh record, OPERATOR wasn't actually tested as rigorously as assumed. Weakly-confounded correlation, not causation.
+- **A rendering bug in `VerificationTimeline` / `VerificationActions` / a hydration mismatch** — read through all of these, nothing unsafe found, and the "write never commits" evidence rules out render-phase bugs entirely (a render bug would mean the write already succeeded).
+- **The original `getInspection` reuse itself being wrong** — plausible contributor (more round-trips = more exposure to a flaky connection) but not sufficient on its own, since the bug persisted after removing it.
+</details>
 
 **What was NOT the cause, ruled out along the way** (kept briefly in case this ever resurfaces): not tied to a specific old "contaminated" record (disproven by a full data wipe that still reproduced it on fresh records), not tied to the submitting user's role (Dana/SUPER_ADMIN and Jordan/OPERATOR both succeeded and failed at different points), not a missing `INSPECTION_STATUS_META` entry, not the `VerificationTimeline` component, not a hydration mismatch in `formatAttribution`. Two earlier defensive-only fixes (`84c3969`: retry-once + best-effort notifications) shipped before the real cause was found — they're harmless and still in place, but the structural fix above is what actually resolved it.
 
