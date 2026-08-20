@@ -5,11 +5,14 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ToggleUserActiveButton } from "@/components/admin/toggle-user-active-button";
 import { Plus } from "lucide-react";
 
 export default async function UsersAdminPage() {
   const session = await auth();
   if (!session?.user || !can(session.user.role, "users.manage")) notFound();
+
+  const currentUserId = session.user.id;
 
   const [users, recentLogins] = await Promise.all([
     db.user.findMany({ include: { section: { include: { facility: true } } }, orderBy: { name: "asc" } }),
@@ -48,6 +51,10 @@ export default async function UsersAdminPage() {
                 <div className="flex items-center gap-2">
                   <Badge tone={u.active ? "pass" : "neutral"}>{u.active ? "Active" : "Inactive"}</Badge>
                   <Badge tone="accent">{u.role.replace(/_/g, " ")}</Badge>
+                  <Button href={`/admin/users/${u.id}/edit`} size="sm" variant="secondary">
+                    Edit
+                  </Button>
+                  {u.id !== currentUserId && <ToggleUserActiveButton userId={u.id} active={u.active} />}
                 </div>
               </div>
             ))}

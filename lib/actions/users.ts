@@ -67,6 +67,63 @@ export async function changePassword(input: { currentPassword: string; newPasswo
   await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: user.id, reason: "Password changed" });
 }
 
+export async function updateUser(
+  userId: string,
+  input: { role: UserRole; employeeId?: string; sectionId?: string; jobTitle?: string }
+) {
+  const actor = await requireUserManager();
+
+  const before = await db.user.findUniqueOrThrow({ where: { id: userId } });
+
+  // Changing your own role could lock you out of the permission that let you
+  // get here (e.g. demoting yourself out of SUPER_ADMIN) — block that specific
+  // change, not the whole edit (your own job title/section are harmless).
+  if (userId === actor.id && input.role !== before.role) {
+    throw new Error("You can't change your own role. Ask another admin to do it.");
+  }
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      role: input.role,
+      employeeId: input.employeeId || null,
+      sectionId: input.sectionId || null,
+      jobTitle: input.jobTitle || null,
+    },
+  });
+
+  await logAudit({
+    entityType: "User",
+    entityId: userId,
+    action: "EDITED",
+    userId: actor.id,
+    oldValue: { role: before.role, employeeId: before.employeeId, sectionId: before.sectionId, jobTitle: before.jobTitle },
+    newValue: input,
+  });
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users");
+}
+
+export async function setUserActive(userId: string, active: boolean) {
+  const actor = await requireUserManager();
+
+  if (userId === actor.id) throw new Error("You can't deactivate your own account.");
+
+  const user = await db.user.update({ where: { id: userId }, data: { active } });
+  await logAudit({
+    entityType: "User",
+    entityId: userId,
+    action: "EDITED",
+    userId: actor.id,
+    oldValue: { active: !active },
+    newValue: { active },
+    reason: active ? "Reactivated" : "Deactivated",
+  });
+
+  revalidatePath("/admin/users");
+  return user.active;
+}
+
 export async function getRecentLogins(take = 20) {
   await requireUserManager();
   return db.auditLog.findMany({
