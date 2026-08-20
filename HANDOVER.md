@@ -1,4 +1,4 @@
-# Handover — 2026-08-20 09:25
+# Handover — 2026-08-20 18:40
 
 ## Goal
 
@@ -10,7 +10,7 @@ Build **WEB OPS**, a standalone digital facility operations & compliance platfor
 
 - Local repo: `~/webops-platform`. Pushed to GitHub: `dhanu-af/webops-platform` (private).
 - **Live production**: Vercel team **`DKNS`** (id `dkns1`) → project `webops-platform` → **https://webops-platform-three.vercel.app**. Neon Postgres project **`neon-byzantium-saddle`** (see gotcha below — there's a similarly-named unrelated Neon project on the same team, easy to query by mistake) + Vercel Blob. Auto-deploy-on-push confirmed working repeatedly.
-- Latest commits on `master`, all pushed and deployed: `0d23fd0` → `f2924de` → `877951c` → `89c22b8` (N/A on acknowledgements, per-response attribution, always-optional photos, 5S seed section) → `9133385` (equipment-triplet item counting) → `84c3969` (submission resilience, superseded — see below) → `147f7ad` (user creation + department/section + login history) → `b78508b` (self-service password change) → **`dc9be5d`** (the actual fix for error #441 — see below).
+- Latest commits on `master`, all pushed and deployed: `0d23fd0` → `f2924de` → `877951c` → `89c22b8` (N/A on acknowledgements, per-response attribution, always-optional photos, 5S seed section) → `9133385` (equipment-triplet item counting) → `84c3969` (submission resilience, superseded) → `147f7ad` (user creation + department/section + login history) → `b78508b` (self-service password change) → `dc9be5d` → `6dc3d64` → `3be7bb1` (the actual fix for error #441 — see below) → **`a707266`** (Ops Calendar module).
 - **Your real super admin account is live**: name "Dhanu", email `khdanushka@gmail.com`, role SUPER_ADMIN. Password was set via the app's own Create User form (not raw SQL) — change it any time from `/account` (linked off your name in the top-right corner).
 - Production has **not** been reseeded, so the new "C. 5S Check" section (seed data, not schema) doesn't show yet — pending decision, see Next steps.
 - **All inspection execution history on production has been wiped twice this session** while chasing the bug below (once for one record, once for everything). Checklist/checklist-version definitions, areas, equipment, and users were never touched — only inspection instances and their responses/photos/findings. Confirm with the user this didn't cost her anything she cared about.
@@ -25,6 +25,7 @@ Build **WEB OPS**, a standalone digital facility operations & compliance platfor
   - **Department/Section assignment**: new nullable `User.sectionId` FK to the existing `Section` model (the same Facility→Section→Area hierarchy checklists already use) — "Department" and "Section" are the same concept here, not two separate fields.
   - **Login history**: new `LOGIN` value on the `AuditAction` enum, logged in `lib/auth.ts`'s `authorize()` on every successful sign-in, shown as a "Recent Logins" panel on the Users page.
 - **Self-service password change** (`b78508b`) — new `/account` page (linked from the topbar name/role), any logged-in user can change their own password (current password verified via bcrypt before allowing the change). No password-reset-for-others / forgot-password flow exists yet.
+- **Ops Calendar** (`a707266`) — replaced the `/calendar` "Coming Soon" placeholder with a real month-view grid. `lib/data/calendar.ts`'s `getCalendarMonth()` computes, for each day of the shown month, which DAILY/WEEKLY/MONTHLY schedules actually apply that day (respecting `ChecklistSchedule.recurrenceDays`, falling back to the day implied by `startDate` when unset — most seeded schedules don't set it explicitly) and either the real inspection status if one was created that day, or a computed `SCHEDULED`/`DUE`/`OVERDUE` based on today's date. Filterable by area/frequency via a plain GET form (`?month=&areaId=&frequency=`, no client JS needed), month nav preserves filters. Shift/event-triggered frequencies (`PER_SHIFT`, `AD_HOC`, `BEFORE_PRODUCTION`, `AFTER_PRODUCTION`, `AFTER_CLEANING`, `AFTER_MAINTENANCE`, `QUARTERLY`) don't have a fixed calendar day and are deliberately excluded from the grid — mentioned in the page's own subtitle so it's not a silent gap. Verified rendering correctly in both dev and production (colors, filters, month nav all checked).
 
 ## "Minified React error #441" on Submit — mitigated with high confidence, watch for recurrence
 
@@ -74,11 +75,13 @@ This was the user's main recurring complaint tonight: after filling out a checkl
 
 ## Next steps
 
-1. Decide whether to reseed production so the "C. 5S Check" section appears (wipes data — confirm with the user first). If yes: `vercel env pull --environment production --scope dkns1 --token <token>` → run `prisma/seed.ts` with `DATABASE_URL_UNPOOLED` → delete the pulled env file immediately (contains a live DB password).
-2. Clean up two likely-orphaned Vercel projects (`webops-platform.vercel.app` under the wrong team, `webops-platform-chi.vercel.app` under the user's personal account) — ask the user first.
-3. Demo accounts (`admin@webops.demo` etc., password `WebOps2026!`) are still live on the production URL with credentials referenced right on the login page — fine pre-launch, but flag before this goes in front of anyone outside the team, and now that a real password-change flow exists, consider whether to rotate/retire the demo accounts.
-4. No "forgot password" flow exists — only self-service change while already logged in. Worth building if users other than the current small set start needing it.
-5. Consider building `updateUser`/deactivate-user actions — the new Users admin page can create but not yet edit or deactivate accounts.
+1. **Three "Coming Soon" placeholder modules remain**: `app/(app)/reports/page.tsx`, `app/(app)/analytics/page.tsx`, `app/(app)/admin/settings/page.tsx` (all use the `<ComingSoon>` component — `grep -rl ComingSoon app/` to find them if more appear). The user picked Calendar first this session when offered a choice of these four; ask again next, don't assume order. Reports (compliance/audit exports) is probably highest-value given the app's whole purpose is audit trail, but that's a guess, not her stated preference.
+2. Decide whether to reseed production so the "C. 5S Check" section appears (wipes data — confirm with the user first). If yes: `vercel env pull --environment production --scope dkns1 --token <token>` → run `prisma/seed.ts` with `DATABASE_URL_UNPOOLED` → delete the pulled env file immediately (contains a live DB password).
+3. Clean up two likely-orphaned Vercel projects (`webops-platform.vercel.app` under the wrong team, `webops-platform-chi.vercel.app` under the user's personal account) — ask the user first.
+4. Demo accounts (`admin@webops.demo` etc., password `WebOps2026!`) are still live on the production URL with credentials referenced right on the login page — fine pre-launch, but flag before this goes in front of anyone outside the team, and now that a real password-change flow exists, consider whether to rotate/retire the demo accounts.
+5. No "forgot password" flow exists — only self-service change while already logged in. Worth building if users other than the current small set start needing it.
+6. Consider building `updateUser`/deactivate-user actions — the new Users admin page can create but not yet edit or deactivate accounts.
+7. The Calendar's month-only view could grow week/day views later if the user asks (the `ComingSoon` copy it replaced mentioned "day, week and month") — not built, month view covers the immediate need.
 
 ## Open questions
 
