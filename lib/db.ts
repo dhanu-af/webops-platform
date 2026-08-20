@@ -18,18 +18,24 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
 function isTransientConnectionError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
-    /connection.*(terminated|closed|reset)/i.test(message) ||
+    /connection.*(terminated|closed|reset|error)/i.test(message) ||
     /server has closed the connection/i.test(message) ||
-    /ECONNRESET/.test(message) ||
-    /(^|\s)(P1001|P1017)(\s|$)/.test(message)
+    /timed? ?out/i.test(message) ||
+    /ECONNRESET|ETIMEDOUT|EPIPE/.test(message) ||
+    // Prisma error codes: P1001 can't reach server, P1008 operation timed out,
+    // P1017 server closed the connection, P2024 pool timeout.
+    /(^|\s)(P1001|P1008|P1017|P2024)(\s|$)/.test(message)
   );
 }
 
-export async function withDbRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
+export async function withDbRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
   try {
     return await fn();
   } catch (error) {
     if (retries > 0 && isTransientConnectionError(error)) {
+      // A brief pause before retrying — an immediate retry against an
+      // exhausted connection pool would likely just hit the same wall again.
+      await new Promise((resolve) => setTimeout(resolve, 300));
       return withDbRetry(fn, retries - 1);
     }
     throw error;
