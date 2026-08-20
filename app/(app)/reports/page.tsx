@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { INSPECTION_STATUS_META } from "@/lib/status";
-import { ClipboardList, CheckCircle2, ShieldCheck, FlagTriangleRight, AlertTriangle, Download } from "lucide-react";
+import { ClipboardList, CheckCircle2, ShieldCheck, FlagTriangleRight, AlertTriangle, Download, FileText } from "lucide-react";
 
 const FREQUENCIES = [
   "PER_SHIFT",
@@ -75,9 +75,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <p className="text-sm text-muted">Daily operations, cleaning, 5S, compliance, corrective action and audit evidence reports.</p>
         </div>
         {canExport && (
-          <Button href={`/api/reports/export${buildQuery(filters)}`} variant="secondary">
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button href={`/api/reports/export/pdf${buildQuery(filters)}`} variant="secondary">
+              <FileText className="size-4" /> Export PDF
+            </Button>
+            <Button href={`/api/reports/export${buildQuery(filters)}`} variant="secondary">
+              <Download className="size-4" /> Export CSV
+            </Button>
+          </div>
         )}
       </div>
 
