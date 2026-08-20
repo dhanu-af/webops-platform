@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
+import { storePhoto, ALLOWED_PHOTO_TYPES } from "@/lib/storage";
+import type { NotificationType } from "@/app/generated/prisma/client";
 
 async function requireSettingsManager() {
   const session = await auth();
@@ -34,6 +36,52 @@ export async function updateFacilityTimezone(facilityId: string, timezone: strin
     oldValue: { timezone: facility.timezone },
     newValue: { timezone },
   });
+
+  revalidatePath("/admin/settings");
+}
+
+async function getOrCreateSettings() {
+  return (await db.systemSettings.findFirst()) ?? (await db.systemSettings.create({ data: {} }));
+}
+
+export async function updateBranding(formData: FormData) {
+  const actor = await requireSettingsManager();
+
+  const organizationName = ((formData.get("organizationName") as string) || "").trim() || null;
+  const logoFile = formData.get("logo") as File | null;
+
+  const existing = await getOrCreateSettings();
+  let logoUrl = existing.logoUrl;
+  if (logoFile && logoFile.size > 0) {
+    if (!ALLOWED_PHOTO_TYPES.includes(logoFile.type)) throw new Error("Unsupported image type for logo — use JPEG, PNG, WebP, or HEIC.");
+    logoUrl = (await storePhoto(logoFile)).url;
+  }
+
+  await db.systemSettings.update({ where: { id: existing.id }, data: { organizationName, logoUrl } });
+  await logAudit({ entityType: "SystemSettings", entityId: existing.id, action: "EDITED", userId: actor.id, newValue: { organizationName, logoUrl } });
+
+  revalidatePath("/admin/settings");
+}
+
+export async function updatePhotoLimit(maxPhotoSizeMb: number) {
+  const actor = await requireSettingsManager();
+
+  if (!Number.isInteger(maxPhotoSizeMb) || maxPhotoSizeMb < 1 || maxPhotoSizeMb > 100) {
+    throw new Error("Photo size limit must be a whole number between 1 and 100 MB.");
+  }
+
+  const existing = await getOrCreateSettings();
+  await db.systemSettings.update({ where: { id: existing.id }, data: { maxPhotoSizeMb } });
+  await logAudit({ entityType: "SystemSettings", entityId: existing.id, action: "EDITED", userId: actor.id, newValue: { maxPhotoSizeMb } });
+
+  revalidatePath("/admin/settings");
+}
+
+export async function setNotificationEnabled(type: NotificationType, enabled: boolean) {
+  const actor = await requireSettingsManager();
+
+  await db.notificationSetting.upsert({ where: { type }, create: { type, enabled }, update: { enabled } });
+  await logAudit({ entityType: "NotificationSetting", entityId: type, action: "EDITED", userId: actor.id, newValue: { enabled } });
 
   revalidatePath("/admin/settings");
 }

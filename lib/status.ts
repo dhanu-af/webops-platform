@@ -46,3 +46,15 @@ export const RESPONSE_VALUE_META: Record<string, { label: string; tone: StatusTo
   FAIL: { label: "Fail", tone: "critical" },
   NA: { label: "N/A", tone: "neutral" },
 };
+
+export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  CHECK_DUE: "Check due",
+  CHECK_OVERDUE: "Check overdue",
+  SUPERVISOR_VERIFICATION_REQUIRED: "Supervisor verification required",
+  QA_VERIFICATION_REQUIRED: "QA verification required",
+  CORRECTIVE_ACTION_DUE: "Corrective action assigned",
+  CORRECTIVE_ACTION_OVERDUE: "Corrective action overdue",
+  RETURNED: "Inspection returned",
+  REJECTED: "Inspection rejected",
+  AREA_RELEASED: "Inspection closed / area released",
+};

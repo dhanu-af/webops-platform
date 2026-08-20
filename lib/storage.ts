@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { db } from "@/lib/db";
 
 // Photo evidence is metadata-linked, binary-in-object-storage (spec §45).
 // Production (Vercel) reads BLOB_READ_WRITE_TOKEN and stores in Vercel Blob.
@@ -28,3 +29,11 @@ export async function storePhoto(file: File): Promise<{ url: string; sizeBytes: 
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+
+// Admin-configurable via /admin/settings — falls back to the default above
+// when no SystemSettings row exists yet (nothing to configure until an
+// admin actually visits Settings and saves once).
+export async function getMaxPhotoBytes(): Promise<number> {
+  const settings = await db.systemSettings.findFirst();
+  return (settings?.maxPhotoSizeMb ?? 10) * 1024 * 1024;
+}

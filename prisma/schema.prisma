@@ -699,3 +699,26 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([inspectionId])
 }
+
+// =========================================================================
+// SYSTEM SETTINGS — facility-wide branding, photo limits, notification
+// routing. Singleton config: exactly one SystemSettings row is expected to
+// ever exist, looked up via findFirst() rather than a fixed known id.
+// =========================================================================
+
+model SystemSettings {
+  id               String   @id @default(cuid())
+  organizationName String?
+  logoUrl          String? // Vercel Blob URL, same storage as PhotoEvidence
+  maxPhotoSizeMb   Int      @default(10) // mirrors lib/storage.ts's current hardcoded MAX_PHOTO_BYTES
+  updatedAt        DateTime @updatedAt
+}
+
+// One row per NotificationType, created on demand — a missing row means
+// "enabled" (the current, hardcoded behaviour), so existing notification
+// types don't need backfilling when this table is introduced.
+model NotificationSetting {
+  type      NotificationType @id
+  enabled   Boolean          @default(true)
+  updatedAt DateTime         @updatedAt
+}

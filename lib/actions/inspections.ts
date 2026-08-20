@@ -4,7 +4,7 @@ import { db, withDbRetry } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
-import { storePhoto, MAX_PHOTO_BYTES, ALLOWED_PHOTO_TYPES } from "@/lib/storage";
+import { storePhoto, getMaxPhotoBytes, ALLOWED_PHOTO_TYPES } from "@/lib/storage";
 import { canVerifyOwnWork } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import type { ResponseValue, Severity, VerificationAction, WorkflowRole } from "@/app/generated/prisma/client";
@@ -168,7 +168,8 @@ export async function attachPhoto(formData: FormData) {
   const file = formData.get("file") as File;
 
   if (!file || file.size === 0) throw new Error("No file provided.");
-  if (file.size > MAX_PHOTO_BYTES) throw new Error("Photo exceeds 10MB limit.");
+  const maxPhotoBytes = await getMaxPhotoBytes();
+  if (file.size > maxPhotoBytes) throw new Error(`Photo exceeds ${Math.round(maxPhotoBytes / (1024 * 1024))}MB limit.`);
   if (!ALLOWED_PHOTO_TYPES.includes(file.type)) throw new Error("Unsupported file type.");
 
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: inspectionId } });
