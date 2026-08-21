@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { startOfDay, endOfDay } from "date-fns";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 
 export async function getTodaySchedules() {
   const now = new Date();
+  const timeZone = await getFacilityTimezone();
   return db.checklistSchedule.findMany({
     where: { active: true, startDate: { lte: now } },
     include: {
@@ -11,7 +12,7 @@ export async function getTodaySchedules() {
       section: true,
       area: true,
       equipment: true,
-      inspections: { where: { createdAt: { gte: startOfDay(now), lte: endOfDay(now) } }, take: 1 },
+      inspections: { where: { createdAt: { gte: startOfDayInTimeZone(timeZone, now), lte: endOfDayInTimeZone(timeZone, now) } }, take: 1 },
     },
     orderBy: [{ dueTime: "asc" }],
   });

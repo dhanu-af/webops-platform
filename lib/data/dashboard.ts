@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
-import { startOfDay, endOfDay } from "date-fns";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 
 export async function getDashboardKpis() {
   const now = new Date();
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
+  const timeZone = await getFacilityTimezone();
+  const todayStart = startOfDayInTimeZone(timeZone, now);
+  const todayEnd = endOfDayInTimeZone(timeZone, now);
 
   const [
     todayTotal,

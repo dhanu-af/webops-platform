@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
+import { getFacilityTimezone } from "@/lib/timezone";
 import { LogOut } from "lucide-react";
 
-export function Topbar({ name, role }: { name: string; role: string }) {
+export async function Topbar({ name, role }: { name: string; role: string }) {
+  const timeZone = await getFacilityTimezone();
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-surface px-6">
       <div className="text-sm text-muted">
         <span className="font-mono-tabular text-xs text-muted">
-          {new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {new Date().toLocaleDateString("en-AU", { timeZone, weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </span>
       </div>
       <div className="flex items-center gap-4">

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import type { Frequency } from "@/app/generated/prisma/client";
 
 // Only these three frequencies map onto a predictable calendar day — the
@@ -58,12 +59,25 @@ export type CalendarEntry = {
 export async function getCalendarMonth(monthDate: Date, filters: { areaId?: string; frequency?: string } = {}) {
   const from = startOfMonth(monthDate);
   const to = endOfMonth(monthDate);
-  const today = startOfDay(new Date());
+  const timeZone = await getFacilityTimezone();
+  // A UTC-midnight "label" matching how `day` below is generated (plain
+  // Date math, one label per calendar day of the month) — not a real DB-
+  // range instant, so it must use the same labeling convention as `day`,
+  // not the real Brisbane-midnight instant startOfDayInTimeZone returns.
+  const today = todayLabelInTimeZone(timeZone);
 
   const schedules = await getCalendarSchedules(filters);
 
   const inspections = await db.inspection.findMany({
-    where: { scheduleId: { in: schedules.map((s) => s.id) }, createdAt: { gte: from, lte: endOfDay(to) } },
+    where: {
+      scheduleId: { in: schedules.map((s) => s.id) },
+      // Brisbane's real day boundaries sit ahead of UTC's, so a plain
+      // endOfDay(to) can cut off real inspections created (in UTC terms)
+      // on the day after `to` that were still within Brisbane's `to` —
+      // widen the outer bound to match, the per-day isWithinInterval
+      // check below does the real precise matching either way.
+      createdAt: { gte: from, lte: endOfDayInTimeZone(timeZone, to) },
+    },
     select: { id: true, scheduleId: true, status: true, createdAt: true },
   });
 
@@ -74,7 +88,9 @@ export async function getCalendarMonth(monthDate: Date, filters: { areaId?: stri
     for (const schedule of schedules) {
       if (!scheduleAppliesOnDay(schedule, day)) continue;
       const inspection = inspections.find(
-        (i) => i.scheduleId === schedule.id && isWithinInterval(i.createdAt, { start: startOfDay(day), end: endOfDay(day) })
+        (i) =>
+          i.scheduleId === schedule.id &&
+          isWithinInterval(i.createdAt, { start: startOfDayInTimeZone(timeZone, day), end: endOfDayInTimeZone(timeZone, day) })
       );
       const status: CalendarEntry["status"] = inspection
         ? (inspection.status as CalendarEntry["status"])
