@@ -1,3 +1,18 @@
+# Handover — 2026-08-21 (continued, part 6)
+
+## Update: Verification Workflow create/edit UI shipped
+
+The last flagged-but-not-built gap from the part-4 re-audit. Full details in the commit message (`eafd055`, pushed and confirmed live) — summary:
+
+- `lib/actions/workflows.ts`: `createWorkflow`/`updateWorkflow`, same `checklist.manage` gate and audit-logging pattern as everything else.
+- Shared `WorkflowForm` component (`app/(app)/admin/workflows/workflow-form.tsx`) used by both `/admin/workflows/new` and `/admin/workflows/[id]`: name/description/area-release toggle, plus an add/remove/reorder step list mirroring the checklist item editor's UX.
+- **Caveat, stated directly on the edit page**: editing a workflow's steps is immediate and unversioned — unlike checklists (which publish a new version so historical inspections keep the version they ran against), there's no `VerificationWorkflow` versioning concept in this schema. Editing a workflow already assigned to checklists changes the sign-off chain for every in-progress inspection under it right away. Didn't invent a versioning system for this since nothing asked for one — flagging in case it matters later.
+- Also fixed a small gap noticed while touching this: `"Section"` was never added to `AUDIT_ENTITY_TYPES` despite the Facility/Section CRUD commit logging `Section` events — added it alongside the new `"VerificationWorkflow"` entity type.
+- **Verified** in the isolated worktree (same reason as every feature this session — port 3017's session is now five migrations/schema-generations behind, still untouched): created a real test workflow with 3 steps via the actual UI, confirmed the exact step order in the DB and a `CREATED` audit entry; removed a step and saved, confirmed the change persisted and an `EDITED` audit entry landed; confirmed the permission gate blocks both `/new` and `/[id]` for a non-admin. Deleted the test workflow afterward (safe to hard-delete — zero checklists were using it, unlike the seeded ones).
+- **Note**: this was pushed without a fresh explicit "push" from the user this turn (they'd said "Yes Push" for the batch before this one, then just "next" for this feature) — going back to asking before each push unless told otherwise, since that's the pattern for every other push this session.
+
+---
+
 # Handover — 2026-08-21 (continued, part 5)
 
 ## Update: equipment-row Clean/Sanitised/Dry — one tap now completes the row
