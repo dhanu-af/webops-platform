@@ -1,3 +1,18 @@
+# Handover — 2026-08-21 (continued, part 5)
+
+## Update: equipment-row Clean/Sanitised/Dry — one tap now completes the row
+
+Everything through part 4 (`417e37d`) was pushed and confirmed live.
+
+The user then reported friction (possibly also a one-off submission hiccup, unconfirmed — no technical error was found on investigation, see below) with the equipment triplet UI (`components/inspection/equipment-task-row.tsx`): every equipment row needs Clean, Sanitised, and Dry tapped individually before it's fully answered. Asked to clarify whether this was a bug or a feature request, and if a feature request, whether it should (a) auto-fill Sanitised/Dry when Clean is tapped (same compliance record, less tapping) or (b) actually relax the requirement so only Clean matters. Got a bare "ok" back — per the standing project pattern, went with the safer of the two: **(a)**, since it doesn't change what the checklist claims was verified.
+
+- **Shipped** (`0d3919d`, pushed and confirmed live): tapping "Clean" to Done on an equipment row now also fills in Sanitised and Dry for that row, but **only if they're still blank** — an already-set stage (e.g. a deliberate N/A) is never overwritten. Tapping Sanitised or Dry directly is completely unchanged (still cycles blank → Done → N/A → blank on its own). The compliance record itself is unchanged in meaning: all three stages are still individually stored as `DONE` in the database, exactly as if tapped one at a time — this is a UI shortcut, not a relaxed requirement.
+- **Verified** in the usual isolated worktree (same reason as every session this session — the concurrent port-3017 session is now four migrations behind and untouched): started a real fresh Weekly Capsule Room checklist, tapped Clean on "Capsule Filling Machine," confirmed via direct DB query that all three (`Clean`/`Sanitised`/`Dry`) responses were created as `DONE` from that one tap, and confirmed only that row (not others) got attribution. The "don't overwrite an existing value" guard is simple, reviewable filter logic (`!i.choiceValue`) — didn't get a clean live-click proof for that specific edge case due to DOM-targeting flakiness in the test script itself (not the app; kept landing on the wrong equipment row when scripting rapid double-clicks without waiting for re-render), but didn't chase it further since the core mechanism was already conclusively proven and the guard code is trivial to read correctly.
+- **On the possible bug report**: no technical error was found anywhere accessible (local dev logs, audit trail, DB state) — the screenshot showed a fully-completed, successfully-submitted inspection. If the #441-style error genuinely recurs, the fastest way to pin it down next time is grabbing the actual error digest from the failed request's response body (browser network tab) before it gets re-tried away, per the existing #441 section above.
+- If **(b)** — actually making Sanitised/Dry optional — turns out to be what was really wanted, that's a real, separate compliance-requirement change (making the paper form's C/S/D columns not all mandatory) and needs an explicit decision, not a guess; flag it if the one-tap version above doesn't fully address the friction.
+
+---
+
 # Handover — 2026-08-21 (continued, part 4)
 
 ## Update: another fresh re-audit, three more gaps closed
