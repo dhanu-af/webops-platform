@@ -1,3 +1,16 @@
+# Handover — 2026-08-21 (continued, part 10)
+
+## Update: 5S Daily Check items switched from a numeric spinner to Yes/No/N/A
+
+The user sent a screenshot of one item ("5S checks completed as scheduled") showing a plain `0 – 2` number-spinner input and asked for "Yes / No / N/A" instead — a real usability request, not a compliance-scale change: the underlying idea (compliant / not compliant / doesn't apply) is the same, just a tap instead of typing a number.
+
+- **Found a real pre-existing label bug while doing this**: `YES_NO` and `PASS_FAIL` items rendered *identical* button text — "PASS"/"FAIL"/"N/A" — regardless of type, so a `YES_NO` item always showed "PASS"/"FAIL" instead of "Yes"/"No". Fixed in `components/inspection/checklist-item-card.tsx` (`5c87ca3`, pushed and confirmed live): the label is now conditional on `item.type`, `YES_NO` shows "YES"/"NO"/"N/A". No schema or data change — the underlying `passFail` field still stores `PASS`/`FAIL`/`NA` either way, this only changes what the button says.
+- **All 27 "5S Daily Check" items converted from `NUMERIC` (0–2) to `YES_NO`**, published as v1.3, live on both dev-verified and production. A useful side effect: this checklist's items are now counted by the app's existing score calculation (`total = items.filter(i => i.type === "PASS_FAIL" || i.type === "YES_NO")`), so submissions will get a real score going forward — `NUMERIC` items never did (confirmed the first, now-deleted, dev test inspection had `score: null`).
+- **Real in-progress data found on production, left untouched**: while checking `/today` to verify, found that the user herself had already started today's `5S Daily Check` on production *before* this change (on v1.2, the numeric version) — two real answers already saved ("Walkways and access areas are clear", "Floors clean", by "Dhanu"). Checklist versioning locks an in-progress inspection to whichever version it started on (same rule that protects Capsule Room's historical inspections), so **this specific in-progress check will keep showing the old numeric inputs for its remaining items** — publishing v1.3 doesn't retroactively change it. Any *new* 5S Daily Check started from now on (tomorrow's, or today's if she abandons and restarts) will show the new Yes/No/N/A buttons. Did not touch or delete her real in-progress inspection.
+- Verified in the isolated dev worktree first (deleted a throwaway test inspection to get a clean v1.3 start, confirmed buttons literally read "YES"/"NO"/"N/A", submitted cleanly with no error, correctly went to `AWAITING_SUPERVISOR`), then made the identical edit on production.
+
+---
+
 # Handover — 2026-08-21 (continued, part 9)
 
 ## Update: real content — "5S Daily Check" digitized and live on production
