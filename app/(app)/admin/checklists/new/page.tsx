@@ -1,7 +1,13 @@
+import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { NewChecklistForm } from "./new-checklist-form";
 
 export default async function NewChecklistPage() {
+  const session = await auth();
+  if (!session?.user || !can(session.user.role, "checklist.manage")) notFound();
+
   const workflows = await db.verificationWorkflow.findMany({
     include: { steps: { orderBy: { order: "asc" } } },
     orderBy: { name: "asc" },

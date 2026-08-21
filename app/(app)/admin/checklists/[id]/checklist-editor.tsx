@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { saveChecklistVersion, type BuilderItem } from "@/lib/actions/checklist-builder";
+import { Badge } from "@/components/ui/badge";
+import { ArchiveToggleButton } from "@/components/admin/archive-toggle-button";
 import type { ChecklistCategory, ItemType } from "@/app/generated/prisma/client";
 import { GripVertical, Trash2, ChevronUp, ChevronDown, Plus } from "lucide-react";
 
@@ -43,6 +45,7 @@ export function ChecklistEditor({
   currentVersionNumber,
   initialItems,
   workflows,
+  active,
 }: {
   checklistId: string;
   initialName: string;
@@ -52,6 +55,7 @@ export function ChecklistEditor({
   currentVersionNumber: string;
   initialItems: BuilderItem[];
   workflows: Array<{ id: string; name: string; steps: string[] }>;
+  active: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -109,7 +113,11 @@ export function ChecklistEditor({
       <Card>
         <CardHeader>
           <CardTitle>Details</CardTitle>
-          <span className="font-mono-tabular text-xs text-muted">current v{currentVersionNumber}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono-tabular text-xs text-muted">current v{currentVersionNumber}</span>
+            {!active && <Badge tone="neutral">Archived</Badge>}
+            <ArchiveToggleButton kind="checklist" id={checklistId} archived={!active} />
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 pt-2 sm:grid-cols-2">
           <div className="sm:col-span-2">

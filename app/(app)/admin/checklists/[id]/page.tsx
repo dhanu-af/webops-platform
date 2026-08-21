@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { getChecklistForEdit } from "@/lib/actions/checklist-builder";
 import { ChecklistEditor } from "./checklist-editor";
@@ -7,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
 export default async function ChecklistEditPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user || !can(session.user.role, "checklist.manage")) notFound();
+
   const { id } = await params;
   const checklist = await getChecklistForEdit(id).catch(() => null);
   if (!checklist) notFound();
@@ -49,6 +54,7 @@ export default async function ChecklistEditPage({ params }: { params: Promise<{ 
           choices: Array.isArray(i.choices) ? (i.choices as string[]) : undefined,
         }))}
         workflows={workflows.map((w) => ({ id: w.id, name: w.name, steps: w.steps.map((s) => s.role) }))}
+        active={checklist.active}
       />
 
       <ScheduleManager checklistId={checklist.id} facilities={facilities} schedules={checklist.schedules} />

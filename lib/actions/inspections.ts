@@ -118,6 +118,17 @@ export async function saveResponse(input: {
     await logAudit({ entityType: "Inspection", entityId: inspection.id, inspectionId: inspection.id, action: "STARTED", userId: user.id });
   }
 
+  if (input.passFail === "FAIL") {
+    await logAudit({
+      entityType: "Inspection",
+      entityId: inspection.id,
+      inspectionId: inspection.id,
+      action: "ITEM_FAILED",
+      userId: user.id,
+      newValue: { checklistItemId: input.checklistItemId, prompt: item.prompt },
+    });
+  }
+
   // A FAIL on a required item opens a Finding automatically (spec §15) —
   // severity defaults from the item's criticalFailure flag and can be
   // refined later via createFinding when the operator adds detail.

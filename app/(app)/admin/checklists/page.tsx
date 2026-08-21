@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
 export default async function ChecklistBuilderListPage() {
+  const session = await auth();
+  if (!session?.user || !can(session.user.role, "checklist.manage")) notFound();
+
   const checklists = await db.checklist.findMany({
     include: {
       versions: { where: { isCurrent: true }, include: { items: true } },

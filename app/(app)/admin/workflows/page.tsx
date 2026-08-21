@@ -1,8 +1,14 @@
+import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default async function WorkflowsAdminPage() {
+  const session = await auth();
+  if (!session?.user || !can(session.user.role, "checklist.manage")) notFound();
+
   const workflows = await db.verificationWorkflow.findMany({
     include: { steps: { orderBy: { order: "asc" } }, checklists: true },
   });
