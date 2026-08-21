@@ -1,3 +1,20 @@
+# Handover — 2026-08-22 (continued, part 13)
+
+## Update: checklist cloning, and a real timezone bug fixed
+
+Two separate requests this round, both shipped and confirmed live on production (`9f22f83`, `ac2d9eb`).
+
+**1. Checklist cloning** — the user was building area-specific variants by hand (her screenshot showed "5S Daily Check - Blending Room" at v1.7, meaning she'd been retyping the whole 27-item checklist herself). Added `cloneChecklist()` to `lib/actions/checklist-builder.ts`: copies a checklist's current-version items verbatim into a brand new checklist, named `"<original> (Copy)"`, starting fresh at v1.0. Deliberately does **not** copy schedules — a clone is for a different area, so carrying over the source's schedule would just duplicate it pointing at the same place. A small Clone icon button sits on both the checklist list page and the individual editor's header. Verified: cloned "5S Daily Check," confirmed all 27 items copied exactly (same prompts, types, min/max, groups), confirmed zero schedules copied, renamed the clone and published — matches exactly the workflow she'd been doing by hand.
+
+**2. Real timezone bug, not cosmetic** — user caught the topbar showing "Friday 21 August" while her own clock already read past midnight into the 22nd. Root cause: Vercel functions run in UTC; every place that computed "today" via `startOfDay(new Date())`/`endOfDay(new Date())` — the topbar, Today's Ops, the Dashboard's "Today's Checks" KPI, and the Calendar month grid — silently meant the **UTC** day, not the **Brisbane** day, for roughly the first 10-14 hours of every real day. This isn't just display: `getTodaySchedules()` (Today's Ops) and `getSchedulesByCategory()` (Pre-Start/Post-Op/5S/Line-Clearance pages) use the same broken boundary to decide what's "due today," so the actual scheduling could have been silently wrong for a large chunk of every day.
+
+- New `lib/timezone.ts`: `getFacilityTimezone()` (cached per request, reads `Facility.timezone`, falls back to `Australia/Brisbane`), `startOfDayInTimeZone()`/`endOfDayInTimeZone()` (real UTC instants, safe for direct Prisma `gte`/`lte`), and `todayLabelInTimeZone()` (a separate helper for the Calendar month grid specifically, which builds its own day sequence as UTC-midnight *labels* rather than real instants — needed a label in the same encoding, not a real instant, to compare against those labels correctly).
+- Applied to the topbar, `by-category.ts`, `inspections.ts` (Today's Ops), `dashboard.ts`, and `calendar.ts`. **Deliberately left `reports.ts`/`audit.ts` alone** — their default trailing-N-day range being off by the UTC/Brisbane gap at the boundary is a minor cosmetic imprecision, not a scheduling-correctness issue, and fixing it means converting several exported sync functions to async for comparatively little benefit. Worth doing later if it ever actually matters.
+- **Verified two ways**: (a) added `lib/timezone.test.ts` — 5 unit tests using Brisbane's fixed +10 offset (no DST, easy to hand-verify) including the exact reported bug window (a UTC instant already "tomorrow" in Brisbane), confirmed the suite catches a real regression by temporarily breaking the offset math and watching 2 tests fail, then reverted; (b) in the dev worktree, proved the fix is genuinely driven by `Facility.timezone` (not a coincidence of the dev machine's own clock, which happens to already be AEST) by temporarily switching the facility's timezone to `America/New_York` and confirming the topbar correctly showed the *previous* day while Brisbane had already rolled to the next one, then reverted the setting back.
+- Confirmed live on production: topbar now correctly reads the real current Brisbane date.
+
+---
+
 # Handover — 2026-08-21 (continued, part 12)
 
 ## Update: 5S Daily Check now shows the scoring legend on every item
