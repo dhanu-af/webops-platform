@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddAreaForm } from "@/components/admin/add-area-form";
 import { AddEquipmentForm } from "@/components/admin/add-equipment-form";
+import { AddFacilityForm } from "@/components/admin/add-facility-form";
+import { AddSectionForm } from "@/components/admin/add-section-form";
 import { ArchiveToggleButton } from "@/components/admin/archive-toggle-button";
 
 export default async function AreasAdminPage() {
@@ -13,10 +15,8 @@ export default async function AreasAdminPage() {
   if (!session?.user || !can(session.user.role, "areas.manage")) notFound();
 
   const facilities = await db.facility.findMany({
-    where: { archived: false },
     include: {
       sections: {
-        where: { archived: false },
         orderBy: { sortOrder: "asc" },
         include: { areas: { orderBy: { sortOrder: "asc" }, include: { equipment: true } } },
       },
@@ -25,24 +25,37 @@ export default async function AreasAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Areas &amp; Equipment</h1>
-        <p className="text-sm text-muted">Facility → Section → Area → Equipment. Configurable, not hard-coded.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Areas &amp; Equipment</h1>
+          <p className="text-sm text-muted">Facility → Section → Area → Equipment. Configurable, not hard-coded.</p>
+        </div>
+        <AddFacilityForm />
       </div>
 
       {facilities.map((facility) => (
         <Card key={facility.id}>
           <CardHeader>
-            <CardTitle>{facility.name}</CardTitle>
-            <Badge tone="neutral">{facility.code}</Badge>
+            <div className="flex items-center gap-2">
+              <CardTitle>{facility.name}</CardTitle>
+              <Badge tone="neutral">{facility.code}</Badge>
+              {facility.archived && <Badge tone="neutral">Archived</Badge>}
+            </div>
+            <ArchiveToggleButton kind="facility" id={facility.id} archived={facility.archived} />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-5">
               {facility.sections.map((section) => (
                 <div key={section.id}>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">{section.name}</p>
-                    <AddAreaForm sectionId={section.id} />
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">{section.name}</p>
+                      {section.archived && <Badge tone="neutral">Archived</Badge>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <AddAreaForm sectionId={section.id} />
+                      <ArchiveToggleButton kind="section" id={section.id} archived={section.archived} />
+                    </div>
                   </div>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {section.areas.map((area) => (
@@ -78,6 +91,7 @@ export default async function AreasAdminPage() {
                   </div>
                 </div>
               ))}
+              <AddSectionForm facilityId={facility.id} />
             </div>
           </CardContent>
         </Card>

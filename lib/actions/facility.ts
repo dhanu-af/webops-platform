@@ -13,6 +13,72 @@ async function requireAreasManager() {
   return session.user;
 }
 
+export async function createFacility(input: { name: string; code: string; address?: string }) {
+  const actor = await requireAreasManager();
+
+  const name = input.name.trim();
+  const code = input.code.trim().toUpperCase();
+  if (!name) throw new Error("Facility name is required.");
+  if (!code) throw new Error("Facility code is required.");
+
+  const existing = await db.facility.findFirst({ where: { code } });
+  if (existing) throw new Error(`A facility with code "${code}" already exists.`);
+
+  const facility = await db.facility.create({ data: { name, code, address: input.address?.trim() || undefined } });
+  await logAudit({ entityType: "Facility", entityId: facility.id, action: "CREATED", userId: actor.id, newValue: { name, code } });
+
+  revalidatePath("/admin/areas");
+}
+
+export async function createSection(input: { facilityId: string; name: string; code: string }) {
+  const actor = await requireAreasManager();
+
+  const name = input.name.trim();
+  const code = input.code.trim().toUpperCase();
+  if (!name) throw new Error("Section name is required.");
+  if (!code) throw new Error("Section code is required.");
+
+  const existing = await db.section.findFirst({ where: { facilityId: input.facilityId, code } });
+  if (existing) throw new Error(`A section with code "${code}" already exists in this facility.`);
+
+  const section = await db.section.create({ data: { facilityId: input.facilityId, name, code } });
+  await logAudit({ entityType: "Section", entityId: section.id, action: "CREATED", userId: actor.id, newValue: { name, code, facilityId: input.facilityId } });
+
+  revalidatePath("/admin/areas");
+}
+
+export async function setFacilityArchived(facilityId: string, archived: boolean) {
+  const actor = await requireAreasManager();
+
+  await db.facility.update({ where: { id: facilityId }, data: { archived } });
+  await logAudit({
+    entityType: "Facility",
+    entityId: facilityId,
+    action: "EDITED",
+    userId: actor.id,
+    newValue: { archived },
+    reason: archived ? "Archived" : "Restored",
+  });
+
+  revalidatePath("/admin/areas");
+}
+
+export async function setSectionArchived(sectionId: string, archived: boolean) {
+  const actor = await requireAreasManager();
+
+  await db.section.update({ where: { id: sectionId }, data: { archived } });
+  await logAudit({
+    entityType: "Section",
+    entityId: sectionId,
+    action: "EDITED",
+    userId: actor.id,
+    newValue: { archived },
+    reason: archived ? "Archived" : "Restored",
+  });
+
+  revalidatePath("/admin/areas");
+}
+
 export async function createArea(input: { sectionId: string; name: string; code: string }) {
   const actor = await requireAreasManager();
 

@@ -2,9 +2,24 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setAreaArchived, setEquipmentArchived } from "@/lib/actions/facility";
+import { setAreaArchived, setEquipmentArchived, setFacilityArchived, setSectionArchived } from "@/lib/actions/facility";
 
-export function ArchiveToggleButton({ kind, id, archived }: { kind: "area" | "equipment"; id: string; archived: boolean }) {
+const ACTIONS = {
+  facility: setFacilityArchived,
+  section: setSectionArchived,
+  area: setAreaArchived,
+  equipment: setEquipmentArchived,
+} as const;
+
+export function ArchiveToggleButton({
+  kind,
+  id,
+  archived,
+}: {
+  kind: "facility" | "section" | "area" | "equipment";
+  id: string;
+  archived: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -14,8 +29,7 @@ export function ArchiveToggleButton({ kind, id, archived }: { kind: "area" | "eq
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
-          const action = kind === "area" ? setAreaArchived : setEquipmentArchived;
-          await action(id, !archived);
+          await ACTIONS[kind](id, !archived);
           router.refresh();
         })
       }

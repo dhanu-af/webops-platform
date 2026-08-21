@@ -65,7 +65,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Insights",
     items: [
       { label: "Reports", href: "/reports", icon: FileBarChart, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },
-      { label: "Analytics", href: "/analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT"] },
+      { label: "Analytics", href: "/analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },
       { label: "Audit Trail", href: "/audit", icon: ShieldCheck, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },
     ],
   },

@@ -27,22 +27,33 @@ export default async function EvidenceGalleryPage() {
             <p className="py-8 text-center text-sm text-muted">No photo evidence uploaded yet.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {photos.map((p) => (
-                <Link key={p.id} href={p.inspectionId ? `/inspections/${p.inspectionId}` : "#"} className="group">
-                  <div className="relative aspect-square overflow-hidden rounded-[var(--radius)] border border-border bg-surface-sunken">
-                    <Image src={p.storagePath} alt={p.caption ?? "Evidence"} fill sizes="200px" className="object-cover transition-transform group-hover:scale-105" unoptimized />
-                    {p.finding && (
-                      <span className="absolute left-1.5 top-1.5 rounded-full bg-status-critical-soft px-1.5 py-0.5 text-[9px] font-semibold text-status-critical">
-                        FINDING
-                      </span>
-                    )}
+              {photos.map((p) => {
+                const media = (
+                  <>
+                    <div className="relative aspect-square overflow-hidden rounded-[var(--radius)] border border-border bg-surface-sunken">
+                      <Image src={p.storagePath} alt={p.caption ?? "Evidence"} fill sizes="200px" className="object-cover transition-transform group-hover:scale-105" unoptimized />
+                      {p.finding && (
+                        <span className="absolute left-1.5 top-1.5 rounded-full bg-status-critical-soft px-1.5 py-0.5 text-[9px] font-semibold text-status-critical">
+                          FINDING
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate text-xs font-medium text-foreground">{p.area?.name ?? "—"}</p>
+                    <p className="truncate text-[11px] text-muted">
+                      {p.uploadedBy.name} · {format(p.createdAt, "d MMM")}
+                    </p>
+                  </>
+                );
+                return p.inspectionId ? (
+                  <Link key={p.id} href={`/inspections/${p.inspectionId}`} className="group">
+                    {media}
+                  </Link>
+                ) : (
+                  <div key={p.id} className="group">
+                    {media}
                   </div>
-                  <p className="mt-1 truncate text-xs font-medium text-foreground">{p.area?.name ?? "—"}</p>
-                  <p className="truncate text-[11px] text-muted">
-                    {p.uploadedBy.name} · {format(p.createdAt, "d MMM")}
-                  </p>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
