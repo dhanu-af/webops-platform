@@ -112,6 +112,59 @@ export async function saveChecklistVersion(input: {
   revalidatePath("/admin/checklists");
 }
 
+// Duplicates a checklist's current version verbatim into a brand new
+// checklist (its own id, its own version history starting at 1.0) — the
+// common case is wanting the same 27-item form for a different area
+// without re-typing every item, then just renaming the copy and giving it
+// its own schedule. Deliberately doesn't copy schedules: a clone almost
+// always needs a different area/section, not the same one as the source.
+export async function cloneChecklist(id: string) {
+  const user = await requireAdmin();
+
+  const source = await db.checklist.findUniqueOrThrow({
+    where: { id },
+    include: { versions: { where: { isCurrent: true }, take: 1, include: { items: { orderBy: { sortOrder: "asc" } } } } },
+  });
+  const currentVersion = source.versions[0];
+  if (!currentVersion) throw new Error("This checklist has no published version to clone.");
+
+  const clone = await db.$transaction(async (tx) => {
+    const newChecklist = await tx.checklist.create({
+      data: {
+        name: `${source.name} (Copy)`,
+        category: source.category,
+        workflowId: source.workflowId,
+        description: source.description,
+      },
+    });
+    const newVersion = await tx.checklistVersion.create({
+      data: { checklistId: newChecklist.id, versionNumber: "1.0", createdById: user.id },
+    });
+    for (const item of currentVersion.items) {
+      await tx.checklistItem.create({
+        data: {
+          checklistVersionId: newVersion.id,
+          groupLabel: item.groupLabel,
+          sortOrder: item.sortOrder,
+          prompt: item.prompt,
+          helpText: item.helpText,
+          type: item.type,
+          required: item.required,
+          requiresPhotoOnFail: item.requiresPhotoOnFail,
+          criticalFailure: item.criticalFailure,
+          minValue: item.minValue,
+          maxValue: item.maxValue,
+          choices: item.choices ?? undefined,
+        },
+      });
+    }
+    return newChecklist;
+  });
+
+  revalidatePath("/admin/checklists");
+  redirect(`/admin/checklists/${clone.id}`);
+}
+
 export async function setChecklistActive(id: string, active: boolean) {
   await requireAdmin();
   await db.checklist.update({ where: { id }, data: { active } });

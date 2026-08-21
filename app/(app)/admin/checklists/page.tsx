@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CloneChecklistButton } from "@/components/admin/clone-checklist-button";
 import { Plus } from "lucide-react";
 
 export default async function ChecklistBuilderListPage() {
@@ -61,6 +62,7 @@ export default async function ChecklistBuilderListPage() {
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge tone={c.active ? "pass" : "neutral"}>{c.active ? "Active" : "Archived"}</Badge>
                     <Badge tone="neutral">{c.schedules.length} schedule{c.schedules.length === 1 ? "" : "s"}</Badge>
+                    <CloneChecklistButton checklistId={c.id} />
                   </div>
                 </Link>
               );
