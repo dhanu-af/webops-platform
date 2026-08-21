@@ -1,3 +1,23 @@
+# Handover — 2026-08-21 (continued)
+
+## Update: Facility & Section create/archive shipped, two loose ends closed
+
+Continuing directly from the state below (that section is left as-is for history). This session:
+
+- **Facility and Section can now be created and archived** (`06303aa`, **local commit only, not pushed**) — the one deliberately-out-of-scope item from the Areas & Equipment work. Schema already had `Facility`/`Section` models with `archived` fields, so **no migration needed**, unlike most other recent features. Added `createFacility`, `createSection`, `setFacilityArchived`, `setSectionArchived` to `lib/actions/facility.ts` (same `areas.manage` permission gate, same audit-logging pattern as Area/Equipment) and two new form components (`components/admin/add-facility-form.tsx`, `add-section-form.tsx`) following the existing `AddAreaForm`/`AddEquipmentForm` pattern exactly. `ArchiveToggleButton` extended from a 2-way (`area`/`equipment`) to a 4-way (`facility`/`section`/`area`/`equipment`) dispatch. `/admin/areas` now also queries archived facilities/sections (previously filtered to `archived: false` only, same gap Area/Equipment used to have) so archived ones stay visible with a badge + Restore, matching the existing convention.
+  - **Verified end-to-end in dev**: created a real "QA Lab" test section and a real "Second Site Test" facility, confirmed both appeared correctly (including the new facility rendering with zero sections, no crash), archived both, confirmed the Archived badge + Restore control appeared and persisted across reload, and confirmed all four actions (2× Created, 2× Edited/Archived) logged correctly to `/audit` with the right entity type and changed-fields detail. Both test rows left archived (soft-deleted) rather than hard-deleted, matching this app's existing convention — harmless if left as-is, or can be cleaned up any time from the Areas & Equipment page.
+  - Typecheck (`tsc --noEmit`) and lint both clean. **Not yet checked against production — not pushed yet**, same as the last unpushed migration-requiring change, except this one has no migration to worry about; it's just sitting local pending your go-ahead to push.
+- **Two small loose ends from the last session's "Next steps" list, closed**:
+  - `components/nav/nav-items.ts`: Analytics nav entry now includes `"QA", "SUPERVISOR"` in its `roles`, matching the page's actual `reports.view` permission gate — those roles could already reach `/analytics` by URL but wouldn't see it in the sidebar; now they will.
+  - `app/(app)/evidence/page.tsx`: photo cards with no `inspectionId` (nullable in schema, for photos attached via `findingId`/`correctiveActionId`/`areaId` instead) now render as a plain non-clickable `<div>` instead of a `<Link href="#">` that silently scrolled to top. Currently unreachable in practice (the only photo-creation path always sets `inspectionId`), but correct now if that ever changes.
+- Both fixes and the new feature are in the same commit (`06303aa`), local only. Dev server (port 3017, PID 4196 — owned by a different concurrent Claude Code session per the existing multi-session gotcha below) was still running and picked up all changes via Fast Refresh with no restart needed this time.
+
+## Next steps update
+
+Item 2 from the list below ("Facility and Section still have no create/edit UI") is now done — remove it from future "what's left" framing. Everything else in that list is unchanged and still needs your input (reseed decision, orphaned Vercel projects, demo account rotation, forgot-password flow, notification recipient routing) — plus now also: **should `06303aa` be pushed to production?** No migration risk this time, just ask when ready.
+
+---
+
 # Handover — 2026-08-21 09:00
 
 ## Goal
