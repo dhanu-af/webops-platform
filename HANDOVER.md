@@ -1,3 +1,18 @@
+# Handover — 2026-08-21 (continued, part 3)
+
+## Update: pushed to production, plus a new Line Clearance checklist category
+
+- **Both pending commits from part 2 were pushed** (`94e7a22`, then `4d0aee6` below) — confirmed live: notification recipient routing is on `/admin/settings`, and Facility/Section CRUD is on `/admin/areas`.
+- **New: "Line Clearance" is now a dedicated checklist category and nav item** (`4d0aee6`, pushed and confirmed live), sitting between Pre-Start and Post-Op Cleaning in the Operations nav group, per your request. This mirrors the Pre-Start/Post-Op/5S pattern exactly:
+  - New `ChecklistCategory` enum value `LINE_CLEARANCE` (hand-written `ALTER TYPE` migration, same pattern already used for `AuditAction.LOGIN`).
+  - New `/line-clearance` page, reusing the existing generic `getSchedulesByCategory()` + `ScheduleList` — no new logic needed.
+  - Added to both Checklist Builder category pickers (`new-checklist-form.tsx`, `checklist-editor.tsx`) so it can actually be used.
+  - **No real checklist content was created** — this only makes the category and nav slot exist. The nav page currently says "No line clearance checklists scheduled yet" because there's no real Line Clearance checklist defined. **If you want an actual digitized Line Clearance checklist** (like Capsule Room's controlled cleaning documents), the next step is either: you build it yourself via `/admin/checklists/new` → category "Line Clearance" → add items, or hand me the real controlled document/form and I'll digitize it the same way Capsule Room was done.
+  - Verified end-to-end in an isolated git worktree (same reason as before — another session's dev server on port 3017 still holds a stale Prisma Client from *two* migrations behind now): created a real test checklist under the new category via the actual UI, confirmed it saved and reached the item editor, then deleted it. Confirmed the nav item and empty-state page both render correctly, in dev and now on production.
+  - **Note for whoever picks up the other concurrent session on port 3017**: its Prisma Client is now stale by two migrations (`NotificationRecipient`, then the `LINE_CLEARANCE` enum value). It'll need `taskkill` + `rm -rf .next` + restart before anything touching either will work there — same gotcha as always, just compounding because it's been running the whole time.
+
+---
+
 # Handover — 2026-08-21 (continued, part 2)
 
 ## Update: Notification recipient routing shipped
