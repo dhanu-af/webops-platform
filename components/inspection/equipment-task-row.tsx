@@ -38,6 +38,15 @@ export function EquipmentTaskRow({
     const next = item.choiceValue === "DONE" ? "NA" : item.choiceValue === "NA" ? "" : "DONE";
     startTransition(async () => {
       await saveResponse({ inspectionId, checklistItemId: item.id, choiceValue: next });
+
+      // Marking "Clean" done completes Sanitised/Dry in the same tap — the
+      // common case is all three happening in one pass, and this saves
+      // clicking each stage separately. Only fills in blanks: an already-set
+      // Sanitised/Dry (e.g. a deliberate N/A) is left alone.
+      if (item.stage === "Clean" && next === "DONE") {
+        const blankSiblings = items.filter((i) => i.id !== item.id && !i.choiceValue);
+        await Promise.all(blankSiblings.map((sibling) => saveResponse({ inspectionId, checklistItemId: sibling.id, choiceValue: "DONE" })));
+      }
     });
   }
 
