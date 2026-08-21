@@ -1,3 +1,16 @@
+# Handover — 2026-08-21 (continued, part 11)
+
+## Update: reverted Yes/No back to a tappable 0/1/2 scale — this was the right call, not the last one
+
+The user's follow-up ("add number as click system 0 1 2... i not like to type") clarified that the earlier Yes/No/N/A simplification (part 10) wasn't actually what she wanted — she wants the original 3-level compliance scale from her paper document kept (0 Not compliant / 1 Needs improvement / 2 Good), just as tap buttons instead of a typed number. This is a better, more faithful outcome than the Yes/No version: it matches her original source document exactly, and still solves the actual complaint ("I don't like to type").
+
+- **New `NumericScaleButtons` component** in `components/inspection/checklist-item-card.tsx` (`e0f1d7a`, pushed and confirmed live): any `NUMERIC` item with a bounded range of 10 or less now renders one button per value instead of a number input — covers a 0–2 scale (this checklist) and the existing Weekly 5S Audit's 0–5 default without any change needed there. Colors the lowest value critical (red), the highest pass (green), everything between warn (amber) — reads at a glance the same way PASS/FAIL/N/A already does elsewhere in this app. Wider ranges (Blending Room's temperature 15–30, humidity 0–100) are unaffected and keep the free-text input — tapping through 15+ buttons wouldn't be an improvement.
+- **"5S Daily Check" reverted from `YES_NO` (v1.3) back to `NUMERIC` 0–2 (v1.4)**, live on both dev-verified and production. Verified with a real fresh inspection in the isolated dev worktree: confirmed the buttons render as "0 1 2", confirmed clicking "2" turns it pass-green and persists across reload, filled all 27, submitted cleanly with no error, correctly went to `AWAITING_SUPERVISOR`. Also spot-checked the Weekly 5S Audit's existing 0–5 items got the same button treatment automatically with zero code change needed for it.
+- **No risk to the user's own data**: her real in-progress 5S Daily Check from earlier today had already been submitted (screenshot showed "Awaiting Supervisor") before this change went out, and it's permanently locked to v1.2 regardless (versioning). Nothing of hers was touched; tomorrow's fresh daily occurrence (or a restarted one) will be the first to show the new buttons.
+- **Net effect across today's two rounds of feedback on this one checklist**: v1.2 (typed number) → v1.3 (Yes/No/N/A, an overcorrection that dropped the middle "needs improvement" level) → v1.4 (0/1/2 as tap buttons, keeping the real scale). Worth remembering for next time: when feedback is about *input friction* ("I don't like typing"), the fix is a better input widget, not necessarily fewer choices.
+
+---
+
 # Handover — 2026-08-21 (continued, part 10)
 
 ## Update: 5S Daily Check items switched from a numeric spinner to Yes/No/N/A
