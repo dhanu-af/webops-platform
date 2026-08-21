@@ -188,6 +188,7 @@ model VerificationStep {
 
 enum ChecklistCategory {
   PRE_START
+  LINE_CLEARANCE
   POST_OPERATION_CLEANING
   FIVE_S
   EQUIPMENT_CHECK

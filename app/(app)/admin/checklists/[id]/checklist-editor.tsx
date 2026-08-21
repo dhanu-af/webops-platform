@@ -10,6 +10,7 @@ import { GripVertical, Trash2, ChevronUp, ChevronDown, Plus } from "lucide-react
 
 const CATEGORIES: { value: ChecklistCategory; label: string }[] = [
   { value: "PRE_START", label: "Pre-Start" },
+  { value: "LINE_CLEARANCE", label: "Line Clearance" },
   { value: "POST_OPERATION_CLEANING", label: "Post-Operation Cleaning" },
   { value: "FIVE_S", label: "5S Audit" },
   { value: "EQUIPMENT_CHECK", label: "Equipment Check" },
