@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     status: searchParams.get("status") || undefined,
   };
 
-  const { from, to } = resolveReportRange(filters);
+  const { from, to } = await resolveReportRange(filters);
   const [summary, inspections] = await Promise.all([getReportSummary(filters), getReportInspections(filters, 500)]);
 
   const buffer = await renderToBuffer(

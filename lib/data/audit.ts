@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { startOfDay, endOfDay, subDays } from "date-fns";
+import { subDays } from "date-fns";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 import type { AuditAction } from "@/app/generated/prisma/client";
 
 export type AuditFilters = {
@@ -17,14 +18,17 @@ function parseDateParam(value: string | undefined): Date | undefined {
 
 // Defaults to the trailing 7 days — an audit log grows without bound, so
 // unlike Reports' 30-day default this stays tighter unless asked otherwise.
-export function resolveAuditRange(filters: AuditFilters): { from: Date; to: Date } {
-  const to = endOfDay(parseDateParam(filters.to) ?? new Date());
-  const from = startOfDay(parseDateParam(filters.from) ?? subDays(to, 6));
+// Uses the facility's timezone for the day boundaries, same reasoning as
+// Today's Ops/Dashboard/Calendar/Reports — see lib/timezone.ts.
+export async function resolveAuditRange(filters: AuditFilters): Promise<{ from: Date; to: Date }> {
+  const timeZone = await getFacilityTimezone();
+  const to = endOfDayInTimeZone(timeZone, parseDateParam(filters.to) ?? new Date());
+  const from = startOfDayInTimeZone(timeZone, parseDateParam(filters.from) ?? subDays(to, 6));
   return { from, to };
 }
 
 export async function getAuditLog(filters: AuditFilters = {}, limit = 200) {
-  const { from, to } = resolveAuditRange(filters);
+  const { from, to } = await resolveAuditRange(filters);
   return db.auditLog.findMany({
     where: {
       createdAt: { gte: from, lte: to },

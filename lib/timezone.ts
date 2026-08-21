@@ -66,3 +66,45 @@ export function todayLabelInTimeZone(timeZone: string, at: Date = new Date()): D
   const { year, month, day } = zonedDateParts(at, timeZone);
   return new Date(Date.UTC(year, month - 1, day));
 }
+
+// "yyyy-MM-dd" as perceived in `timeZone` — for feeding a real UTC instant
+// (e.g. the `from`/`to` this file already computed) back into a plain
+// `<input type="date">` default value. date-fns' own format() reads a
+// Date's *server-local* fields, which on a UTC server would print the
+// wrong day for an instant like Brisbane midnight (UTC 14:00 the day
+// before) — this reads the fields through the same timezone instead.
+export function formatDateInTimeZone(at: Date, timeZone: string): string {
+  const { year, month, day } = zonedDateParts(at, timeZone);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// Human-readable timestamps for *server*-rendered pages (audit trail,
+// reports table, checklist version history, evidence gallery) — a client
+// component reading the viewer's own device clock doesn't have this
+// problem (that's already the viewer's local time), but anything rendered
+// server-side via plain date-fns format() prints the server's UTC time,
+// not the facility's, unless routed through here.
+export function formatDateTimeInTimeZone(at: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("day")} ${get("month")} ${get("year")}, ${get("hour")}:${get("minute")}`;
+}
+
+export function formatDayInTimeZone(at: Date, timeZone: string, withYear = true): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    year: withYear ? "numeric" : undefined,
+  }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return withYear ? `${get("day")} ${get("month")} ${get("year")}` : `${get("day")} ${get("month")}`;
+}

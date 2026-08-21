@@ -3,10 +3,10 @@ import { listInspections } from "@/lib/data/inspections";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { INSPECTION_STATUS_META } from "@/lib/status";
-import { format } from "date-fns";
+import { getFacilityTimezone, formatDayInTimeZone } from "@/lib/timezone";
 
 export default async function InspectionsHistoryPage() {
-  const inspections = await listInspections();
+  const [inspections, timeZone] = await Promise.all([listInspections(), getFacilityTimezone()]);
 
   return (
     <div className="space-y-6">
@@ -50,7 +50,7 @@ export default async function InspectionsHistoryPage() {
                     <td className="py-2.5">
                       <Badge tone={meta.tone}>{meta.label}</Badge>
                     </td>
-                    <td className="py-2.5 font-mono-tabular text-xs text-muted">{format(insp.createdAt, "d MMM yyyy")}</td>
+                    <td className="py-2.5 font-mono-tabular text-xs text-muted">{formatDayInTimeZone(insp.createdAt, timeZone)}</td>
                   </tr>
                 );
               })}

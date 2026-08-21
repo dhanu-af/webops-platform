@@ -6,7 +6,7 @@ import { getChecklistForEdit } from "@/lib/actions/checklist-builder";
 import { ChecklistEditor } from "./checklist-editor";
 import { ScheduleManager } from "./schedule-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns";
+import { getFacilityTimezone, formatDateTimeInTimeZone } from "@/lib/timezone";
 
 export default async function ChecklistEditPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -15,6 +15,7 @@ export default async function ChecklistEditPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const checklist = await getChecklistForEdit(id).catch(() => null);
   if (!checklist) notFound();
+  const timeZone = await getFacilityTimezone();
 
   const [workflows, facilities] = await Promise.all([
     db.verificationWorkflow.findMany({ include: { steps: { orderBy: { order: "asc" } } }, orderBy: { name: "asc" } }),
@@ -71,7 +72,7 @@ export default async function ChecklistEditPage({ params }: { params: Promise<{ 
                   v && (
                     <div key={v.id} className="flex items-center justify-between py-2.5 text-sm">
                       <span className="font-mono-tabular text-foreground">v{v.versionNumber}{v.isCurrent ? " (current)" : ""}</span>
-                      <span className="text-xs text-muted">{v.items.length} items · published {format(v.publishedAt, "d MMM yyyy, HH:mm")}</span>
+                      <span className="text-xs text-muted">{v.items.length} items · published {formatDateTimeInTimeZone(v.publishedAt, timeZone)}</span>
                     </div>
                   )
               )}

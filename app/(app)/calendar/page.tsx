@@ -2,6 +2,7 @@ import Link from "next/link";
 import { addMonths, format, startOfMonth } from "date-fns";
 import { getCalendarMonth, getCalendarAreaOptions } from "@/lib/data/calendar";
 import { calendarEntryMeta } from "@/lib/calendar-status";
+import { getFacilityTimezone, todayLabelInTimeZone } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
 import { MonthGrid, DOT_TONE_CLASSES } from "@/components/calendar/month-grid";
 import { cn } from "@/lib/utils";
@@ -10,12 +11,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const FREQUENCIES = ["DAILY", "WEEKLY", "MONTHLY"] as const;
 const LEGEND_STATUSES = ["SCHEDULED", "DUE", "OVERDUE", "IN_PROGRESS", "AWAITING_SUPERVISOR", "AWAITING_QA", "CLOSED"] as const;
 
-function parseMonth(value: string | undefined): Date {
+// `todayMonth` is the facility's current month (see lib/timezone.ts) — near
+// midnight on the last day of a UTC month, Brisbane can already be in the
+// next one, so this can't default to a plain new Date() on the server.
+function parseMonth(value: string | undefined, todayMonth: Date): Date {
   if (value && /^\d{4}-\d{2}$/.test(value)) {
     const [year, month] = value.split("-").map(Number);
     return new Date(year, month - 1, 1);
   }
-  return startOfMonth(new Date());
+  return startOfMonth(todayMonth);
 }
 
 function monthQuery(month: Date, areaId?: string, frequency?: string) {
@@ -27,7 +31,9 @@ function monthQuery(month: Date, areaId?: string, frequency?: string) {
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; areaId?: string; frequency?: string }> }) {
   const params = await searchParams;
-  const month = parseMonth(params.month);
+  const timeZone = await getFacilityTimezone();
+  const todayMonth = todayLabelInTimeZone(timeZone);
+  const month = parseMonth(params.month, todayMonth);
   const areaId = params.areaId || undefined;
   const frequency = params.frequency || undefined;
 
@@ -50,7 +56,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <Link href={monthQuery(addMonths(month, 1), areaId, frequency)} className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground">
             <ChevronRight className="size-4" />
           </Link>
-          <Link href={monthQuery(startOfMonth(new Date()), areaId, frequency)} className="ml-1 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-muted-strong hover:bg-surface-sunken hover:text-foreground">
+          <Link href={monthQuery(startOfMonth(todayMonth), areaId, frequency)} className="ml-1 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-muted-strong hover:bg-surface-sunken hover:text-foreground">
             Today
           </Link>
         </div>
@@ -94,7 +100,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </CardContent>
       </Card>
 
-      <MonthGrid days={days} />
+      <MonthGrid days={days} today={todayMonth} />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
         {LEGEND_STATUSES.map((status) => {

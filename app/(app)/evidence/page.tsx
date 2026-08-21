@@ -2,14 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns";
+import { getFacilityTimezone, formatDayInTimeZone } from "@/lib/timezone";
 
 export default async function EvidenceGalleryPage() {
-  const photos = await db.photoEvidence.findMany({
-    include: { area: true, inspection: { include: { checklistVersion: { include: { checklist: true } } } }, uploadedBy: true, finding: true },
-    orderBy: { createdAt: "desc" },
-    take: 60,
-  });
+  const [photos, timeZone] = await Promise.all([
+    db.photoEvidence.findMany({
+      include: { area: true, inspection: { include: { checklistVersion: { include: { checklist: true } } } }, uploadedBy: true, finding: true },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+    }),
+    getFacilityTimezone(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -40,7 +43,7 @@ export default async function EvidenceGalleryPage() {
                     </div>
                     <p className="mt-1 truncate text-xs font-medium text-foreground">{p.area?.name ?? "—"}</p>
                     <p className="truncate text-[11px] text-muted">
-                      {p.uploadedBy.name} · {format(p.createdAt, "d MMM")}
+                      {p.uploadedBy.name} · {formatDayInTimeZone(p.createdAt, timeZone, false)}
                     </p>
                   </>
                 );

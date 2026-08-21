@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getReportInspections, getReportSummary, getReportAreaOptions, resolveReportRange, type ReportFilters } from "@/lib/data/reports";
+import { getFacilityTimezone, formatDateInTimeZone, formatDayInTimeZone } from "@/lib/timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const canExport = can(session.user.role, "reports.export");
 
   const filters = await searchParams;
-  const { from, to } = resolveReportRange(filters);
+  const timeZone = await getFacilityTimezone();
+  const { from, to } = await resolveReportRange(filters);
 
   const [summary, inspections, areas] = await Promise.all([
     getReportSummary(filters),
@@ -63,8 +64,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     getReportAreaOptions(),
   ]);
 
-  const fromValue = format(from, "yyyy-MM-dd");
-  const toValue = format(to, "yyyy-MM-dd");
+  const fromValue = formatDateInTimeZone(from, timeZone);
+  const toValue = formatDateInTimeZone(to, timeZone);
   const hasExtraFilters = Boolean(filters.areaId || filters.frequency || filters.status);
 
   return (
@@ -226,7 +227,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                     <td className="py-2.5">
                       <Badge tone={meta.tone}>{meta.label}</Badge>
                     </td>
-                    <td className="py-2.5 font-mono-tabular text-xs text-muted">{format(insp.createdAt, "d MMM yyyy")}</td>
+                    <td className="py-2.5 font-mono-tabular text-xs text-muted">{formatDayInTimeZone(insp.createdAt, timeZone)}</td>
                   </tr>
                 );
               })}

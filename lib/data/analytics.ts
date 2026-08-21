@@ -5,7 +5,7 @@ import { resolveReportRange, type ReportFilters } from "@/lib/data/reports";
 export type ScoreTrendPoint = { date: string; label: string; avgScore: number | null };
 
 export async function getScoreTrend(filters: ReportFilters): Promise<ScoreTrendPoint[]> {
-  const { from, to } = resolveReportRange(filters);
+  const { from, to } = await resolveReportRange(filters);
   const inspections = await db.inspection.findMany({
     where: { createdAt: { gte: from, lte: to }, score: { not: null }, areaId: filters.areaId || undefined },
     select: { createdAt: true, score: true },
@@ -30,7 +30,7 @@ export async function getScoreTrend(filters: ReportFilters): Promise<ScoreTrendP
 export type AreaPerformancePoint = { name: string; avgScore: number; count: number };
 
 export async function getAreaPerformance(filters: ReportFilters): Promise<AreaPerformancePoint[]> {
-  const { from, to } = resolveReportRange(filters);
+  const { from, to } = await resolveReportRange(filters);
   const inspections = await db.inspection.findMany({
     where: { createdAt: { gte: from, lte: to }, score: { not: null }, areaId: filters.areaId || undefined },
     select: { score: true, area: { select: { id: true, name: true } } },
@@ -56,7 +56,7 @@ export type FindingsByAreaPoint = { name: string; CRITICAL: number; MAJOR: numbe
 // findings, and the point of this chart is which *areas* keep recurring, not which
 // single inspection they came from.
 export async function getFindingsBySeverityByArea(filters: ReportFilters): Promise<FindingsByAreaPoint[]> {
-  const { from, to } = resolveReportRange(filters);
+  const { from, to } = await resolveReportRange(filters);
   const findings = await db.finding.findMany({
     where: { createdAt: { gte: from, lte: to }, areaId: filters.areaId || undefined },
     select: { severity: true, area: { select: { name: true } } },

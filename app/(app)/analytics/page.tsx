@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { resolveReportRange, getReportAreaOptions, type ReportFilters } from "@/lib/data/reports";
+import { getFacilityTimezone, formatDateInTimeZone } from "@/lib/timezone";
 import { getScoreTrend, getAreaPerformance, getFindingsBySeverityByArea, getCorrectiveActionAging } from "@/lib/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreTrendChart, AreaPerformanceChart, FindingsBySeverityChart, CorrectiveActionAgingChart } from "@/components/analytics/charts";
@@ -15,7 +15,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   if (!session?.user || !can(session.user.role, "reports.view")) notFound();
 
   const filters = await searchParams;
-  const { from, to } = resolveReportRange(filters);
+  const timeZone = await getFacilityTimezone();
+  const { from, to } = await resolveReportRange(filters);
 
   const [trend, areaPerformance, findingsBySeverity, aging, areas] = await Promise.all([
     getScoreTrend(filters),
@@ -25,8 +26,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     getReportAreaOptions(),
   ]);
 
-  const fromValue = format(from, "yyyy-MM-dd");
-  const toValue = format(to, "yyyy-MM-dd");
+  const fromValue = formatDateInTimeZone(from, timeZone);
+  const toValue = formatDateInTimeZone(to, timeZone);
 
   return (
     <div className="space-y-6">

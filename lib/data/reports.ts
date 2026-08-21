@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { startOfDay, endOfDay, subDays } from "date-fns";
+import { subDays } from "date-fns";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 import type { Frequency, InspectionStatus } from "@/app/generated/prisma/client";
 
 export type ReportFilters = {
@@ -17,15 +18,18 @@ function parseDateParam(value: string | undefined): Date | undefined {
 }
 
 // Defaults to the trailing 30 days when no range is given — reports should
-// never silently query the entire inspection history by default.
-export function resolveReportRange(filters: ReportFilters): { from: Date; to: Date } {
-  const to = endOfDay(parseDateParam(filters.to) ?? new Date());
-  const from = startOfDay(parseDateParam(filters.from) ?? subDays(to, 29));
+// never silently query the entire inspection history by default. Uses the
+// facility's timezone (not the server's UTC) for the day boundaries, same
+// reasoning as Today's Ops/Dashboard/Calendar — see lib/timezone.ts.
+export async function resolveReportRange(filters: ReportFilters): Promise<{ from: Date; to: Date }> {
+  const timeZone = await getFacilityTimezone();
+  const to = endOfDayInTimeZone(timeZone, parseDateParam(filters.to) ?? new Date());
+  const from = startOfDayInTimeZone(timeZone, parseDateParam(filters.from) ?? subDays(to, 29));
   return { from, to };
 }
 
-function buildInspectionWhere(filters: ReportFilters) {
-  const { from, to } = resolveReportRange(filters);
+async function buildInspectionWhere(filters: ReportFilters) {
+  const { from, to } = await resolveReportRange(filters);
   return {
     createdAt: { gte: from, lte: to },
     areaId: filters.areaId || undefined,
@@ -36,7 +40,7 @@ function buildInspectionWhere(filters: ReportFilters) {
 
 export async function getReportInspections(filters: ReportFilters = {}, limit = 500) {
   return db.inspection.findMany({
-    where: buildInspectionWhere(filters),
+    where: await buildInspectionWhere(filters),
     include: {
       checklistVersion: { include: { checklist: true } },
       facility: true,
@@ -54,7 +58,7 @@ export async function getReportInspections(filters: ReportFilters = {}, limit = 
 }
 
 export async function getReportSummary(filters: ReportFilters = {}) {
-  const where = buildInspectionWhere(filters);
+  const where = await buildInspectionWhere(filters);
 
   const [total, closed, scoreAgg, openFindings, criticalFindings, overdueCorrectiveActions] = await Promise.all([
     db.inspection.count({ where }),

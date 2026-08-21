@@ -12,13 +12,11 @@ export const DOT_TONE_CLASSES: Record<string, string> = {
   accent: "bg-accent",
 };
 
-export function MonthGrid({ days }: { days: { date: Date; entries: CalendarEntry[] }[] }) {
+export function MonthGrid({ days, today }: { days: { date: Date; entries: CalendarEntry[] }[]; today: Date }) {
   if (days.length === 0) return null;
 
   const firstDay = days[0].date;
   const leadingBlanks = firstDay.getDay(); // 0 (Sun) - 6 (Sat)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const cells: ({ date: Date; entries: CalendarEntry[] } | null)[] = [
     ...Array(leadingBlanks).fill(null),

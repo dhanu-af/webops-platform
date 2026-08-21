@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "./timezone";
+import {
+  startOfDayInTimeZone,
+  endOfDayInTimeZone,
+  todayLabelInTimeZone,
+  formatDateInTimeZone,
+  formatDateTimeInTimeZone,
+  formatDayInTimeZone,
+} from "./timezone";
 
 // Brisbane is a fixed UTC+10, no DST — makes it easy to hand-verify exact
 // instants. This is the actual timezone this app's one real facility runs
@@ -49,5 +56,33 @@ describe("todayLabelInTimeZone", () => {
     const gridDayLabel = new Date("2026-08-22T00:00:00.000Z");
     const at = new Date("2026-08-22T05:00:00.000Z"); // 2026-08-22 15:00 Brisbane
     expect(todayLabelInTimeZone(BRISBANE, at).getTime()).toBe(gridDayLabel.getTime());
+  });
+});
+
+describe("formatDateInTimeZone", () => {
+  it("reads the Brisbane date for a plain <input type=\"date\"> value, not the UTC one", () => {
+    // 2026-08-21 23:00 UTC is already 2026-08-22 in Brisbane.
+    const at = new Date("2026-08-21T23:00:00.000Z");
+    expect(formatDateInTimeZone(at, BRISBANE)).toBe("2026-08-22");
+  });
+});
+
+describe("formatDateTimeInTimeZone", () => {
+  it("shows the Brisbane clock time for a display timestamp, not the server's UTC clock", () => {
+    // 2026-08-21 23:05 UTC = 2026-08-22 09:05 Brisbane.
+    const at = new Date("2026-08-21T23:05:00.000Z");
+    expect(formatDateTimeInTimeZone(at, BRISBANE)).toBe("22 Aug 2026, 09:05");
+  });
+});
+
+describe("formatDayInTimeZone", () => {
+  it("includes the year by default", () => {
+    const at = new Date("2026-08-21T23:05:00.000Z"); // 22 Aug in Brisbane
+    expect(formatDayInTimeZone(at, BRISBANE)).toBe("22 Aug 2026");
+  });
+
+  it("omits the year when asked", () => {
+    const at = new Date("2026-08-21T23:05:00.000Z");
+    expect(formatDayInTimeZone(at, BRISBANE, false)).toBe("22 Aug");
   });
 });

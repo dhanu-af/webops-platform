@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getAuditLog, resolveAuditRange, AUDIT_ENTITY_TYPES, type AuditFilters } from "@/lib/data/audit";
+import { getFacilityTimezone, formatDateInTimeZone, formatDateTimeInTimeZone } from "@/lib/timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AUDIT_ACTION_META } from "@/lib/status";
@@ -34,11 +34,12 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   if (!session?.user || !can(session.user.role, "reports.view")) notFound();
 
   const filters = await searchParams;
-  const { from, to } = resolveAuditRange(filters);
+  const timeZone = await getFacilityTimezone();
+  const { from, to } = await resolveAuditRange(filters);
   const entries = await getAuditLog(filters);
 
-  const fromValue = format(from, "yyyy-MM-dd");
-  const toValue = format(to, "yyyy-MM-dd");
+  const fromValue = formatDateInTimeZone(from, timeZone);
+  const toValue = formatDateInTimeZone(to, timeZone);
   const hasExtraFilters = Boolean(filters.entityType || filters.action);
 
   return (
@@ -135,7 +136,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                 const detail = entry.reason ?? (entry.newValue ? JSON.stringify(entry.newValue) : null);
                 return (
                   <tr key={entry.id} className="hover:bg-surface-sunken">
-                    <td className="py-2.5 font-mono-tabular text-xs text-muted">{format(entry.createdAt, "d MMM yyyy, HH:mm")}</td>
+                    <td className="py-2.5 font-mono-tabular text-xs text-muted">{formatDateTimeInTimeZone(entry.createdAt, timeZone)}</td>
                     <td className="py-2.5">
                       {entry.inspectionId ? (
                         <Link href={`/inspections/${entry.inspectionId}`} className="font-medium text-foreground hover:text-accent">
