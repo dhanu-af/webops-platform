@@ -267,8 +267,10 @@ export function ChecklistItemCard({
       {/* Photo evidence is always optionally attachable on a judgement item,
           not just when it failed — spec §18 "Allow photos for each 5S
           category" applies beyond just failures (before/after, general
-          proof), so only NUMERIC/TEXT data-entry items skip it. */}
-      {(item.type === "PASS_FAIL" || item.type === "YES_NO" || item.type === "ACKNOWLEDGEMENT" || needsPhoto || allPhotos.length > 0) && (
+          proof). NUMERIC is included because a 0/1/2 compliance score (5S's
+          scale) is just as much a judgement call as PASS_FAIL/YES_NO — only
+          free-text data-entry items skip it. */}
+      {(item.type === "PASS_FAIL" || item.type === "YES_NO" || item.type === "ACKNOWLEDGEMENT" || item.type === "NUMERIC" || needsPhoto || allPhotos.length > 0) && (
         <div className="mt-3">
           <PhotoUpload
             inspectionId={inspectionId}
@@ -276,6 +278,7 @@ export function ChecklistItemCard({
             findingId={response?.finding?.id}
             existingPhotos={allPhotos}
             required={needsPhoto}
+            maxPhotos={5}
           />
         </div>
       )}

@@ -11,36 +11,42 @@ export function PhotoUpload({
   findingId,
   existingPhotos,
   required = false,
+  maxPhotos = 5,
 }: {
   inspectionId: string;
   responseId?: string;
   findingId?: string;
   existingPhotos: Array<{ id: string; storagePath: string; caption: string | null }>;
   required?: boolean;
+  maxPhotos?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const remaining = Math.max(0, maxPhotos - existingPhotos.length);
 
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const file = files[0];
-    setPreview(URL.createObjectURL(file));
+    const toUpload = Array.from(files).slice(0, remaining);
+    if (toUpload.length === 0) return;
     setError(null);
     startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set("inspectionId", inspectionId);
-        if (responseId) formData.set("responseId", responseId);
-        if (findingId) formData.set("findingId", findingId);
-        formData.set("file", file);
-        await attachPhoto(formData);
-        setPreview(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Upload failed.");
-        setPreview(null);
+      for (const file of toUpload) {
+        setPreview(URL.createObjectURL(file));
+        try {
+          const formData = new FormData();
+          formData.set("inspectionId", inspectionId);
+          if (responseId) formData.set("responseId", responseId);
+          if (findingId) formData.set("findingId", findingId);
+          formData.set("file", file);
+          await attachPhoto(formData);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Upload failed.");
+          break;
+        }
       }
+      setPreview(null);
     });
   }
 
@@ -64,26 +70,30 @@ export function PhotoUpload({
             <Loader2 className="absolute inset-0 m-auto size-5 animate-spin text-white" />
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={pending}
-          className={`flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[10px] font-medium ${
-            required && existingPhotos.length === 0 ? "border-status-critical text-status-critical" : "border-border-strong text-muted"
-          }`}
-        >
-          <Camera className="size-4" />
-          Photo
-        </button>
+        {remaining > 0 && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={pending}
+            className={`flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[10px] font-medium ${
+              required && existingPhotos.length === 0 ? "border-status-critical text-status-critical" : "border-border-strong text-muted"
+            }`}
+          >
+            <Camera className="size-4" />
+            Photo
+          </button>
+        )}
       </div>
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
         capture="environment"
+        multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
+      <p className="text-[11px] text-muted">{existingPhotos.length} / {maxPhotos} photos</p>
       {required && existingPhotos.length === 0 && (
         <p className="text-xs text-status-critical">Photo evidence required for this failed item.</p>
       )}
