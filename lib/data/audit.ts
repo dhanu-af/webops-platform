@@ -47,6 +47,8 @@ export const AUDIT_ENTITY_TYPES = [
   "CorrectiveAction",
   "AreaRelease",
   "Facility",
+  "Area",
+  "Equipment",
   "SystemSettings",
   "NotificationSetting",
   "User",
