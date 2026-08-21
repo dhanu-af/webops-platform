@@ -12,6 +12,7 @@ import {
   ListChecks,
   FileBarChart,
   BarChart3,
+  ShieldCheck,
   Factory,
   Users,
   Workflow,
@@ -65,6 +66,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Reports", href: "/reports", icon: FileBarChart, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },
       { label: "Analytics", href: "/analytics", icon: BarChart3, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT"] },
+      { label: "Audit Trail", href: "/audit", icon: ShieldCheck, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },
     ],
   },
   {

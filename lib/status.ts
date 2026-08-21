@@ -58,3 +58,23 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   REJECTED: "Inspection rejected",
   AREA_RELEASED: "Inspection closed / area released",
 };
+
+export const AUDIT_ACTION_META: Record<string, { label: string; tone: StatusTone }> = {
+  CREATED: { label: "Created", tone: "accent" },
+  STARTED: { label: "Started", tone: "accent" },
+  EDITED: { label: "Edited", tone: "neutral" },
+  SUBMITTED: { label: "Submitted", tone: "accent" },
+  ITEM_FAILED: { label: "Item Failed", tone: "critical" },
+  PHOTO_UPLOADED: { label: "Photo Uploaded", tone: "neutral" },
+  FINDING_CREATED: { label: "Finding Created", tone: "attention" },
+  CORRECTIVE_ACTION_CREATED: { label: "Corrective Action Created", tone: "attention" },
+  SUPERVISOR_REVIEWED: { label: "Supervisor Reviewed", tone: "accent" },
+  SUPERVISOR_APPROVED: { label: "Supervisor Approved", tone: "pass" },
+  RETURNED: { label: "Returned", tone: "critical" },
+  REJECTED: { label: "Rejected", tone: "critical" },
+  QA_REVIEWED: { label: "QA Reviewed", tone: "accent" },
+  QA_APPROVED: { label: "QA Approved", tone: "pass" },
+  CLOSED: { label: "Closed", tone: "pass" },
+  LOGIN: { label: "Login", tone: "neutral" },
+  AREA_RELEASED: { label: "Area Released", tone: "pass" },
+};
