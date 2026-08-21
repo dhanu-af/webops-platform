@@ -1,3 +1,14 @@
+# Handover — 2026-08-21 (continued, part 12)
+
+## Update: 5S Daily Check now shows the scoring legend on every item
+
+Follow-up request: show what 0/1/2 actually mean right on each item, not just as tap buttons with no explanation.
+
+- Set every one of the 27 items' `helpText` to `"2 = Good / Fully compliant · 1 = Needs improvement · 0 = Not compliant"` — pure content change via the existing Checklist Builder, no code touched. `helpText` already renders under the prompt for every item type in this app (`checklist-item-card.tsx`, pre-existing, unmodified), so this needed no new code — just filling in a field that was previously blank on this checklist. Published as v1.5, live on production, confirmed by reloading the editor and reading the persisted value back (didn't spin up a separate dev-worktree verification pass for this one — it's a pure data change through an already-proven code path, not new logic, so the usual full dev-then-production cycle would have been disproportionate).
+- Same versioning note as before: this doesn't touch the user's already-submitted v1.2 inspection from earlier today.
+
+---
+
 # Handover — 2026-08-21 (continued, part 11)
 
 ## Update: reverted Yes/No back to a tappable 0/1/2 scale — this was the right call, not the last one
