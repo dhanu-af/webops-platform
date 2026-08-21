@@ -45,25 +45,35 @@ export function ScheduleManager({ checklistId, facilities, schedules }: { checkl
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [frequency, setFrequency] = useState<Frequency>("DAILY");
-  const [areaId, setAreaId] = useState<string>("");
+  const [scopeKey, setScopeKey] = useState<string>("");
   const [dueTime, setDueTime] = useState("");
   const [assignedRole, setAssignedRole] = useState<UserRole>("OPERATOR");
   const [photoRequired, setPhotoRequired] = useState(true);
 
-  const allAreas = facilities.flatMap((f) => f.sections.flatMap((s) => s.areas.map((a) => ({ ...a, facilityId: f.id, sectionId: s.id, facilityName: f.name, sectionName: s.name }))));
+  // Scopes range from a whole facility (e.g. the existing Weekly 5S Audit)
+  // down to a single area — createSchedule already supports any of these
+  // via optional sectionId/areaId, this just exposes the broader levels
+  // the picker used to force everything down to "area" and skip.
+  const scopes = facilities.flatMap((f) => [
+    { key: `f:${f.id}`, facilityId: f.id, sectionId: undefined as string | undefined, areaId: undefined as string | undefined, label: `${f.name} (whole facility)` },
+    ...f.sections.flatMap((s) => [
+      { key: `s:${s.id}`, facilityId: f.id, sectionId: s.id, areaId: undefined as string | undefined, label: `${f.name} / ${s.name} (whole section)` },
+      ...s.areas.map((a) => ({ key: `a:${a.id}`, facilityId: f.id, sectionId: s.id, areaId: a.id, label: `${f.name} / ${s.name} / ${a.name}` })),
+    ]),
+  ]);
 
   function handleAdd() {
     setError(null);
-    const area = allAreas.find((a) => a.id === areaId);
-    if (!area) return setError("Select an area.");
+    const scope = scopes.find((s) => s.key === scopeKey);
+    if (!scope) return setError("Select a facility, section, or area.");
     startTransition(async () => {
       try {
         await createSchedule({
           checklistId,
           frequency,
-          facilityId: area.facilityId,
-          sectionId: area.sectionId,
-          areaId: area.id,
+          facilityId: scope.facilityId,
+          sectionId: scope.sectionId,
+          areaId: scope.areaId,
           dueTime: dueTime || undefined,
           assignedRole,
           priority: "NORMAL" as Priority,
@@ -118,11 +128,11 @@ export function ScheduleManager({ checklistId, facilities, schedules }: { checkl
               </option>
             ))}
           </select>
-          <select value={areaId} onChange={(e) => setAreaId(e.target.value)} className="rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-accent">
-            <option value="">Select area…</option>
-            {allAreas.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.facilityName} / {a.sectionName} / {a.name}
+          <select value={scopeKey} onChange={(e) => setScopeKey(e.target.value)} className="rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-accent">
+            <option value="">Select facility, section, or area…</option>
+            {scopes.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
               </option>
             ))}
           </select>
