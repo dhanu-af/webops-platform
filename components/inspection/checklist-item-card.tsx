@@ -142,7 +142,7 @@ export function ChecklistItemCard({
                 response?.passFail === "PASS" ? "bg-status-pass text-white" : "border border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
               )}
             >
-              PASS
+              {item.type === "YES_NO" ? "YES" : "PASS"}
             </button>
             <button
               type="button"
@@ -153,7 +153,7 @@ export function ChecklistItemCard({
                 response?.passFail === "FAIL" ? "bg-status-critical text-white" : "border border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
               )}
             >
-              FAIL
+              {item.type === "YES_NO" ? "NO" : "FAIL"}
             </button>
             <button
               type="button"
