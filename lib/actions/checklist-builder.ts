@@ -172,6 +172,28 @@ export async function setChecklistActive(id: string, active: boolean) {
   revalidatePath("/checklists");
 }
 
+// Real, permanent deletion — distinct from Archive (setChecklistActive above),
+// which just hides a checklist while preserving it and its history. Only
+// allowed when no Inspection has ever been performed against any version of
+// this checklist: once real inspection data exists, that's audit history and
+// must go through Archive instead, never deletion.
+export async function deleteChecklist(id: string) {
+  await requireAdmin();
+
+  const inspectionCount = await db.inspection.count({
+    where: { checklistVersion: { checklistId: id } },
+  });
+  if (inspectionCount > 0) {
+    throw new Error(
+      `Can't delete — ${inspectionCount} inspection${inspectionCount === 1 ? "" : "s"} exist for this checklist. Archive it instead to preserve that history.`
+    );
+  }
+
+  await db.checklist.delete({ where: { id } });
+  revalidatePath("/admin/checklists");
+  revalidatePath("/checklists");
+}
+
 export async function createSchedule(input: {
   checklistId: string;
   frequency: Frequency;
