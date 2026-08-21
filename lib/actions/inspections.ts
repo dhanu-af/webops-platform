@@ -3,7 +3,7 @@
 import { db, withDbRetry } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { notify } from "@/lib/notifications";
+import { notify, notifyUsers } from "@/lib/notifications";
 import { storePhoto, getMaxPhotoBytes, ALLOWED_PHOTO_TYPES } from "@/lib/storage";
 import { canVerifyOwnWork } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
@@ -341,21 +341,17 @@ export async function submitInspection(inspectionId: string) {
   ]);
 
   if (role) {
-    // Notifications are best-effort and independent of each other: fire them
-    // concurrently rather than one sequential round-trip per reviewer, so N
-    // reviewers cost roughly the same latency as one. A failed notification
-    // (this submission has already succeeded by this point) is logged, not thrown.
-    await Promise.allSettled(
-      reviewers.map((reviewer) =>
-        notify(
-          reviewer.id,
-          role === "SUPERVISOR" ? "SUPERVISOR_VERIFICATION_REQUIRED" : "QA_VERIFICATION_REQUIRED",
-          `${inspection.checklistVersion.checklist.name} needs verification`,
-          `${inspection.area?.name ?? "Facility"} — submitted by ${user.name}`,
-          `/inspections/${inspectionId}`
-        ).catch((e) => console.error(`Failed to notify reviewer ${reviewer.id} of inspection ${inspectionId}:`, e))
-      )
-    );
+    // Notifications are best-effort: this submission has already succeeded
+    // by this point, so a failure here is logged, not thrown. One batched
+    // call (not one per reviewer) so extra recipients configured in Settings
+    // get exactly one copy each, not one per role-holder.
+    await notifyUsers(
+      reviewers.map((reviewer) => reviewer.id),
+      role === "SUPERVISOR" ? "SUPERVISOR_VERIFICATION_REQUIRED" : "QA_VERIFICATION_REQUIRED",
+      `${inspection.checklistVersion.checklist.name} needs verification`,
+      `${inspection.area?.name ?? "Facility"} — submitted by ${user.name}`,
+      `/inspections/${inspectionId}`
+    ).catch((e) => console.error(`Failed to notify reviewers of inspection ${inspectionId}:`, e));
   }
 
   revalidatePath("/inspections");
@@ -421,9 +417,13 @@ export async function verifyInspection(input: { inspectionId: string; action: Ve
         update: { status: "AWAITING_QA", supervisorId: user.id, supervisorAt: new Date() },
       });
       const qaUsers = await db.user.findMany({ where: { role: "QA", active: true } });
-      for (const qa of qaUsers) {
-        await notify(qa.id, "QA_VERIFICATION_REQUIRED", "QA verification required", `${inspection.area?.name} — supervisor approved`, `/inspections/${inspection.id}`);
-      }
+      await notifyUsers(
+        qaUsers.map((qa) => qa.id),
+        "QA_VERIFICATION_REQUIRED",
+        "QA verification required",
+        `${inspection.area?.name} — supervisor approved`,
+        `/inspections/${inspection.id}`
+      );
     } else if (!hasQaStep) {
       if (inspection.operatorId) {
         await notify(inspection.operatorId, "AREA_RELEASED", "Inspection closed", `${inspection.checklistVersion.checklist.name} approved and closed.`, `/inspections/${inspection.id}`);

@@ -56,6 +56,7 @@ model User {
   areaReleaseSupervised AreaRelease[]     @relation("AreaReleaseSupervisor")
   areaReleaseQaVerified AreaRelease[]     @relation("AreaReleaseQa")
   notifications         Notification[]
+  notificationRecipientOf NotificationRecipient[]
   auditLogEntries       AuditLog[]
   checklistVersionsCreated ChecklistVersion[]
   respondedItems        InspectionResponse[]
@@ -721,4 +722,17 @@ model NotificationSetting {
   type      NotificationType @id
   enabled   Boolean          @default(true)
   updatedAt DateTime         @updatedAt
+}
+
+// Additional recipients for a notification type, on top of whatever the
+// triggering code already targets (a role broadcast or a specific person).
+model NotificationRecipient {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+
+  @@unique([type, userId])
+  @@index([type])
 }

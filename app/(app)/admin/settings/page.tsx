@@ -7,6 +7,7 @@ import { TimezoneForm } from "@/components/admin/timezone-form";
 import { BrandingForm } from "@/components/admin/branding-form";
 import { PhotoLimitForm } from "@/components/admin/photo-limit-form";
 import { NotificationToggle } from "@/components/admin/notification-toggle";
+import { NotificationRecipients } from "@/components/admin/notification-recipients";
 import { NOTIFICATION_TYPE_LABELS } from "@/lib/status";
 import type { NotificationType } from "@/app/generated/prisma/client";
 
@@ -26,13 +27,21 @@ export default async function SettingsAdminPage() {
   const session = await auth();
   if (!session?.user || !can(session.user.role, "areas.manage")) notFound();
 
-  const [facilities, settings, notificationSettings] = await Promise.all([
+  const [facilities, settings, notificationSettings, notificationRecipients, activeUsers] = await Promise.all([
     db.facility.findMany({ where: { archived: false }, orderBy: { name: "asc" } }),
     db.systemSettings.findFirst(),
     db.notificationSetting.findMany(),
+    db.notificationRecipient.findMany({ include: { user: true }, orderBy: { user: { name: "asc" } } }),
+    db.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const timezones = Intl.supportedValuesOf("timeZone");
   const enabledByType = new Map(notificationSettings.map((s) => [s.type, s.enabled]));
+  const recipientsByType = new Map<NotificationType, { id: string; name: string }[]>();
+  for (const r of notificationRecipients) {
+    const list = recipientsByType.get(r.type) ?? [];
+    list.push({ id: r.userId, name: r.user.name });
+    recipientsByType.set(r.type, list);
+  }
 
   return (
     <div className="space-y-6">
@@ -85,12 +94,15 @@ export default async function SettingsAdminPage() {
         </CardHeader>
         <CardContent className="pt-2">
           <p className="mb-2 text-sm text-muted">
-            Turn individual notification types on or off. This controls whether the notification fires at all — it doesn&apos;t yet let you choose
-            <em> who</em> receives it (that still goes to every user in the relevant role, e.g. all Supervisors or all QA).
+            Turn individual notification types on or off, and add specific people who should also receive a type on top of whoever it already
+            goes to by default (e.g. all Supervisors, all QA, or the person it&apos;s directly about).
           </p>
           <div className="divide-y divide-border">
             {NOTIFICATION_TYPES.map((type) => (
-              <NotificationToggle key={type} type={type} label={NOTIFICATION_TYPE_LABELS[type]} enabled={enabledByType.get(type) ?? true} />
+              <div key={type} className="space-y-1.5 py-2.5">
+                <NotificationToggle type={type} label={NOTIFICATION_TYPE_LABELS[type]} enabled={enabledByType.get(type) ?? true} />
+                <NotificationRecipients type={type} recipients={recipientsByType.get(type) ?? []} candidates={activeUsers} />
+              </div>
             ))}
           </div>
         </CardContent>

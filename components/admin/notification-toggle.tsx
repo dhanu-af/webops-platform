@@ -10,7 +10,7 @@ export function NotificationToggle({ type, label, enabled }: { type: Notificatio
   const [pending, startTransition] = useTransition();
 
   return (
-    <label className="flex items-center justify-between gap-4 py-2.5">
+    <label className="flex items-center justify-between gap-4">
       <span className="text-sm text-foreground">{label}</span>
       <input
         type="checkbox"

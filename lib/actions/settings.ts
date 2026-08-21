@@ -85,3 +85,23 @@ export async function setNotificationEnabled(type: NotificationType, enabled: bo
 
   revalidatePath("/admin/settings");
 }
+
+export async function addNotificationRecipient(type: NotificationType, userId: string) {
+  const actor = await requireSettingsManager();
+
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
+  await db.notificationRecipient.upsert({ where: { type_userId: { type, userId } }, create: { type, userId }, update: {} });
+  await logAudit({ entityType: "NotificationSetting", entityId: type, action: "EDITED", userId: actor.id, newValue: { addedRecipient: user.name } });
+
+  revalidatePath("/admin/settings");
+}
+
+export async function removeNotificationRecipient(type: NotificationType, userId: string) {
+  const actor = await requireSettingsManager();
+
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
+  await db.notificationRecipient.deleteMany({ where: { type, userId } });
+  await logAudit({ entityType: "NotificationSetting", entityId: type, action: "EDITED", userId: actor.id, newValue: { removedRecipient: user.name } });
+
+  revalidatePath("/admin/settings");
+}
