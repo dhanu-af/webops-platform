@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { addMonths, format, startOfMonth } from "date-fns";
+import { addMonths, format } from "date-fns";
 import { getCalendarMonth, getCalendarAreaOptions } from "@/lib/data/calendar";
 import { calendarEntryMeta } from "@/lib/calendar-status";
 import { getFacilityTimezone, todayLabelInTimeZone } from "@/lib/timezone";
@@ -11,15 +11,24 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const FREQUENCIES = ["DAILY", "WEEKLY", "MONTHLY"] as const;
 const LEGEND_STATUSES = ["SCHEDULED", "DUE", "OVERDUE", "IN_PROGRESS", "AWAITING_SUPERVISOR", "AWAITING_QA", "CLOSED"] as const;
 
-// `todayMonth` is the facility's current month (see lib/timezone.ts) — near
+// `month` values here are always a UTC-midnight "label" (see
+// lib/timezone.ts's todayLabelInTimeZone) — built with Date.UTC rather than
+// the local Date constructor or date-fns' startOfMonth (which both read the
+// server process's own local time), so the calendar comes out identical
+// regardless of what timezone the server itself is running in.
+function utcMonthStart(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+}
+
+// `todayMonth` is the facility's current day (see lib/timezone.ts) — near
 // midnight on the last day of a UTC month, Brisbane can already be in the
 // next one, so this can't default to a plain new Date() on the server.
 function parseMonth(value: string | undefined, todayMonth: Date): Date {
   if (value && /^\d{4}-\d{2}$/.test(value)) {
     const [year, month] = value.split("-").map(Number);
-    return new Date(year, month - 1, 1);
+    return new Date(Date.UTC(year, month - 1, 1));
   }
-  return startOfMonth(todayMonth);
+  return utcMonthStart(todayMonth);
 }
 
 function monthQuery(month: Date, areaId?: string, frequency?: string) {
@@ -56,7 +65,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <Link href={monthQuery(addMonths(month, 1), areaId, frequency)} className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground">
             <ChevronRight className="size-4" />
           </Link>
-          <Link href={monthQuery(startOfMonth(todayMonth), areaId, frequency)} className="ml-1 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-muted-strong hover:bg-surface-sunken hover:text-foreground">
+          <Link href={monthQuery(utcMonthStart(todayMonth), areaId, frequency)} className="ml-1 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-muted-strong hover:bg-surface-sunken hover:text-foreground">
             Today
           </Link>
         </div>

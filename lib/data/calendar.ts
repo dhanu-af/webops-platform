@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import type { Frequency } from "@/app/generated/prisma/client";
 
@@ -35,12 +35,12 @@ function scheduleAppliesOnDay(schedule: CalendarSchedule, day: Date): boolean {
 
   if (schedule.frequency === "WEEKLY") {
     const days = schedule.recurrenceDays.length ? schedule.recurrenceDays : [schedule.startDate.getDay()];
-    return days.includes(day.getDay());
+    return days.includes(day.getUTCDay());
   }
 
   if (schedule.frequency === "MONTHLY") {
     const days = schedule.recurrenceDays.length ? schedule.recurrenceDays : [schedule.startDate.getDate()];
-    return days.includes(day.getDate());
+    return days.includes(day.getUTCDate());
   }
 
   return false;
@@ -57,8 +57,14 @@ export type CalendarEntry = {
 };
 
 export async function getCalendarMonth(monthDate: Date, filters: { areaId?: string; frequency?: string } = {}) {
-  const from = startOfMonth(monthDate);
-  const to = endOfMonth(monthDate);
+  // monthDate is expected to already be a UTC-midnight "label" (see
+  // lib/timezone.ts's todayLabelInTimeZone) — computed with UTC-explicit
+  // math here rather than date-fns' startOfMonth/endOfMonth (which read the
+  // server process's own local time) so this grid comes out identical
+  // regardless of what timezone the server itself happens to be running
+  // in, dev machine or production alike.
+  const from = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth(), 1));
+  const to = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0));
   const timeZone = await getFacilityTimezone();
   // A UTC-midnight "label" matching how `day` below is generated (plain
   // Date math, one label per calendar day of the month) — not a real DB-
@@ -82,8 +88,11 @@ export async function getCalendarMonth(monthDate: Date, filters: { areaId?: stri
   });
 
   const days: { date: Date; entries: CalendarEntry[] }[] = [];
-  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-    const day = new Date(d);
+  // Plain ms-arithmetic, not d.setDate() — every `from`..`to` step here is
+  // an exact UTC-midnight label 24h apart, so this can't be thrown off by
+  // the server process's own local timezone the way setDate() would be.
+  for (let t = from.getTime(); t <= to.getTime(); t += 24 * 60 * 60 * 1000) {
+    const day = new Date(t);
     const entries: CalendarEntry[] = [];
     for (const schedule of schedules) {
       if (!scheduleAppliesOnDay(schedule, day)) continue;
