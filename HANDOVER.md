@@ -1,3 +1,17 @@
+# Handover — 2026-08-21 (continued, part 8)
+
+## Update: first automated tests in the project
+
+Another clean, no-decision-needed improvement while everything else waits on your input: `vitest` was already a dependency in `package.json` (probably from initial scaffolding) but had zero config, zero test files, and no `npm test` script — never actually wired up.
+
+- Added `vitest.config.mts` (path alias for `@/`, node environment) and `lib/permissions.test.ts` (`a2f9588`, **local only, not pushed**): 97 tests, exhaustively checking every role × permission combination in `lib/permissions.ts`'s `ROLE_PERMISSIONS` matrix against a pinned expected copy, plus `requirePermission()`'s throw behavior and `canVerifyOwnWork()`'s edge cases.
+- **Why this module specifically**: it's the single security-critical chokepoint every admin page and server action added this session (and before it) is gated through, and this session alone involved repeatedly re-verifying role gates by hand in a fresh browser session every time one was touched. This gives that a permanent, instant check instead of a manual one.
+- **Sanity-checked the suite is real, not vacuous**: temporarily gave `OPERATOR` a `users.manage` permission it shouldn't have, ran `npm test`, confirmed 3 tests failed with a clear diff, then reverted and confirmed all 97 pass again.
+- `npm test` runs it. Not wired into `vercel-build` or any CI — there's no CI in this repo at all, this is just runnable locally on demand for now.
+- This doesn't touch runtime behavior (no schema, no page, no server action changed) so there's nothing to verify in a browser — `npm test` itself is the verification.
+
+---
+
 # Handover — 2026-08-21 (continued, part 7)
 
 ## Update: security review of today's session — clean
