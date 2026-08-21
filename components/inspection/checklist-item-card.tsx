@@ -169,18 +169,30 @@ export function ChecklistItemCard({
           </div>
         )}
 
-        {item.type === "NUMERIC" && (
-          <input
-            type="number"
-            disabled={!editable}
-            value={numeric}
-            min={item.minValue ?? undefined}
-            max={item.maxValue ?? undefined}
-            onChange={(e) => commitNumeric(e.target.value)}
-            className="h-12 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
-            placeholder={item.maxValue !== null ? `${item.minValue ?? 0} – ${item.maxValue}` : "Enter value"}
-          />
-        )}
+        {item.type === "NUMERIC" &&
+          (item.minValue !== null && item.maxValue !== null && item.maxValue - item.minValue <= 10 ? (
+            // A small bounded range (e.g. a 0–2 or 0–5 compliance score) is
+            // quicker to tap than to type, especially on a phone — the same
+            // reasoning as every other tap-to-answer item type in this app.
+            <NumericScaleButtons
+              editable={editable}
+              min={item.minValue}
+              max={item.maxValue}
+              value={numeric}
+              onSelect={(n) => commitNumeric(String(n))}
+            />
+          ) : (
+            <input
+              type="number"
+              disabled={!editable}
+              value={numeric}
+              min={item.minValue ?? undefined}
+              max={item.maxValue ?? undefined}
+              onChange={(e) => commitNumeric(e.target.value)}
+              className="h-12 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+              placeholder={item.maxValue !== null ? `${item.minValue ?? 0} – ${item.maxValue}` : "Enter value"}
+            />
+          ))}
 
         {item.type === "ACKNOWLEDGEMENT" && (
           <div className="grid grid-cols-2 gap-2">
@@ -277,6 +289,61 @@ export function ChecklistItemCard({
           className="mt-3 w-full rounded-lg border border-border bg-surface-sunken px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
         />
       )}
+    </div>
+  );
+}
+
+// Colors the low end of the scale critical and the high end pass, so a 0–2
+// score reads the same as PASS/FAIL/N/A at a glance without needing labels
+// for every intermediate value on a wider scale (e.g. 0–5).
+function scaleButtonTone(n: number, min: number, max: number) {
+  if (n === min) return "critical";
+  if (n === max) return "pass";
+  return "warn";
+}
+
+function NumericScaleButtons({
+  editable,
+  min,
+  max,
+  value,
+  onSelect,
+}: {
+  editable: boolean;
+  min: number;
+  max: number;
+  value: string;
+  onSelect: (n: number) => void;
+}) {
+  const selected = value === "" ? null : Number(value);
+  const options = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+
+  return (
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((n) => {
+        const isSelected = selected === n;
+        const tone = scaleButtonTone(n, min, max);
+        return (
+          <button
+            key={n}
+            type="button"
+            disabled={!editable}
+            onClick={() => onSelect(n)}
+            className={cn(
+              "h-14 rounded-xl text-lg font-semibold transition-colors",
+              isSelected
+                ? tone === "critical"
+                  ? "bg-status-critical text-white"
+                  : tone === "pass"
+                    ? "bg-status-pass text-white"
+                    : "bg-status-warn text-white"
+                : "border border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
+            )}
+          >
+            {n}
+          </button>
+        );
+      })}
     </div>
   );
 }
