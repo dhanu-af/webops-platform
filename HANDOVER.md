@@ -1,3 +1,15 @@
+# Handover — 2026-08-21 (continued, part 7)
+
+## Update: security review of today's session — clean
+
+Ran `/security-review` against the full diff of everything shipped this session (`b4c57b7..HEAD`, ~1277 lines across `lib/actions/*`, `lib/notifications.ts`, `lib/data/audit.ts`, the new/changed admin pages, and related components). **No high-confidence vulnerabilities found.** Specifically checked: every new server action has a matching `requirePermission` call (not just a client-side check); the new permission gates added to Checklist Builder/Workflows are net-positive (closing a hole, not opening one); the new `/line-clearance` page's lack of a page-level role check matches the pre-existing Pre-Start/Post-Op/5S pages exactly (relies on middleware session gating, not a new gap); `notifyUsers()`'s extra-recipient fan-out has no path for an unprivileged user to add themselves; no injection/XSS/eval patterns introduced anywhere.
+
+**One non-security note surfaced, worth knowing**: the equipment-row Clean→Sanitised/Dry auto-fill (part 5) means an operator *could* mark a row as fully sanitised and dried by tapping only "Clean," without actually having done the other two steps — this was already the explicit tradeoff described when that feature shipped (see part 5), not a new discovery, but the security review's framing of it as "could let someone record steps that weren't performed" is worth having in writing in case it ever needs revisiting.
+
+Ran out of clearly-scoped, no-decision-needed work at this point — everything else genuinely needs your input (see the running list of open items across every part above: reseed, orphaned Vercel projects, demo account rotation, forgot-password flow, Line Clearance's real checklist content, the SUPERVISOR_REVIEWED/QA_REVIEWED audit semantics question, and whether the equipment-row change should go further into actually relaxing the requirement).
+
+---
+
 # Handover — 2026-08-21 (continued, part 6)
 
 ## Update: Verification Workflow create/edit UI shipped
