@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export default async function WorkflowsAdminPage() {
   const session = await auth();
@@ -15,9 +18,14 @@ export default async function WorkflowsAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Verification Workflows</h1>
-        <p className="text-sm text-muted">Configurable sign-off chains, assigned per checklist — never hard-coded.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Verification Workflows</h1>
+          <p className="text-sm text-muted">Configurable sign-off chains, assigned per checklist — never hard-coded.</p>
+        </div>
+        <Button href="/admin/workflows/new">
+          <Plus className="size-4" /> New Workflow
+        </Button>
       </div>
       <Card>
         <CardHeader>
@@ -26,7 +34,7 @@ export default async function WorkflowsAdminPage() {
         <CardContent className="pt-2">
           <div className="divide-y divide-border">
             {workflows.map((wf) => (
-              <div key={wf.id} className="py-3.5">
+              <Link key={wf.id} href={`/admin/workflows/${wf.id}`} className="block py-3.5 hover:bg-surface-sunken -mx-5 px-5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-foreground">{wf.name}</p>
                   {wf.requiresAreaRelease && <Badge tone="pass">Gates Area Release</Badge>}
@@ -40,9 +48,10 @@ export default async function WorkflowsAdminPage() {
                   ))}
                 </div>
                 <p className="mt-1.5 text-xs text-muted">Used by {wf.checklists.length} checklist{wf.checklists.length === 1 ? "" : "s"}</p>
-              </div>
+              </Link>
             ))}
           </div>
+          {workflows.length === 0 && <p className="py-8 text-center text-sm text-muted">No workflows yet — create your first one.</p>}
         </CardContent>
       </Card>
     </div>
