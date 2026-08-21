@@ -1,3 +1,21 @@
+# Handover — 2026-08-21 (continued, part 4)
+
+## Update: another fresh re-audit, three more gaps closed
+
+Ran the same "ask a fresh read-only pass to look for this exact shape of gap" exercise that's found real bugs every session so far. Findings and what was done, in order of confidence:
+
+1. **Checklist Builder (`/admin/checklists`, `/new`, `/[id]`) and `/admin/workflows` had zero permission checks — reachable by direct URL by any logged-in user, any role.** Same exact bug shape as the old Areas page. All four pages now gate on `checklist.manage` (matches nav visibility) with the standard `auth()`/`can()`/`notFound()` pattern. **Verified**: signed in as Jordan Blake (OPERATOR) in an isolated worktree, confirmed all four routes now 404 for him; signed back in as admin, confirmed all four still work normally.
+2. **`setChecklistActive` existed server-side (working, permission-gated) but no UI ever called it** — the checklist editor only showed a static Active/Archived badge, same shape as the old Areas/Equipment gap. Extended `ArchiveToggleButton` to a 5th kind (`checklist`, wrapping the opposite-sense `active` boolean) and wired it into the editor header. **Verified**: archived and restored a real seeded checklist (Blending Room Pre-Start) via the actual UI, confirmed it persisted across reload both ways, restored it to Active before finishing (it's real seed data, not test filler).
+3. **`ITEM_FAILED` was selectable in the `/audit` filter with its own badge, but no code path ever logged it** — same shape as the already-documented unfired `NotificationType`s, just for `AuditAction`. Added one `logAudit` call in `saveResponse` right next to the existing `FINDING_CREATED` logging for the same FAIL-on-required-item condition. **This touches the exact hot path the error #441 saga was about** (`saveResponse` — called on every single item click), so it got the same rigor: verified in the isolated worktree by starting a real inspection, marking a real item FAIL, confirming `200 OK` with no error, and confirming both `ITEM_FAILED` and `FINDING_CREATED` audit rows landed correctly (checked both via direct DB query and by loading the actual `/audit` page).
+4. **Not built — flagged as genuine design decisions, not oversights**:
+   - `SUPERVISOR_REVIEWED`/`QA_REVIEWED` `AuditAction` values are also unfired. Unlike `ITEM_FAILED`, these aren't a clean "just add the missing log call" — it's a real question whether they should represent a separate reviewed-but-not-approved step, or whether they're redundant with the existing `SUPERVISOR_APPROVED`/`QA_APPROVED`/`RETURNED`/`REJECTED` entries. Needs your call on what "reviewed" is supposed to mean here before building it.
+   - `VerificationWorkflow` has no create/edit UI at all (schema supports it, `/admin/workflows` is fully read-only) — same shape as the other CRUD gaps before they got built, but a workflow builder (step ordering, role picker per step) is a bigger UI than Facility/Section's name+code form was. Flagging as a real next candidate, not attempting without confirming you want it.
+- Verification note: as with the last two sessions, this required a fresh isolated git worktree since the concurrent session on port 3017 (PID 4196, still running) is now three migrations behind — untouched again, same as before.
+
+Not yet pushed — this commit (`f35068d`) is local only pending your go-ahead, same as everything else this session.
+
+---
+
 # Handover — 2026-08-21 (continued, part 3)
 
 ## Update: pushed to production, plus a new Line Clearance checklist category
