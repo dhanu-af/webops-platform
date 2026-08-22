@@ -3,15 +3,34 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getUserScope } from "@/lib/scope";
-import { resolveReportRange, getReportAreaOptions, type ReportFilters } from "@/lib/data/reports";
+import {
+  resolveReportRange,
+  getReportAreaOptions,
+  type ReportFilters,
+} from "@/lib/data/reports";
 import { getFacilityTimezone, formatDateInTimeZone } from "@/lib/timezone";
-import { getScoreTrend, getAreaPerformance, getFindingsBySeverityByArea, getCorrectiveActionAging } from "@/lib/data/analytics";
+import {
+  getScoreTrend,
+  getAreaPerformance,
+  getFindingsBySeverityByArea,
+  getCorrectiveActionAging,
+} from "@/lib/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScoreTrendChart, AreaPerformanceChart, FindingsBySeverityChart, CorrectiveActionAgingChart } from "@/components/analytics/charts";
+import { Button } from "@/components/ui/button";
+import {
+  ScoreTrendChart,
+  AreaPerformanceChart,
+  FindingsBySeverityChart,
+  CorrectiveActionAgingChart,
+} from "@/components/analytics/charts";
 
 type AnalyticsFilters = Pick<ReportFilters, "from" | "to" | "areaId">;
 
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<AnalyticsFilters> }) {
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<AnalyticsFilters>;
+}) {
   const session = await auth();
   if (!session?.user || !can(session.user.role, "reports.view")) notFound();
   const scope = getUserScope(session.user);
@@ -20,13 +39,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const timeZone = await getFacilityTimezone();
   const { from, to } = await resolveReportRange(filters);
 
-  const [trend, areaPerformance, findingsBySeverity, aging, areas] = await Promise.all([
-    getScoreTrend(filters, scope),
-    getAreaPerformance(filters, scope),
-    getFindingsBySeverityByArea(filters, scope),
-    getCorrectiveActionAging(filters, scope),
-    scope.scoped ? Promise.resolve([]) : getReportAreaOptions(),
-  ]);
+  const [trend, areaPerformance, findingsBySeverity, aging, areas] =
+    await Promise.all([
+      getScoreTrend(filters, scope),
+      getAreaPerformance(filters, scope),
+      getFindingsBySeverityByArea(filters, scope),
+      getCorrectiveActionAging(filters, scope),
+      scope.scoped ? Promise.resolve([]) : getReportAreaOptions(),
+    ]);
 
   const fromValue = formatDateInTimeZone(from, timeZone);
   const toValue = formatDateInTimeZone(to, timeZone);
@@ -34,15 +54,22 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Analytics</h1>
-        <p className="text-sm text-muted">Trends, recurring findings, and corrective action ageing for management.</p>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Analytics
+        </h1>
+        <p className="text-sm text-muted">
+          Trends, recurring findings, and corrective action ageing for
+          management.
+        </p>
       </div>
 
       <Card>
         <CardContent className="pt-4">
           <form method="GET" className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-strong">From</label>
+              <label className="text-xs font-medium text-muted-strong">
+                From
+              </label>
               <input
                 type="date"
                 name="from"
@@ -51,7 +78,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-strong">To</label>
+              <label className="text-xs font-medium text-muted-strong">
+                To
+              </label>
               <input
                 type="date"
                 name="to"
@@ -61,7 +90,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             </div>
             {!scope.scoped && (
               <div>
-                <label className="text-xs font-medium text-muted-strong">Area</label>
+                <label className="text-xs font-medium text-muted-strong">
+                  Area
+                </label>
                 <select
                   name="areaId"
                   defaultValue={filters.areaId ?? ""}
@@ -76,11 +107,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 </select>
               </div>
             )}
-            <button type="submit" className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent-strong">
+            <Button type="submit" size="sm">
               Apply
-            </button>
+            </Button>
             {!scope.scoped && filters.areaId && (
-              <Link href={`/analytics?from=${fromValue}&to=${toValue}`} className="text-sm text-muted-strong hover:text-foreground">
+              <Link
+                href={`/analytics?from=${fromValue}&to=${toValue}`}
+                className="text-sm text-muted-strong hover:text-foreground"
+              >
                 Clear filters
               </Link>
             )}

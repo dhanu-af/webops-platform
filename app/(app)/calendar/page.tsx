@@ -6,12 +6,21 @@ import { getCalendarMonth, getCalendarAreaOptions } from "@/lib/data/calendar";
 import { calendarEntryMeta } from "@/lib/calendar-status";
 import { getFacilityTimezone, todayLabelInTimeZone } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { MonthGrid, DOT_TONE_CLASSES } from "@/components/calendar/month-grid";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const FREQUENCIES = ["DAILY", "WEEKLY", "MONTHLY"] as const;
-const LEGEND_STATUSES = ["SCHEDULED", "DUE", "OVERDUE", "IN_PROGRESS", "AWAITING_SUPERVISOR", "AWAITING_QA", "CLOSED"] as const;
+const LEGEND_STATUSES = [
+  "SCHEDULED",
+  "DUE",
+  "OVERDUE",
+  "IN_PROGRESS",
+  "AWAITING_SUPERVISOR",
+  "AWAITING_QA",
+  "CLOSED",
+] as const;
 
 // `month` values here are always a UTC-midnight "label" (see
 // lib/timezone.ts's todayLabelInTimeZone) — built with Date.UTC rather than
@@ -40,7 +49,15 @@ function monthQuery(month: Date, areaId?: string, frequency?: string) {
   return `?${params.toString()}`;
 }
 
-export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; areaId?: string; frequency?: string }> }) {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    month?: string;
+    areaId?: string;
+    frequency?: string;
+  }>;
+}) {
   const session = await auth();
   const scope = getUserScope(session!.user);
   const params = await searchParams;
@@ -59,20 +76,34 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Ops Calendar</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            Ops Calendar
+          </h1>
           <p className="text-sm text-muted">
-            Daily, weekly and monthly checks by day — shift-based and ad-hoc checks don&apos;t have a fixed date and aren&apos;t shown here.
+            Daily, weekly and monthly checks by day — shift-based and ad-hoc
+            checks don&apos;t have a fixed date and aren&apos;t shown here.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={monthQuery(addMonths(month, -1), areaId, frequency)} className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground">
+          <Link
+            href={monthQuery(addMonths(month, -1), areaId, frequency)}
+            className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground"
+          >
             <ChevronLeft className="size-4" />
           </Link>
-          <span className="min-w-[9rem] text-center text-sm font-semibold text-foreground">{format(month, "MMMM yyyy")}</span>
-          <Link href={monthQuery(addMonths(month, 1), areaId, frequency)} className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground">
+          <span className="min-w-[9rem] text-center text-sm font-semibold text-foreground">
+            {format(month, "MMMM yyyy")}
+          </span>
+          <Link
+            href={monthQuery(addMonths(month, 1), areaId, frequency)}
+            className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground"
+          >
             <ChevronRight className="size-4" />
           </Link>
-          <Link href={monthQuery(utcMonthStart(todayMonth), areaId, frequency)} className="ml-1 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-muted-strong hover:bg-surface-sunken hover:text-foreground">
+          <Link
+            href={monthQuery(utcMonthStart(todayMonth), areaId, frequency)}
+            className="ml-1 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-muted-strong hover:bg-surface-sunken hover:text-foreground"
+          >
             Today
           </Link>
         </div>
@@ -81,11 +112,21 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <Card>
         <CardContent className="pt-4">
           <form method="GET" className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="month" value={format(month, "yyyy-MM")} />
+            <input
+              type="hidden"
+              name="month"
+              value={format(month, "yyyy-MM")}
+            />
             {!scope.scoped && (
               <div>
-                <label className="text-xs font-medium text-muted-strong">Area</label>
-                <select name="areaId" defaultValue={areaId ?? ""} className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent">
+                <label className="text-xs font-medium text-muted-strong">
+                  Area
+                </label>
+                <select
+                  name="areaId"
+                  defaultValue={areaId ?? ""}
+                  className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+                >
                   <option value="">All areas</option>
                   {areas.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -96,8 +137,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               </div>
             )}
             <div>
-              <label className="text-xs font-medium text-muted-strong">Frequency</label>
-              <select name="frequency" defaultValue={frequency ?? ""} className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent">
+              <label className="text-xs font-medium text-muted-strong">
+                Frequency
+              </label>
+              <select
+                name="frequency"
+                defaultValue={frequency ?? ""}
+                className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+              >
                 <option value="">All frequencies</option>
                 {FREQUENCIES.map((f) => (
                   <option key={f} value={f}>
@@ -106,11 +153,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                 ))}
               </select>
             </div>
-            <button type="submit" className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent-strong">
+            <Button type="submit" size="sm">
               Apply
-            </button>
+            </Button>
             {(areaId || frequency) && (
-              <Link href={monthQuery(month)} className="text-sm text-muted-strong hover:text-foreground">
+              <Link
+                href={monthQuery(month)}
+                className="text-sm text-muted-strong hover:text-foreground"
+              >
                 Clear filters
               </Link>
             )}
@@ -125,7 +175,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           const meta = calendarEntryMeta(status);
           return (
             <span key={status} className="flex items-center gap-1.5">
-              <span className={cn("size-1.5 rounded-full", DOT_TONE_CLASSES[meta.tone])} />
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  DOT_TONE_CLASSES[meta.tone],
+                )}
+              />
               {meta.label}
             </span>
           );

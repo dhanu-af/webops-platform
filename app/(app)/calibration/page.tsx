@@ -1,50 +1,97 @@
 import Link from "next/link";
 import { format } from "date-fns";
+import {
+  ChevronRight,
+  Wrench,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  HelpCircle,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getUserScope } from "@/lib/scope";
 import { listEquipmentCalibrationOverview } from "@/lib/data/calibration";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 import { CALIBRATION_STATUS_META } from "@/lib/status";
-import { CALIBRATION_DUE_SOON_DAYS } from "@/lib/calibration";
 
 export default async function CalibrationPage() {
   const session = await auth();
   const scope = getUserScope(session!.user);
   const equipment = await listEquipmentCalibrationOverview(scope);
 
-  const overdueCount = equipment.filter((e) => e.status === "OVERDUE").length;
+  const currentCount = equipment.filter((e) => e.status === "CURRENT").length;
   const dueSoonCount = equipment.filter((e) => e.status === "DUE_SOON").length;
+  const overdueCount = equipment.filter((e) => e.status === "OVERDUE").length;
+  const neverCount = equipment.filter(
+    (e) => e.status === "NEVER_CALIBRATED",
+  ).length;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Equipment Calibration</h1>
-        <p className="text-sm text-muted">Calibration history and due dates for every piece of tracked equipment.</p>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Equipment Calibration
+        </h1>
+        <p className="text-sm text-muted">
+          Calibration history and due dates for every piece of tracked
+          equipment.
+        </p>
       </div>
 
-      {(overdueCount > 0 || dueSoonCount > 0) && (
-        <div className="flex flex-wrap gap-3">
-          {overdueCount > 0 && (
-            <div className="rounded-lg bg-status-critical-soft px-3 py-2 text-sm font-medium text-status-critical">
-              {overdueCount} overdue
-            </div>
-          )}
-          {dueSoonCount > 0 && (
-            <div className="rounded-lg bg-status-warn-soft px-3 py-2 text-sm font-medium text-status-warn">
-              {dueSoonCount} due within {CALIBRATION_DUE_SOON_DAYS} days
-            </div>
-          )}
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <KpiCard
+          label="Total Equipment"
+          value={equipment.length}
+          icon={Wrench}
+        />
+        <KpiCard
+          label="Current"
+          value={currentCount}
+          icon={CheckCircle2}
+          tone="pass"
+        />
+        <KpiCard
+          label="Due Soon"
+          value={dueSoonCount}
+          icon={Clock}
+          tone={dueSoonCount > 0 ? "warn" : "neutral"}
+        />
+        <KpiCard
+          label="Overdue"
+          value={overdueCount}
+          icon={AlertTriangle}
+          tone={overdueCount > 0 ? "critical" : "neutral"}
+        />
+        <KpiCard
+          label="Never Calibrated"
+          value={neverCount}
+          icon={HelpCircle}
+          tone={neverCount > 0 ? "attention" : "neutral"}
+        />
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Equipment</CardTitle>
+          <div>
+            <CardTitle>All Equipment</CardTitle>
+            <CardDescription>
+              Click any item for its full calibration history
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent className="p-0">
           {equipment.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">No equipment set up yet — add some under Areas &amp; Equipment.</p>
+            <p className="py-10 text-center text-sm text-muted">
+              No equipment set up yet — add some under Areas &amp; Equipment.
+            </p>
           ) : (
             <div className="divide-y divide-border">
               {equipment.map((e) => {
@@ -53,25 +100,38 @@ export default async function CalibrationPage() {
                   <Link
                     key={e.id}
                     href={`/calibration/${e.id}`}
-                    className="flex items-center justify-between gap-4 py-3.5 hover:bg-surface-sunken"
+                    className="group flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{e.name}</p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {e.name}
+                      </p>
                       <p className="mt-1 text-xs text-muted">
                         {e.sectionName} / {e.areaName} · {e.code}
                         {e.latestCalibration && (
                           <>
                             {" "}
-                            · last calibrated {format(e.latestCalibration.calibratedDate, "d MMM yyyy")} by {e.latestCalibration.performedBy}
+                            · last calibrated{" "}
+                            {format(
+                              e.latestCalibration.calibratedDate,
+                              "d MMM yyyy",
+                            )}{" "}
+                            by {e.latestCalibration.performedBy}
                           </>
                         )}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       {e.latestCalibration && (
-                        <span className="text-xs text-muted">due {format(e.latestCalibration.dueDate, "d MMM yyyy")}</span>
+                        <span className="font-mono-tabular text-xs text-muted">
+                          due{" "}
+                          {format(e.latestCalibration.dueDate, "d MMM yyyy")}
+                        </span>
                       )}
-                      <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+                      <Badge tone={statusMeta.tone} dot>
+                        {statusMeta.label}
+                      </Badge>
+                      <ChevronRight className="size-4 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   </Link>
                 );
