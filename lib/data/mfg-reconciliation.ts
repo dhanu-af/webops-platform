@@ -1,5 +1,16 @@
 import { db } from "@/lib/db";
 
+// Resolves the acting user's assigned Area name, for the per-stage edit
+// check in lib/mfg-reconciliation.ts's canEditMfgStage -- returns null for
+// an unassigned user (they get no stage-level edit rights as an
+// OPERATOR/TEAM_LEADER, only supervisors/QA/management/admins can edit
+// unconditionally).
+export async function getUserAreaName(areaId: string | null): Promise<string | null> {
+  if (!areaId) return null;
+  const area = await db.area.findUnique({ where: { id: areaId }, select: { name: true } });
+  return area?.name ?? null;
+}
+
 // Only the fields each stage's yield/reconciliation math actually needs --
 // the dashboard's yield alerts and the batches list's status column, not a
 // full stage record. Full detail is fetched separately per-batch in

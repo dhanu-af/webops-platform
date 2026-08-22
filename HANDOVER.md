@@ -1,4 +1,4 @@
-# Handover — 2026-08-23 03:50
+# Handover — 2026-08-23 04:15
 
 ## Goal
 
@@ -6,16 +6,14 @@
 
 ## State
 
-**Pushed to `origin/master`** (production, deployed): everything through commit `262d3fa`. Live and working:
+**Pushed to `origin/master`** (production, deployed): everything through commit `15527a9`, including the full Manufacturing Reconciliation module (8-stage GMP batch reconciliation, PDF export). She's already using it live with real data (saw a real batch "123456" / "Glyco AU" in a screenshot, logged in as an account literally named "Capsule" with role OPERATOR). Also live:
 - Premium visual redesign, real Eagle Labs Inc logo, "Eagle Labs" branding, mobile nav drawer, Rename capability for Areas & Equipment admin (Facility card "Rename" still needs one manual click from her — no production DB/login access to do it myself).
 - Timezone display fix (Verification Timeline, Recent Logins, PDF/CSV exports, per-checklist-item attribution) and a WEEKLY/MONTHLY schedule reset fix.
 - Equipment task row (Clean/Sanitised/Dry): original compact layout restored, checkbox icon removed, stale-tap race fixed invisibly via optimistic local state.
 - A fix for `getOrCreateInspectionForSchedule` reopening yesterday's closed inspection during the first ~10 hours of each Brisbane day (server UTC-midnight vs facility Brisbane-midnight mismatch) — **still not confirmed live by her**.
 - **Calculation module**: 4-mode capsule/bottle/shell planning calculator (Bottles→KG, KG→Output ×2 variants for fill/full weight, Capsules→Empty Shells with ceiling-rounded box counts), Product Name + Batch Number fields, default capsules/weight values pre-filled. Gated to `reports.view` roles (no new permission).
 
-**Committed locally but NOT pushed** — a whole new module, the biggest single feature built this session:
-
-### New "Manufacturing Reconciliation" module
+### Manufacturing Reconciliation module (pushed, live) — background
 
 An 8-stage GMP-style batch traceability & reconciliation record: **Warehouse Issue → Blending → Encapsulation → Bottling → X-Ray/Metal Detection → Packaging → Finished Goods Warehouse → Dispatch**. One `MfgBatch` has up to 7 one-to-one sub-stage records (each independently optional/startable) plus a one-to-many `MfgDispatchEvent` log (a batch can ship in parts).
 
@@ -34,7 +32,7 @@ An 8-stage GMP-style batch traceability & reconciliation record: **Warehouse Iss
 - `lib/mfg-reconciliation.ts` — pure calc/label lib (`computeBalance`, `computeYieldPct`, `capsulesFromKg`, `checkRange`/`checkBelow`, `computeFinalReconciliationChecks`, `formatCount`, material group/type label maps, default line templates). No DB import — safe for the client-side stage sections to import directly.
 - `lib/mfg-reconciliation.test.ts` — 18 unit tests, including a hand-verified "everything reconciles exactly" scenario and a "rejects exceed threshold" failing-check scenario, covering all 4 encapsulation + all 5 bottling formulas.
 - `lib/data/mfg-reconciliation.ts` — `listMfgBatches()`, `getMfgBatchDetail(id)`, `getMfgBatchAuditTrail(batchId)` (plain server-side reads, no `"use server"` — this bit me once, see Gotchas).
-- `lib/actions/mfg-reconciliation.ts` — `createMfgBatch`, `deleteMfgBatch`, `markMfgBatchCompleted`, `saveWarehouseIssue`, `saveBlending`, `saveEncapsulation`, `saveBottling`, `saveXrayInspection`, `savePackaging`, `saveFinishedGoodsWarehouse`, `addDispatchEvent`, `deleteDispatchEvent` — all gated via `requirePermission(role, "mfg.manage")`, all logging to `AuditLog`.
+- `lib/actions/mfg-reconciliation.ts` — `createMfgBatch`, `deleteMfgBatch`, `markMfgBatchCompleted`, `saveWarehouseIssue`, `saveBlending`, `saveEncapsulation`, `saveBottling`, `saveXrayInspection`, `savePackaging`, `saveFinishedGoodsWarehouse`, `addDispatchEvent`, `deleteDispatchEvent` — all logging to `AuditLog`. **Access model changed since this was first pushed — see the section below, this description is now the original/superseded version.**
 - `components/mfg/field.tsx` — shared `Field`/`StageSection`/`ComputedField`/`MFG_INPUT_CLASS` used across every stage section.
 - `components/mfg/reconciliation-check-row.tsx` — shared Pass/Fail badge row, used by Encapsulation, Bottling, and the Final Reconciliation tab.
 - `app/(app)/mfg-reconciliation/page.tsx` + `mfg-reconciliation-client.tsx` + `dashboard-tab.tsx` (KPI tiles + low-yield alerts, reusing `KpiCard`) + `batches-tab.tsx` (search/filter + New Batch modal).
@@ -43,6 +41,25 @@ An 8-stage GMP-style batch traceability & reconciliation record: **Warehouse Iss
 - `components/nav/nav-items.ts` — new "Manufacturing Reconciliation" entry in the "Records" group, no `roles` restriction (view is open to everyone, matching the permission design above).
 
 **Verified thoroughly**: `tsc --noEmit`, `eslint .`, `vitest run` (141/141, up from 123), `next build` (34 routes, both new `/mfg-reconciliation` routes and the PDF route present) — all clean. Beyond static checks, did a **real end-to-end pass through the live local app**: created a batch with realistic data across all 8 stages via a throwaway script (deleted after, not committed), then via `curl` with a real logged-in session: confirmed the list/dashboard page renders it, confirmed the batch detail page renders every stage's data (including the Warehouse Issue material line table), downloaded the actual PDF and extracted its text — confirmed all 10 reconciliation checks compute correctly and show PASS for reconciled data (spot-checked the encapsulation math: 1kg bulk blend at 400mg target fill → 2,500.00 theoretical capsules; 1.125kg produced at 450mg full weight → 2,500.00 produced — exact match, 100% on every encapsulation check). Also confirmed the permission model end-to-end: logged in as a demo OPERATOR, got 200 on both list and detail pages (can view) but zero Save/Delete/Mark Completed buttons rendered (can't manage) — exactly as designed. **The one thing not verified is actual mouse/keyboard interaction with the stage forms in a real browser** — the Browser-pane tool was unusable yet again this session; everything above was via direct DB writes + curl-rendered HTML + PDF text extraction, not a live click-through of typing into a field and clicking Save.
+
+### Committed locally but NOT pushed — per-section edit permission (built right after she saw the live module)
+
+Once the module was live, she came back with a real refinement: **"this option can edit only their sections only. example: capsule section operators, team leaders can edit capsule reconciliation. but other can see only. (supervisors, quality, management can see edit all)."** Screenshot showed her looking at the module logged in as an account literally named "Capsule" with role OPERATOR.
+
+**What this means, precisely**: viewing stays open to everyone (unchanged). *Editing* a stage now depends on the acting user's role AND, for floor roles, their assigned physical work area:
+- `SUPERVISOR`/`QA`/`MANAGEMENT`/`ADMIN`/`SUPER_ADMIN` (the existing `mfg.manage` tier): can edit every stage of every batch, unconditionally — matches "supervisors, quality, management can see edit all" exactly.
+- `OPERATOR`/`TEAM_LEADER`: can edit **only the one stage matching their own assigned Area** (`User.areaId` → looked up Area name). An operator assigned to "Capsule Room" can edit Encapsulation only; every other stage (including Blending, Bottling, etc.) is read-only for them. An operator with **no assigned area gets zero edit rights** at the operator tier (conservative default for a GMP/compliance system — no section means no section-scoped edit access, not "sees everything" the way plain visibility does elsewhere in this app).
+- Everyone else (`VIEWER`, or a floor role with no match): read-only on every stage, same as before.
+
+**Built**:
+- `lib/mfg-reconciliation.ts` — added `MfgStageKey` type (the 8 real stage keys, excluding the Final Reconciliation tab, which was never editable), `STAGE_AREA_KEYWORDS` (a **best-guess, easily-adjustable** case-insensitive keyword table mapping each stage to the Area name(s) that grant edit access — matched against this app's own seeded area names: "Blending Room"→blend, "Capsule Room"→capsule, "Bottling Area"→bottl, "Raw Material Storage"→warehouse/raw material/storage, "Finished Goods"→finished good, "Packaging / Pouch Area"→packag/pouch/carton; X-Ray and Dispatch have keyword guesses too but no obviously-matching seeded area exists for either, so in practice only supervisor+ can edit those two unless her real facility has an area whose name happens to match), and `canEditMfgStage(role, areaName, stage)` — the actual authorization function, reusable both server-side (actions) and, if ever needed, client-side (no DB import, safe either way).
+- `lib/data/mfg-reconciliation.ts` — added `getUserAreaName(areaId)`, a small lookup used by both the write side (actions) and read side (page.tsx, to compute what the UI should show).
+- `lib/actions/mfg-reconciliation.ts` — added `requireStageAccess(stage)` alongside the existing `requireAccess()`. **Batch-level actions** (`createMfgBatch`, `deleteMfgBatch`, `markMfgBatchCompleted`) still use the original full-`mfg.manage`-only `requireAccess()` — an operator who can edit their own section's stage still can't create/delete/complete a whole batch, matching her framing that only supervisor+ gets batch-level control. **All 8 stage-save actions** now use `requireStageAccess("<their stage key>")` instead.
+- `app/(app)/mfg-reconciliation/[id]/page.tsx` — now computes a `canEditStage: Record<MfgStageKey, boolean>` map server-side (one `canEditMfgStage` call per stage) plus a separate `canManageBatch` boolean (the old blanket `mfg.manage` check, now only driving Mark Completed/Delete Batch), and passes both down.
+- `mfg-batch-detail-client.tsx` — accepts `canManageBatch` + `canEditStage` instead of one blanket `canManage`; each stage section gets `canManage={canEditStage.<itsOwnKey>}`; added a one-line "Read-only for your account — only staff assigned to this stage's section (or a supervisor/QA/management) can edit it" notice on any tab the current viewer can't edit, so an operator understands *why* Save is missing on other tabs rather than assuming it's broken.
+- 5 new unit tests in `lib/mfg-reconciliation.test.ts` covering: full-tier roles bypass area entirely; an operator's area match/mismatch; case-insensitivity against every one of the app's seeded area names; an unassigned operator gets nothing; every other role is read-only regardless of area.
+
+**Verified thoroughly, including a real live pass**: `tsc`, `eslint`, `vitest run` (146/146, up from 141), `next build` — all clean. Then, against the real local dev DB: temporarily assigned the demo `jordan.operator` account to the seeded "Capsule Room" area, created a fresh test batch, logged in as that operator via curl, and confirmed the exact serialized `canEditStage` object sent to the client was `{"warehouseIssue":false,"blending":false,"encapsulation":true,"bottling":false,"xray":false,"packaging":false,"fgWarehouse":false,"dispatch":false}` — precisely one stage unlocked, the right one. Reverted the operator's area assignment and deleted the test batch afterward (not left in dev DB). **Not click-tested in an actual browser** (same Browser-pane tool unavailability as the rest of this session) — the read-only notice text and disabled-input behavior weren't seen rendered by an actual person, only confirmed via the underlying data being correct.
 
 ## Key decisions
 
@@ -66,14 +83,17 @@ An 8-stage GMP-style batch traceability & reconciliation record: **Warehouse Iss
 
 ## Next steps
 
-1. **Ask before pushing** the Manufacturing Reconciliation module (1 new migration, currently local-only), as always.
-2. Once pushed and deployed (migration auto-applies):
-   - Point her to the new **Manufacturing Reconciliation** entry under Records and ask her to create a real batch and walk through a few stages — this is the first time an actual person (her or me) will have clicked through the stage forms; everything so far was verified via direct DB writes + curl, not a live interactive pass.
-   - Ask if the 8-stage field set matches her real paper GMP forms closely enough, or if anything's missing/different — it was built from a working reference implementation of hers for a *different* product line, so the field set should be very close but she'd know immediately if something's off for this facility's actual process.
+1. **Ask before pushing** the per-section edit permission work (1 commit, no new migration this time — pure code/logic change, no schema change), as always.
+2. Once pushed and deployed:
+   - Ask her to actually assign a couple of real operators to their real Areas (if not already done — her live screenshot showed an account literally named "Capsule" with role OPERATOR, which suggests she may be testing with purpose-built demo accounts rather than her real staff's accounts yet) and confirm the right stage unlocks for them. This is the first real test of the mechanism against her actual area names, not the seed data's.
+   - **Flag clearly that `STAGE_AREA_KEYWORDS` (in `lib/mfg-reconciliation.ts`) is a best-guess mapping** built from this app's demo seed area names ("Blending Room", "Capsule Room", "Bottling Area", "Raw Material Storage", "Finished Goods", "Packaging / Pouch Area") — if her real facility's Area names differ even slightly, an operator's edit access may not unlock correctly until that table is adjusted. Easy one-line-per-stage fix once she reports which (if any) stages aren't unlocking for the right people.
+   - Ask if the 8-stage field set matches her real paper GMP forms closely enough — still unconfirmed from the previous session's build.
    - Remind her about the still-outstanding items from earlier sessions: re-test Clean/Sanitised/Dry buttons and the daily-schedule-reopens-yesterday fix on her phone, the Rename-the-Facility-card manual step, and the never-live-tested mobile nav drawer.
 
 ## Open questions
 
+- **Whether `STAGE_AREA_KEYWORDS`'s guessed keywords actually match her real Area names** — the single biggest open risk in the permission refinement; wrong keywords mean operators silently get no edit access anywhere (fails safe/closed, at least, but still needs her confirmation to actually work as intended).
+- Whether X-Ray and Dispatch should have *any* operator-tier self-service edit path at all, or whether it's correct that (per the current keyword guesses) only supervisor+ can typically edit those two stages — she only gave one explicit example (capsule section → Encapsulation) and didn't address these two.
 - Whether the Manufacturing Reconciliation module's exact field set, labels, and reconciliation thresholds (98-102% ranges, 1.5%/2% rejection ceilings) match her actual GMP documentation for *this* facility — they're carried over from a working reference for a different product line and never confirmed against her own paper forms.
 - Whether `mfg.manage`'s role list (`SUPER_ADMIN`, `ADMIN`, `SUPERVISOR`, `QA`, `MANAGEMENT`) is right for who should actually be able to record/edit batch stages at Eagle Labs — no explicit confirmation from her yet, inferred from the reference implementation's equivalent role set.
 - All the previously-open items (Calculation module's real-world fit, equipment task row / inspection-reopen fixes' live behavior, mobile nav drawer) are all still genuinely open — none have been confirmed by her since.

@@ -5,15 +5,32 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
-import { DEFAULT_PACKAGING_ISSUE_LINES, DEFAULT_PACKAGING_MATERIAL_LINES } from "@/lib/mfg-reconciliation";
+import { DEFAULT_PACKAGING_ISSUE_LINES, DEFAULT_PACKAGING_MATERIAL_LINES, canEditMfgStage, type MfgStageKey } from "@/lib/mfg-reconciliation";
+import { getUserAreaName } from "@/lib/data/mfg-reconciliation";
 import type { MfgMaterialGroup, MfgPackagingMaterialType } from "@/app/generated/prisma/client";
 
 const BASE_PATH = "/mfg-reconciliation";
 
+// Batch-level actions (create/delete/mark completed) stay restricted to the
+// full mfg.manage tier -- an operator who can edit their own section's
+// stage still can't create or delete a whole batch, or mark it complete.
 async function requireAccess() {
   const session = await auth();
   if (!session?.user) throw new Error("Not authenticated");
   requirePermission(session.user.role, "mfg.manage");
+  return session.user;
+}
+
+// Per-stage save actions: mfg.manage roles can always edit; an
+// OPERATOR/TEAM_LEADER can only edit the one stage matching their own
+// assigned Area (see canEditMfgStage in lib/mfg-reconciliation.ts).
+async function requireStageAccess(stage: MfgStageKey) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Not authenticated");
+  const areaName = await getUserAreaName(session.user.areaId);
+  if (!canEditMfgStage(session.user.role, areaName, stage)) {
+    throw new Error("Forbidden: you don't have edit access to this stage.");
+  }
   return session.user;
 }
 
@@ -106,7 +123,7 @@ export async function saveWarehouseIssue(
   header: { issuedByName: string | null; issueDate: string | null; remarks: string | null },
   lines: MaterialIssueLineInput[]
 ) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("warehouseIssue");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   await db.$transaction(async (tx) => {
@@ -157,7 +174,7 @@ type BlendingInput = {
 };
 
 export async function saveBlending(batchId: string, data: BlendingInput) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("blending");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   const values = { ...data, blendedAt: data.blendedAt ? new Date(data.blendedAt) : null };
@@ -190,7 +207,7 @@ type EncapsulationInput = {
 };
 
 export async function saveEncapsulation(batchId: string, data: EncapsulationInput) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("encapsulation");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   const values = { ...data, completedAt: data.completedAt ? new Date(data.completedAt) : null, checkedAt: data.checkedAt ? new Date(data.checkedAt) : null };
@@ -220,7 +237,7 @@ type BottlingInput = {
 };
 
 export async function saveBottling(batchId: string, data: BottlingInput) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("bottling");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   const values = { ...data, completedAt: data.completedAt ? new Date(data.completedAt) : null, checkedAt: data.checkedAt ? new Date(data.checkedAt) : null };
@@ -251,7 +268,7 @@ type XrayInspectionInput = {
 };
 
 export async function saveXrayInspection(batchId: string, data: XrayInspectionInput) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("xray");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   const values = { ...data, inspectedAt: data.inspectedAt ? new Date(data.inspectedAt) : null };
@@ -268,7 +285,7 @@ export async function savePackaging(
   header: { packedBottles: number | null; cartonsProduced: number | null; casesProduced: number | null; packedByName: string | null; packedAt: string | null; remarks: string | null },
   lines: PackagingMaterialLineInput[]
 ) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("packaging");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   await db.$transaction(async (tx) => {
@@ -298,7 +315,7 @@ type FinishedGoodsWarehouseInput = {
 };
 
 export async function saveFinishedGoodsWarehouse(batchId: string, data: FinishedGoodsWarehouseInput) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("fgWarehouse");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   const values = { ...data, qaReleasedAt: data.qaReleasedAt ? new Date(data.qaReleasedAt) : null, expiryDate: data.expiryDate ? new Date(data.expiryDate) : null };
@@ -321,7 +338,7 @@ type DispatchEventInput = {
 };
 
 export async function addDispatchEvent(batchId: string, data: DispatchEventInput) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("dispatch");
   if (!data.customer) throw new Error("Customer is required.");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -346,7 +363,7 @@ export async function addDispatchEvent(batchId: string, data: DispatchEventInput
 }
 
 export async function deleteDispatchEvent(batchId: string, dispatchEventId: string) {
-  const actor = await requireAccess();
+  const actor = await requireStageAccess("dispatch");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   await db.mfgDispatchEvent.delete({ where: { id: dispatchEventId } });

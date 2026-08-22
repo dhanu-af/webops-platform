@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeBalance, computeYieldPct, capsulesFromKg, checkRange, checkBelow, computeFinalReconciliationChecks } from "./mfg-reconciliation";
+import { computeBalance, computeYieldPct, capsulesFromKg, checkRange, checkBelow, computeFinalReconciliationChecks, canEditMfgStage } from "./mfg-reconciliation";
 
 describe("computeBalance", () => {
   it("is issued minus returned", () => {
@@ -152,5 +152,38 @@ describe("computeFinalReconciliationChecks", () => {
       { capsuleReceivedKg: 1, avgCapsuleFullWeightMg: 400, targetCapsulesPerBottle: 25, bottlesProduced: 100, capsUsed: 100, bottleUsed: 100 }
     );
     expect(checks).toHaveLength(1 + 4 + 5);
+  });
+});
+
+describe("canEditMfgStage", () => {
+  it("SUPERVISOR/QA/MANAGEMENT/ADMIN/SUPER_ADMIN can edit every stage regardless of area", () => {
+    for (const role of ["SUPERVISOR", "QA", "MANAGEMENT", "ADMIN", "SUPER_ADMIN"] as const) {
+      expect(canEditMfgStage(role, null, "encapsulation")).toBe(true);
+      expect(canEditMfgStage(role, "Some Unrelated Area", "dispatch")).toBe(true);
+    }
+  });
+
+  it("OPERATOR/TEAM_LEADER can edit only the stage matching their assigned area", () => {
+    expect(canEditMfgStage("OPERATOR", "Capsule Room", "encapsulation")).toBe(true);
+    expect(canEditMfgStage("TEAM_LEADER", "Capsule Room", "encapsulation")).toBe(true);
+    expect(canEditMfgStage("OPERATOR", "Capsule Room", "blending")).toBe(false);
+    expect(canEditMfgStage("OPERATOR", "Capsule Room", "bottling")).toBe(false);
+  });
+
+  it("area matching is case-insensitive and matches other seeded area names", () => {
+    expect(canEditMfgStage("OPERATOR", "blending room", "blending")).toBe(true);
+    expect(canEditMfgStage("OPERATOR", "Bottling Area", "bottling")).toBe(true);
+    expect(canEditMfgStage("OPERATOR", "Packaging / Pouch Area", "packaging")).toBe(true);
+    expect(canEditMfgStage("OPERATOR", "Raw Material Storage", "warehouseIssue")).toBe(true);
+    expect(canEditMfgStage("OPERATOR", "Finished Goods", "fgWarehouse")).toBe(true);
+  });
+
+  it("OPERATOR/TEAM_LEADER with no assigned area gets no edit rights at all", () => {
+    expect(canEditMfgStage("OPERATOR", null, "encapsulation")).toBe(false);
+    expect(canEditMfgStage("TEAM_LEADER", null, "blending")).toBe(false);
+  });
+
+  it("every other role (VIEWER, unassigned floor roles outside OPERATOR/TEAM_LEADER) is read-only", () => {
+    expect(canEditMfgStage("VIEWER", "Capsule Room", "encapsulation")).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { MfgBatchStatus } from "@/app/generated/prisma/client";
 import { deleteMfgBatch, markMfgBatchCompleted } from "@/lib/actions/mfg-reconciliation";
-import { MFG_BATCH_STATUS_LABEL } from "@/lib/mfg-reconciliation";
+import { MFG_BATCH_STATUS_LABEL, type MfgStageKey } from "@/lib/mfg-reconciliation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WarehouseIssueSection, type WarehouseIssueData } from "./warehouse-issue-section";
@@ -52,7 +52,17 @@ type StageKey = (typeof STAGES)[number]["key"];
 
 export type AuditEntry = { id: string; reason: string | null; createdAt: string; userName: string };
 
-export function MfgBatchDetailClient({ batch, auditTrail, canManage }: { batch: MfgBatchDetail; auditTrail: AuditEntry[]; canManage: boolean }) {
+export function MfgBatchDetailClient({
+  batch,
+  auditTrail,
+  canManageBatch,
+  canEditStage,
+}: {
+  batch: MfgBatchDetail;
+  auditTrail: AuditEntry[];
+  canManageBatch: boolean;
+  canEditStage: Record<MfgStageKey, boolean>;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -103,12 +113,12 @@ export function MfgBatchDetailClient({ batch, auditTrail, canManage }: { batch: 
           >
             Download PDF
           </a>
-          {canManage && batch.status === "IN_PROGRESS" && (
+          {canManageBatch && batch.status === "IN_PROGRESS" && (
             <Button variant="secondary" size="sm" onClick={complete} disabled={pending}>
               Mark Completed
             </Button>
           )}
-          {canManage && (
+          {canManageBatch && (
             <button type="button" onClick={remove} disabled={pending} className="text-xs font-medium text-status-critical hover:opacity-80 disabled:opacity-40">
               Delete Batch
             </button>
@@ -135,14 +145,19 @@ export function MfgBatchDetailClient({ batch, auditTrail, canManage }: { batch: 
       </div>
 
       <div className="rounded-[var(--radius)] border border-border bg-surface p-5 shadow-[var(--shadow-xs)]">
-        {stage === "warehouseIssue" && <WarehouseIssueSection batchId={batch.id} data={batch.warehouseIssue} canManage={canManage} />}
-        {stage === "blending" && <BlendingSection batchId={batch.id} data={batch.blending} canManage={canManage} />}
-        {stage === "encapsulation" && <EncapsulationSection batchId={batch.id} data={batch.encapsulation} canManage={canManage} />}
-        {stage === "bottling" && <BottlingSection batchId={batch.id} data={batch.bottling} canManage={canManage} />}
-        {stage === "xray" && <XraySection batchId={batch.id} data={batch.xrayInspection} canManage={canManage} />}
-        {stage === "packaging" && <PackagingSection batchId={batch.id} data={batch.packaging} canManage={canManage} />}
-        {stage === "fgWarehouse" && <FgWarehouseSection batchId={batch.id} data={batch.finishedGoodsWarehouse} canManage={canManage} />}
-        {stage === "dispatch" && <DispatchSection batchId={batch.id} events={batch.dispatchEvents} canManage={canManage} />}
+        {stage !== "finalReconciliation" && !canEditStage[stage] && (
+          <p className="mb-3 rounded-lg bg-surface-sunken px-3 py-2 text-xs text-muted">
+            Read-only for your account — only staff assigned to this stage&apos;s section (or a supervisor/QA/management) can edit it.
+          </p>
+        )}
+        {stage === "warehouseIssue" && <WarehouseIssueSection batchId={batch.id} data={batch.warehouseIssue} canManage={canEditStage.warehouseIssue} />}
+        {stage === "blending" && <BlendingSection batchId={batch.id} data={batch.blending} canManage={canEditStage.blending} />}
+        {stage === "encapsulation" && <EncapsulationSection batchId={batch.id} data={batch.encapsulation} canManage={canEditStage.encapsulation} />}
+        {stage === "bottling" && <BottlingSection batchId={batch.id} data={batch.bottling} canManage={canEditStage.bottling} />}
+        {stage === "xray" && <XraySection batchId={batch.id} data={batch.xrayInspection} canManage={canEditStage.xray} />}
+        {stage === "packaging" && <PackagingSection batchId={batch.id} data={batch.packaging} canManage={canEditStage.packaging} />}
+        {stage === "fgWarehouse" && <FgWarehouseSection batchId={batch.id} data={batch.finishedGoodsWarehouse} canManage={canEditStage.fgWarehouse} />}
+        {stage === "dispatch" && <DispatchSection batchId={batch.id} events={batch.dispatchEvents} canManage={canEditStage.dispatch} />}
         {stage === "finalReconciliation" && (
           <FinalReconciliationTab blending={batch.blending} encapsulation={batch.encapsulation} bottling={batch.bottling} />
         )}

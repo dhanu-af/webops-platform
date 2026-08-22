@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { getMfgBatchDetail, getMfgBatchAuditTrail } from "@/lib/data/mfg-reconciliation";
+import { canEditMfgStage, type MfgStageKey } from "@/lib/mfg-reconciliation";
+import { getMfgBatchDetail, getMfgBatchAuditTrail, getUserAreaName } from "@/lib/data/mfg-reconciliation";
 import { MfgBatchDetailClient } from "./mfg-batch-detail-client";
+
+const STAGE_KEYS: MfgStageKey[] = ["warehouseIssue", "blending", "encapsulation", "bottling", "xray", "packaging", "fgWarehouse", "dispatch"];
 
 export default async function MfgBatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,6 +14,11 @@ export default async function MfgBatchDetailPage({ params }: { params: Promise<{
   const batch = await getMfgBatchDetail(id);
   if (!batch) notFound();
   const auditTrail = await getMfgBatchAuditTrail(id);
+
+  const areaName = session?.user ? await getUserAreaName(session.user.areaId) : null;
+  const canEditStage = Object.fromEntries(
+    STAGE_KEYS.map((stage) => [stage, !!session?.user && canEditMfgStage(session.user.role, areaName, stage)])
+  ) as Record<MfgStageKey, boolean>;
 
   return (
     <MfgBatchDetailClient
@@ -167,7 +175,8 @@ export default async function MfgBatchDetailPage({ params }: { params: Promise<{
         })),
       }}
       auditTrail={auditTrail.map((a) => ({ id: a.id, reason: a.reason, createdAt: a.createdAt.toISOString(), userName: a.user.name }))}
-      canManage={!!session?.user && can(session.user.role, "mfg.manage")}
+      canManageBatch={!!session?.user && can(session.user.role, "mfg.manage")}
+      canEditStage={canEditStage}
     />
   );
 }

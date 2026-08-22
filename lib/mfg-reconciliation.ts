@@ -1,4 +1,41 @@
-import type { MfgBatchStatus, MfgMaterialGroup, MfgPackagingMaterialType } from "@/app/generated/prisma/client";
+import type { MfgBatchStatus, MfgMaterialGroup, MfgPackagingMaterialType, UserRole } from "@/app/generated/prisma/client";
+import { can } from "@/lib/permissions";
+
+export type MfgStageKey = "warehouseIssue" | "blending" | "encapsulation" | "bottling" | "xray" | "packaging" | "fgWarehouse" | "dispatch";
+
+// Which physical Area an OPERATOR/TEAM_LEADER must be assigned to in order
+// to edit that stage's own data (case-insensitive substring match against
+// the Area's name) -- a batch itself isn't tied to one Area (it moves
+// through many rooms as it progresses), so "your section" has to be
+// inferred from the stage's real-world location instead. Matched against
+// this app's own seeded area names (Blending Room, Capsule Room, Bottling
+// Area, Raw Material Storage, Finished Goods, Packaging / Pouch Area) --
+// adjust these keywords if the real facility's area names differ.
+// Supervisors/QA/Management/Admins bypass this entirely, see
+// canEditMfgStage below.
+export const STAGE_AREA_KEYWORDS: Record<MfgStageKey, string[]> = {
+  warehouseIssue: ["warehouse", "raw material", "storage"],
+  blending: ["blend"],
+  encapsulation: ["capsule", "encapsulat"],
+  bottling: ["bottl"],
+  xray: ["x-ray", "xray", "metal detect"],
+  packaging: ["packag", "pouch", "carton"],
+  fgWarehouse: ["finished good", "warehouse"],
+  dispatch: ["dispatch", "shipping"],
+};
+
+// Supervisors/QA/Management/Admins (mfg.manage) can edit every stage of
+// every batch. An OPERATOR/TEAM_LEADER can only edit the one stage that
+// matches their own assigned Area -- everyone else gets read-only access
+// to every stage (viewing the whole batch is never restricted, only
+// editing is).
+export function canEditMfgStage(role: UserRole, areaName: string | null, stage: MfgStageKey): boolean {
+  if (can(role, "mfg.manage")) return true;
+  if (role !== "OPERATOR" && role !== "TEAM_LEADER") return false;
+  if (!areaName) return false;
+  const lower = areaName.toLowerCase();
+  return STAGE_AREA_KEYWORDS[stage].some((k) => lower.includes(k));
+}
 
 export const MFG_BATCH_STATUS_LABEL: Record<MfgBatchStatus, string> = {
   IN_PROGRESS: "In Progress",
