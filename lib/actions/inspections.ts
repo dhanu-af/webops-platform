@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { notify, notifyUsers } from "@/lib/notifications";
 import { storePhoto, getMaxPhotoBytes, isAllowedPhotoFile } from "@/lib/storage";
 import { canVerifyOwnWork } from "@/lib/permissions";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 import { revalidatePath } from "next/cache";
 import type { ResponseValue, Severity, VerificationAction, WorkflowRole } from "@/app/generated/prisma/client";
 
@@ -27,10 +28,17 @@ export async function getOrCreateInspectionForSchedule(scheduleId: string) {
     include: { checklist: { include: { versions: { where: { isCurrent: true } } } } },
   });
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Must match the facility's timezone, not the server's (Vercel runs in
+  // UTC) -- otherwise, for roughly the first ~10 hours of every real
+  // Brisbane day (while the UTC calendar date is still "yesterday"), this
+  // would find and reuse yesterday's already-closed inspection instead of
+  // creating today's, even though the schedule list (which already used
+  // startOfDayInTimeZone/endOfDayInTimeZone, see lib/data/by-category.ts)
+  // correctly showed "Start" with no status badge for today.
+  const timeZone = await getFacilityTimezone();
+  const now = new Date();
   const existing = await db.inspection.findFirst({
-    where: { scheduleId, createdAt: { gte: todayStart } },
+    where: { scheduleId, createdAt: { gte: startOfDayInTimeZone(timeZone, now), lte: endOfDayInTimeZone(timeZone, now) } },
   });
   if (existing) return existing.id;
 
