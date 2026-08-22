@@ -20,6 +20,7 @@ import {
   Settings,
   ListPlus,
   Gauge,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,6 +64,9 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Calendar", href: "/calendar", icon: CalendarDays },
       { label: "Checklists", href: "/checklists", icon: ListChecks },
+      // Same roles as reports.view (Reports/Analytics/Audit Trail below) --
+      // this is a production-planning calculator, not a floor task.
+      { label: "Calculation", href: "/calculation", icon: Calculator, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },
     ],
   },
   {
