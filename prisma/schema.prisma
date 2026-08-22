@@ -70,6 +70,7 @@ model User {
   respondedItems        InspectionResponse[]
   calibrationsRecorded  EquipmentCalibration[]
   capsuleCalculations   CapsuleCalculation[]
+  mfgBatches            MfgBatch[]
 
   @@index([role])
 }
@@ -848,4 +849,327 @@ model NotificationRecipient {
 
   @@unique([type, userId])
   @@index([type])
+}
+
+// =========================================================================
+// MANUFACTURING RECONCILIATION — end-to-end GMP-style batch traceability:
+// Warehouse Issue -> Blending -> Encapsulation -> Bottling -> X-Ray/Metal
+// Detection -> Packaging -> Finished Goods Warehouse -> Dispatch. Each
+// stage is its own optional record, filled in independently as production
+// reaches it. Yield/balance/reconciliation % figures are always computed
+// at read time from the raw quantities stored here (lib/mfg-reconciliation.ts)
+// -- never persisted, same "derive don't store" convention as
+// EquipmentCalibration's status and CorrectiveAction's OVERDUE state.
+//
+// Every "who did this" field below (issuedBy, blendedBy, completedBy,
+// checkedBy, inspectedBy, packedBy, qaReleasedBy, dispatchedBy) is a plain
+// name string, not a User relation -- these mirror the real paper GMP
+// forms' signature fields, which record whoever physically performed that
+// step on the floor. That person may not have (or need) a WebOps login,
+// and the name entered has to match what's on the physical record, so it
+// can't be constrained to "an actual system user" the way MfgBatch's own
+// createdBy is. Who actually *saved* each stage in this system is already
+// captured per edit in AuditLog (entityType "MfgBatch"), so there's no
+// accountability gap from these being plain text.
+// =========================================================================
+
+enum MfgBatchStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum MfgMaterialGroup {
+  RAW_INGREDIENT
+  RAW_ACTIVE_INGREDIENT
+  RAW_EXCIPIENT
+  PACKAGING_EMPTY_CAPSULE
+  PACKAGING_EMPTY_BOTTLE
+  PACKAGING_CAP
+  PACKAGING_DESICCANT
+  PACKAGING_LABEL
+  PACKAGING_CARTON
+  PACKAGING_INSERT
+  PACKAGING_SHRINK_WRAP
+  PACKAGING_SHIPPER
+  PACKAGING_PALLET
+}
+
+enum MfgPackagingMaterialType {
+  LABEL
+  CARTON
+  INSERT
+  SHRINK_WRAP
+  SHIPPER
+}
+
+model MfgBatch {
+  id          String   @id @default(cuid())
+  batchNumber String
+  productName String
+  // This project has no first-class Formulation/BOM/BatchRecord module to
+  // link to (unlike the reference implementation this feature is adapted
+  // from) -- kept as a free-text reference note instead of a relation.
+  formulationReference String?
+
+  status  MfgBatchStatus @default(IN_PROGRESS)
+  remarks String?
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouseIssue         MfgWarehouseIssue?
+  blending               MfgBlending?
+  encapsulation          MfgEncapsulation?
+  bottling               MfgBottling?
+  xrayInspection         MfgXrayInspection?
+  packaging              MfgPackaging?
+  finishedGoodsWarehouse MfgFinishedGoodsWarehouse?
+  dispatchEvents         MfgDispatchEvent[]
+
+  @@index([batchNumber])
+  @@index([status])
+}
+
+model MfgWarehouseIssue {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  issuedByName String?
+  issueDate    DateTime?
+  remarks      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines MfgMaterialIssueLine[]
+}
+
+// One row per material issued for a batch -- raw material or packaging
+// material, discriminated by materialGroup. A new batch's Warehouse Issue
+// pre-populates one line per standard packaging material
+// (DEFAULT_PACKAGING_ISSUE_LINES); raw material lines are added by hand
+// (formulations vary batch to batch).
+model MfgMaterialIssueLine {
+  id               String            @id @default(cuid())
+  warehouseIssueId String
+  warehouseIssue   MfgWarehouseIssue @relation(fields: [warehouseIssueId], references: [id], onDelete: Cascade)
+
+  materialGroup     MfgMaterialGroup
+  materialCode      String?
+  description       String
+  supplier          String?
+  lotBatchNumber    String?
+  expiryDate        DateTime?
+  quantityRequested Float?
+  quantityIssued    Float?
+  quantityReturned  Float?
+  sortOrder         Int
+
+  @@index([warehouseIssueId])
+}
+
+model MfgBlending {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  totalTheoreticalWeightKg Float?
+  actualWeightKg           Float?
+  blendBatchNumber         String?
+
+  powderRemainingKg     Float?
+  blenderResidueKg      Float?
+  sieveLossKg           Float?
+  dustLossKg            Float?
+  spillagesKg           Float?
+  qcSamplesQty          Float?
+  retentionSamplesQty   Float?
+  destroyedMaterialKg   Float?
+  returnedToWarehouseKg Float?
+
+  totalBlendProducedKg Float?
+
+  blendedByName String?
+  blendedAt     DateTime?
+  remarks       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Mirrors the real "CAPSULE RECONCILIATION" paper form field-for-field.
+// Derived figures (theoretical/produced/sample/reject capsule counts,
+// blend accounted/unaccounted for, and the 4 reconciliation %s) are never
+// stored -- computed at render time from these raw inputs, see
+// lib/mfg-reconciliation.ts.
+model MfgEncapsulation {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  targetCapsuleFillWeightMg Float? // powder only
+  avgCapsuleFullWeightMg    Float? // shell + powder
+
+  issuedBulkBlendKg  Float?
+  capsulesProducedKg Float? // weighed
+  capsuleSamplesKg   Float?
+  rejectCapsulesKg   Float?
+  rejectPowderKg     Float?
+
+  avgCapsuleFillWeightMg   Float? // measured, powder only (Capsule Properties)
+  avgCapsuleLengthMm       Float?
+  avgDisintegrationMinutes Int?
+  avgDisintegrationSeconds Int?
+  disintegrationResult     String? // "Pass" | "Fail"
+
+  completedByName String?
+  completedAt     DateTime?
+  checkedByName   String?
+  checkedAt       DateTime?
+  comments        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Mirrors the real "BOTTLE RECONCILIATION" paper form field-for-field.
+// Derived figures (capsules required/theoretical/used/reject, theoretical
+// bottles, reject bottles/desiccants/caps, and the 5 reconciliation %s)
+// are never stored -- computed at render time, see lib/mfg-reconciliation.ts.
+model MfgBottling {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  totalCapsuleBulkWeightKg Float?
+  avgCapsuleFullWeightMg   Float?
+
+  plannedQuantityBottles  Int?
+  capsuleReceivedKg       Float?
+  bottlesProduced         Int?
+  bottleUsed              Int? // empty bottles issued
+  desiccantsUsed          Int?
+  capsUsed                Int?
+  targetCapsulesPerBottle Int? // kept per-batch, not hardcoded
+
+  completedByName String?
+  completedAt     DateTime?
+  checkedByName   String?
+  checkedAt       DateTime?
+  comments        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MfgXrayInspection {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  bottlesReceived Int?
+  bottlesScanned  Int?
+  passed          Int?
+  failed          Int?
+  reworked        Int?
+  destroyed       Int?
+  released        Int?
+
+  rejectMetalDetection   Int?
+  rejectXrayFailure      Int?
+  rejectUnderweight      Int?
+  rejectOverweight       Int?
+  rejectDamagedBottle    Int?
+  rejectMissingCap       Int?
+  rejectMissingDesiccant Int?
+
+  inspectedByName String?
+  inspectedAt     DateTime?
+  remarks         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MfgPackaging {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  packedBottles   Int?
+  cartonsProduced Int?
+  casesProduced   Int?
+
+  packedByName String?
+  packedAt     DateTime?
+  remarks      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines MfgPackagingMaterialLine[]
+}
+
+// Fixed set of rows (one per MfgPackagingMaterialType), pre-populated when
+// a batch's Packaging stage is first created -- not user-addable/removable,
+// unlike MfgMaterialIssueLine.
+model MfgPackagingMaterialLine {
+  id          String       @id @default(cuid())
+  packagingId String
+  packaging   MfgPackaging @relation(fields: [packagingId], references: [id], onDelete: Cascade)
+
+  materialType MfgPackagingMaterialType
+  issued       Float?
+  used         Float?
+  damaged      Float?
+  returned     Float?
+  destroyed    Float?
+  sortOrder    Int
+
+  @@index([packagingId])
+}
+
+model MfgFinishedGoodsWarehouse {
+  id         String   @id @default(cuid())
+  mfgBatchId String   @unique
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  finishedGoodsReceived Int?
+  qaReleased            Boolean   @default(false)
+  qaReleasedByName      String?
+  qaReleasedAt          DateTime?
+  storageLocation       String?
+  warehouseBalance      Int?
+  batchNumber           String?
+  expiryDate            DateTime?
+  remarks               String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One-to-many: a batch can ship in parts, so each dispatch is its own
+// append-only event row rather than fields on the batch itself.
+model MfgDispatchEvent {
+  id         String   @id @default(cuid())
+  mfgBatchId String
+  mfgBatch   MfgBatch @relation(fields: [mfgBatchId], references: [id], onDelete: Cascade)
+
+  customer            String
+  salesOrder          String?
+  batchNumber         String?
+  expiryDate          DateTime?
+  casesDispatched     Int?
+  bottlesDispatched   Int?
+  dispatchDate        DateTime?
+  remainingStockAfter Int?
+  dispatchedByName    String?
+  remarks             String?
+
+  createdAt DateTime @default(now())
+
+  @@index([mfgBatchId])
 }

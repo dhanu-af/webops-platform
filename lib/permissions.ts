@@ -15,7 +15,8 @@ export type Permission =
   | "calibration.manage"
   | "users.manage"
   | "reports.view"
-  | "reports.export";
+  | "reports.export"
+  | "mfg.manage";
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   SUPER_ADMIN: [
@@ -31,6 +32,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "users.manage",
     "reports.view",
     "reports.export",
+    "mfg.manage",
   ],
   ADMIN: [
     "view",
@@ -40,12 +42,13 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "users.manage",
     "reports.view",
     "reports.export",
+    "mfg.manage",
   ],
   OPERATOR: ["view", "inspection.create", "inspection.submit"],
   TEAM_LEADER: ["view", "inspection.create", "inspection.submit", "inspection.verify.supervisor"],
-  SUPERVISOR: ["view", "inspection.verify.supervisor", "reports.view"],
-  QA: ["view", "inspection.verify.qa", "area.release", "calibration.manage", "reports.view", "reports.export"],
-  MANAGEMENT: ["view", "reports.view", "reports.export"],
+  SUPERVISOR: ["view", "inspection.verify.supervisor", "reports.view", "mfg.manage"],
+  QA: ["view", "inspection.verify.qa", "area.release", "calibration.manage", "reports.view", "reports.export", "mfg.manage"],
+  MANAGEMENT: ["view", "reports.view", "reports.export", "mfg.manage"],
   VIEWER: ["view"],
 };
 
