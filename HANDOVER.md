@@ -1,3 +1,18 @@
+# Handover — 2026-08-23 00:25 (Australia dropped + section click-through — committed, NOT pushed)
+
+## Two more small changes this session
+
+1. **Dropped "Australia" from all branding** — user looked at the real logo (which just says "EAGLE LABS INC", no "Australia") and said "no need australia." Updated for consistency in all 3 remaining spots: sidebar subtitle (`Australia · Quality & Operations` → `Quality & Operations`), page `<title>` metadata, and the PDF report's title/eyebrow text.
+
+2. **"QA can click section and find all tasks"** — added a clickable area/section link to the place-name shown on every schedule row across Today's Ops, Pre-Start, Line Clearance, Post-Op Cleaning, and 5S Audits (all five share the one `components/inspection/schedule-list.tsx` component). Clicking it jumps to Inspection History pre-filtered to that place. **Reminder for future sessions**: per the standing note elsewhere in this doc's history, when this user says "section" she usually means what the app calls an **Area** (Blending Room, Capsule Room, etc.) — this request is exactly that pattern again, not the app's actual `Section` model (Production/Warehouse/Facility). The fix accounts for the real hierarchy anyway: links to `?areaId=` when a schedule has a specific area, falls back to `?sectionId=` for a section-wide schedule, and to the plain unfiltered `/inspections` for a genuinely facility-wide one (there's nothing narrower to point a facility-wide check at).
+   - `lib/data/inspections.ts`'s `listInspections()` already supported both `areaId` and `sectionId` filters — only the **Inspections page itself** (`app/(app)/inspections/page.tsx`) was missing `sectionId` from its `searchParams` type, now added.
+   - `ScheduleList`'s `Schedule` type now requires `{ id, name }` for area/section (previously just `{ name }`) — the `id` was always present in the underlying Prisma query result (`include: { area: true, section: true }` returns the full row), this was purely a TypeScript narrowing gap, not a missing query field, so no data-layer changes were needed anywhere else.
+   - **Verified with real data** (not just code review) via a curl-based NextAuth login (CSRF token → credentials callback → session cookie) since the Browser-pane tool was completely stuck this session (`navigate` timing out at 300s repeatedly, across tab close/recreate, independent of any app code) — confirmed `Today's Ops`, `Pre-Start`, and `Post-Op` all render real `?areaId=<real-id>` links with the correct place name and tooltip; `5S Audits` and `Line Clearance` show no scoped links in *this specific local dev dataset* only because those categories' local seed schedules happen to be facility-wide only here (not a bug — same fallback-to-`/inspections` behavior confirmed correct).
+
+`tsc`/`eslint`/106 tests/`next build` all clean. **Committed locally, NOT pushed** — waiting for explicit go-ahead per this project's standing pattern.
+
+---
+
 # Handover — 2026-08-23 00:00 (Real logo added — committed and pushed)
 
 ## Real Eagle Labs Inc logo added (this session, after the rebrand)

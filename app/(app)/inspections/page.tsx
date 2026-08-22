@@ -35,7 +35,12 @@ const STATUSES: InspectionStatus[] = [
 export default async function InspectionsHistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; areaId?: string; q?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    areaId?: string;
+    sectionId?: string;
+    q?: string;
+  }>;
 }) {
   const session = await auth();
   const scope = getUserScope(session!.user);
@@ -60,7 +65,7 @@ export default async function InspectionsHistoryPage({
   ]);
 
   const hasExtraFilters = Boolean(
-    filters.status || filters.areaId || filters.q,
+    filters.status || filters.areaId || filters.sectionId || filters.q,
   );
 
   return (
