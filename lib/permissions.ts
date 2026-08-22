@@ -12,6 +12,7 @@ export type Permission =
   | "area.release"
   | "checklist.manage"
   | "areas.manage"
+  | "calibration.manage"
   | "users.manage"
   | "reports.view"
   | "reports.export";
@@ -26,6 +27,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "area.release",
     "checklist.manage",
     "areas.manage",
+    "calibration.manage",
     "users.manage",
     "reports.view",
     "reports.export",
@@ -34,6 +36,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "view",
     "checklist.manage",
     "areas.manage",
+    "calibration.manage",
     "users.manage",
     "reports.view",
     "reports.export",
@@ -41,7 +44,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   OPERATOR: ["view", "inspection.create", "inspection.submit"],
   TEAM_LEADER: ["view", "inspection.create", "inspection.submit", "inspection.verify.supervisor"],
   SUPERVISOR: ["view", "inspection.verify.supervisor", "reports.view"],
-  QA: ["view", "inspection.verify.qa", "area.release", "reports.view", "reports.export"],
+  QA: ["view", "inspection.verify.qa", "area.release", "calibration.manage", "reports.view", "reports.export"],
   MANAGEMENT: ["view", "reports.view", "reports.export"],
   VIEWER: ["view"],
 };

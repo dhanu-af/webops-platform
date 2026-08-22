@@ -19,6 +19,7 @@ import {
   Workflow,
   Settings,
   ListPlus,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Inspections", href: "/inspections", icon: History },
       { label: "Corrective Actions", href: "/corrective-actions", icon: Wrench },
       { label: "Evidence Gallery", href: "/evidence", icon: Images },
+      { label: "Equipment Calibration", href: "/calibration", icon: Gauge },
     ],
   },
   {

@@ -70,3 +70,48 @@ export async function getMaxPhotoBytes(): Promise<number> {
   const settings = await db.systemSettings.findFirst();
   return (settings?.maxPhotoSizeMb ?? 10) * 1024 * 1024;
 }
+
+// Calibration certificates are PDFs from an external lab/vendor (occasionally
+// a scanned photo of a paper certificate) — a real content type distinct from
+// PhotoEvidence, so this gets its own function/blob prefix rather than
+// reusing storePhoto's image-only assumptions.
+const CERTIFICATE_EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+};
+
+export const MAX_CERTIFICATE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_CERTIFICATE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+const ALLOWED_CERTIFICATE_EXTENSIONS = ["pdf", "jpg", "jpeg", "png"];
+
+export function isAllowedCertificateFile(file: File): boolean {
+  if (ALLOWED_CERTIFICATE_TYPES.includes(file.type)) return true;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  return !!ext && ALLOWED_CERTIFICATE_EXTENSIONS.includes(ext);
+}
+
+export async function storeCalibrationCertificate(file: File): Promise<{ url: string; sizeBytes: number }> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  const bytes = await file.arrayBuffer();
+  const contentType = file.type || CERTIFICATE_EXTENSION_CONTENT_TYPES[ext] || "application/octet-stream";
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(`calibration-certificates/${filename}`, Buffer.from(bytes), {
+      access: "public",
+      contentType,
+    });
+    return { url: blob.url, sizeBytes: file.size };
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error("Certificate storage isn't configured for this deployment (missing BLOB_READ_WRITE_TOKEN).");
+  }
+
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  await mkdir(uploadsDir, { recursive: true });
+  await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes));
+  return { url: `/uploads/${filename}`, sizeBytes: file.size };
+}

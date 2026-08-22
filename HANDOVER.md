@@ -1,17 +1,43 @@
-# Handover — 2026-08-22 12:00
+# Handover — 2026-08-22 22:35
 
 ## Goal
 
-**WEB OPS**: a standalone digital facility operations & compliance platform (checklists, 5S, photo evidence, 3-level verification, corrective actions, area release, audit trail) for the user's manufacturing company. Deliberately **separate** from her other apps (BlendCaps/eagle-labs-schedule, Fudgee, etc.) — do not cross-reference or merge them. Three threads running across sessions:
+**WEB OPS**: a standalone digital facility operations & compliance platform (checklists, 5S, photo evidence, 3-level verification, corrective actions, area release, audit trail, **equipment calibration tracking**) for the user's manufacturing company. Deliberately **separate** from her other apps (BlendCaps/eagle-labs-schedule, Fudgee, etc.) — do not cross-reference or merge them. Threads running across sessions:
 1. The generic platform itself (schema, auth, RBAC, admin tools, full CRUD everywhere).
 2. Digitizing her **real** controlled documents (Capsule Room's cleaning forms, 5S Daily Check, Bottling Line Clearance) so they replace paper — not demo filler.
-3. **New as of today**: area-level access control, so section-floor staff only see their own area's work.
+3. Area-level access control, so section-floor staff only see their own area's work — **confirmed deployed to production this session** (see below).
+4. **New this session**: Equipment Calibration Tracking module.
 
 ## State — as of this write-up
 
-- Local repo: `~/webops-platform`. Pushed to GitHub: `dhanu-af/webops-platform` (private). **`HEAD` = `6d299c9`, NOT YET PUSHED** — ask the user before pushing (standing pattern this whole project).
-- **Live production**: Vercel team `DKNS` (`dkns1`) → project `webops-platform` → **https://webops-platform-three.vercel.app**. Neon Postgres `neon-byzantium-saddle` + Vercel Blob (token confirmed present). Auto-deploy-on-push (including `prisma migrate deploy` via `vercel-build`) confirmed working reliably all project.
-- **Area-level access scoping — built today, verified locally, NOT YET DEPLOYED** (see Key decisions below for full design). This is a real behavior change to who-sees-what; make sure the user actually wants it live before pushing, even though she explicitly asked for it.
+- Local repo: `~/webops-platform`. **`HEAD` = `be85db4`, already pushed to `origin/master`** — confirmed this session (contradicted an earlier handover's "not yet pushed" note; that note was stale). **New work this session (Equipment Calibration Tracking) is committed locally but NOT yet pushed** — ask the user before pushing, per this project's standing pattern.
+- **Live production**: Vercel team `DKNS` (`dkns1`) → project `webops-platform` → **https://webops-platform-three.vercel.app**. Neon Postgres + Vercel Blob (token confirmed present). Auto-deploy-on-push (including `prisma migrate deploy` via `vercel-build`) confirmed working reliably all project.
+- **Area-level access scoping — confirmed LIVE on production this session.** The user checked the real "New User" form on `webops-platform-three.vercel.app` and confirmed the "Assigned area (optional)" dropdown is there with the real area list and correct helper text. It's currently a no-op for everyone since no real user has an Assigned Area set yet — she needs to go into Users admin and assign areas to real Operators/Team Leaders/Supervisors for it to actually restrict anything.
+- **NEW: Equipment Calibration Tracking module — built, verified locally, NOT YET DEPLOYED.** See "This session's build" below.
+
+## This session's build — Equipment Calibration Tracking
+
+The user asked "any other modules to finish this project?" after confirming the area-scoping feature was live; she picked this as the next module to add.
+
+**Schema** (`prisma/migrations/20260822140000_equipment_calibration/`): new `EquipmentCalibration` model — `equipmentId` FK (cascade delete with Equipment), `calibratedDate`, `intervalDays`, `dueDate` (computed at write time as `calibratedDate + intervalDays`, not recomputed later), `performedBy` (plain string — calibration is almost always an external vendor/technician, not a WEB OPS `User`), `certificateNumber`/`certificateUrl`/`notes` (all optional), `createdById`/`createdAt`. **Status (CURRENT/DUE_SOON/OVERDUE/NEVER_CALIBRATED) is deliberately NOT a stored column** — it's derived from `dueDate` at read time (`lib/calibration.ts`'s `getCalibrationStatus()`), matching the exact convention `CorrectiveAction.status`'s OVERDUE already uses (computed via `isPast(dueDate)` in the UI, never persisted), so it can never drift from "today."
+
+Hit the same known local-dev shadow-DB issue as the `user_home_area` migration before it (`P3006`/"type already exists") — used the documented workaround: hand-wrote the migration SQL matching existing style, `prisma migrate resolve --applied`, `prisma db execute --file`, `prisma generate`. Confirmed with `prisma migrate status` after.
+
+**New permission**: `"calibration.manage"` in `lib/permissions.ts`, granted to `SUPER_ADMIN`, `ADMIN`, and `QA` (QA is the realistic real-world owner of calibration records, not just Admins). Viewing the calibration list/history needs no special permission (covered by the universal `"view"`), same as every other Records page.
+
+**Storage**: `lib/storage.ts` gained `storeCalibrationCertificate()` / `isAllowedCertificateFile()` / `MAX_CERTIFICATE_BYTES` — a separate function from `storePhoto()` because certificates are PDFs (occasionally a scanned photo), not images-only. Same Vercel Blob / local-`public/uploads`-fallback / VERCEL-without-token-throws-instead-of-silent-EROFS contract as the existing photo storage.
+
+**Files**:
+- `lib/data/calibration.ts` — `listEquipmentCalibrationOverview(scope)` (one row per non-archived Equipment with its latest calibration + computed status), `listCalibrationHistory(equipmentId)`. Scoping uses a **plain `areaId` equality** against the user's scope, not the `scopeWhere()` hierarchy helper — Equipment (like CorrectiveAction/Finding/PhotoEvidence) only ever carries one specific `areaId`, no section/facility-wide variant, matching `lib/scope.ts`'s own documented precedent for this exact situation.
+- `lib/actions/calibration.ts` — `recordCalibration(formData)`, one action taking structured fields + an optional file together (mirrors `attachPhoto`'s all-in-one FormData pattern), computes `dueDate`, stores the certificate if present, audit-logs a `CREATED` entry.
+- `components/calibration/record-calibration-form.tsx` — inline expand/collapse form (no modal/dialog primitive exists anywhere in this app's UI kit, so this matches that constraint rather than introducing one).
+- `app/(app)/calibration/page.tsx` — list of all equipment with status badges, overdue/due-soon count chips.
+- `app/(app)/calibration/[equipmentId]/page.tsx` — full calibration history + the record-new-calibration form (gated on `calibration.manage`).
+- `components/nav/nav-items.ts` — new "Equipment Calibration" entry under Records, `Gauge` icon.
+
+**Verified end-to-end** against local dev (`npx prisma dev`, seeded demo data): logged in as the `admin@webops.demo` Super Admin demo account, recorded a real calibration on "High Shear Blender 1" (180-day interval from 22 Aug 2026 → due date correctly computed as 18 Feb 2027), confirmed the status badge flipped Never Calibrated → Current on both the list and detail pages, confirmed the audit trail logged it correctly attributed to the right user. Test record was left in local dev (harmless demo data, same category as the "Test Blending Supervisor"/"Test Blending Operator" accounts already there) rather than fighting a local dev-environment quirk to clean it up — see Gotchas.
+
+`tsc --noEmit`, `eslint`, `vitest run` (all 106 pre-existing tests, unaffected), and `next build` all pass clean.
 - **5S Daily Check**: all 5 production areas covered (Capsule Room, Blending Room, Bottling Line, Gummy Production, Pouch Line), each with a correctly area-scoped `DAILY · SUPERVISOR` schedule.
 - **"Bottling Line Clearance"**: first real, non-5S checklist built from the user's actual paper form (a Google Form she linked) — 36 items, `LINE_CLEARANCE` category, `Operator → Supervisor → QA` workflow, live on `/line-clearance`.
 - **Bottling Line, Gummy Production, and Pouch Line's Pre-Start / Post-Operation Cleaning checklists still don't exist** — need the user's real paper form content, same as Bottling Line Clearance did. Don't fabricate.
@@ -42,7 +68,7 @@ The user asked for this directly: "blending section users (operator, teamleader,
 - **Two real bugs found and fixed in `lib/storage.ts`**: (1) `storePhoto()` used to silently fall back to a filesystem write when `BLOB_READ_WRITE_TOKEN` was missing — fine locally, fatal on Vercel's read-only filesystem — now throws a clear error instead. (2) The actual bug the user hit was HEIC photos reporting an empty/unexpected `file.type`; `isAllowedPhotoFile()` now falls back to the file extension.
 - **Push confirmation pattern**: always ask before `git push`, even though local `git commit` doesn't need to ask.
 
-## Files touched today (major ones; full history in `git log --oneline`)
+## Files touched in the area-scoping session (major ones; full history in `git log --oneline`)
 
 - **`prisma/schema.prisma`, `prisma/migrations/20260822120000_user_home_area/`** — `User.areaId`.
 - **`lib/scope.ts`** (new) — `getUserScope()`, `scopeWhere()`.
@@ -67,13 +93,16 @@ The user asked for this directly: "blending section users (operator, teamleader,
 - **The auto-mode classifier blocks browser-automation writes that modify *existing* live production state, but allows ones that *create new* state** — creating a schedule went through; pausing an existing one was denied, twice.
 - **GitHub two-account switch required before every push**: `gh auth switch --hostname github.com --user dhanu-af`, push, then switch back to `khdanushka-spec`.
 - **`WebFetch` on a public Google Form's `viewform` URL works but tends to summarize repeated sections on the first pass** — always follow up with an explicit "no summarizing, exact wording of every item" prompt, plus a targeted fetch for anything truncated with "...".
+- **A standalone `tsx`/`node` script run via Bash reliably fails to connect to the local `prisma dev` Postgres proxy** (`ECONNREFUSED` through Prisma's `PrismaPg` adapter) even though the exact same port is reachable via a raw TCP test *and* via a raw `pg` `Client` connecting directly (both confirmed working from the same Bash session) — it's specifically the Prisma-Client-via-adapter-pg combination that fails standalone. The identical query works fine the instant it runs inside the actual running Next dev server (a page load, a Server Action) — confirmed this session recording/verifying a real calibration record entirely by driving the browser, never by running a script directly. Same root-cause *shape* as the already-documented "standalone script fails against `@neondatabase/serverless`" issue on other projects, just a different driver. **How to apply**: don't burn retries on a standalone verification/cleanup script here — drive the real dev server through the browser tool instead (as done this session), or accept leaving small harmless test data behind rather than fighting this for a trivial cleanup.
+- **The local `prisma dev` proxy can get stuck in a bad state mid-session** (`P1017`/"Server has closed the connection", `DriverAdapterError: ConnectionClosed`) after enough migrate/generate/build churn against it — confirmed this session, and it wasn't specific to the new code (hit on the pre-existing Dashboard page too). Fix: find the actual process on the ports (`netstat -ano | grep 51214`, then `Get-CimInstance Win32_Process -Filter "Name='node.exe'"` to confirm it's the right one — **never a blanket `taskkill`**), `Stop-Process -Id <pid> -Force`, delete the stale lock **directory** at `%LOCALAPPDATA%\prisma-dev-nodejs\Data\durable-streams\default\server.lock.lock` (it's a directory, not a file — `proper-lockfile`'s mechanism), then `npx prisma dev` again. Also restart the Next dev server itself afterward — it holds its own now-stale connections to the old proxy instance.
 
 ## Next steps
 
-1. **Ask the user whether to push `6d299c9` (the area-scoping feature) to production** — it's a real behavior change (some users will suddenly see less than before), so don't push-and-forget even though she asked for it; confirm she's ready, and suggest she spot-check one real Operator/Supervisor's account's Assigned Area is set correctly right after deploy (nobody has one assigned yet in production — this feature is a no-op for everyone until she actually assigns areas via Users admin).
+1. **Ask the user whether to push the Equipment Calibration Tracking module (this session's new commit) to production** — confirmed working locally, but not yet on Vercel. Also needs `prisma migrate deploy` to run there (happens automatically via `vercel-build` on push).
 2. **Get Bottling Line, Gummy Production, and Pouch Line's real Pre-Start and Post-Operation Cleaning paper forms** — she's shared a Google Form link once already; fetch it the same way if she does again.
 3. **Confirm the HEIC/photo-format fix actually worked** — ask her to retry whatever format got rejected before.
-4. Everything else genuinely needs her input (see Open Questions) — no other clearly-scoped, no-decision-needed work is currently identified.
+4. Once calibration tracking is live, she'll need to record each real piece of equipment's actual last-calibrated date (not just wait for the next one) so the dashboard reflects reality from day one, rather than showing "Never Calibrated" for equipment that has actually been calibrated before this feature existed.
+5. Everything else genuinely needs her input (see Open Questions) — no other clearly-scoped, no-decision-needed work is currently identified.
 
 ## Open questions — still genuinely need the user
 

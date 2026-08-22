@@ -68,6 +68,7 @@ model User {
   auditLogEntries       AuditLog[]
   checklistVersionsCreated ChecklistVersion[]
   respondedItems        InspectionResponse[]
+  calibrationsRecorded  EquipmentCalibration[]
 
   @@index([role])
 }
@@ -153,8 +154,47 @@ model Equipment {
   findings           Finding[]
   photoEvidence      PhotoEvidence[]
   correctiveActions  CorrectiveAction[]
+  calibrations       EquipmentCalibration[]
 
   @@unique([areaId, code])
+}
+
+// =========================================================================
+// EQUIPMENT CALIBRATION TRACKING — one row per calibration event; the most
+// recent row per equipment (by calibratedDate) is what's "current". Status
+// (CURRENT/DUE_SOON/OVERDUE) is deliberately not a stored column — it's
+// derived from dueDate at read time (lib/calibration.ts), same convention
+// CorrectiveAction.status uses for OVERDUE (computed via isPast(dueDate) in
+// the UI, not persisted) so it can never drift from "today".
+// =========================================================================
+
+model EquipmentCalibration {
+  id            String    @id @default(cuid())
+  equipmentId   String
+  equipment     Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  calibratedDate DateTime
+  // Stored (not just re-derived from a facility-wide default) so the next
+  // reminder for *this* equipment doesn't require re-asking every time -
+  // different instruments legitimately have different calibration intervals.
+  intervalDays   Int
+  dueDate        DateTime
+
+  // External vendor/technician name - calibration is almost always performed
+  // by a third party, not a WEB OPS User, so this is a plain string rather
+  // than a User relation.
+  performedBy       String
+  certificateNumber String?
+  certificateUrl    String? // Vercel Blob URL, same storage as PhotoEvidence
+  notes             String?
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([equipmentId, calibratedDate])
+  @@index([dueDate])
 }
 
 // =========================================================================

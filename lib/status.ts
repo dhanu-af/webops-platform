@@ -41,6 +41,13 @@ export const CORRECTIVE_ACTION_STATUS_META: Record<string, { label: string; tone
   OVERDUE: { label: "Overdue", tone: "critical" },
 };
 
+export const CALIBRATION_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+  CURRENT: { label: "Current", tone: "pass" },
+  DUE_SOON: { label: "Due Soon", tone: "warn" },
+  OVERDUE: { label: "Overdue", tone: "critical" },
+  NEVER_CALIBRATED: { label: "Never Calibrated", tone: "attention" },
+};
+
 export const RESPONSE_VALUE_META: Record<string, { label: string; tone: StatusTone }> = {
   PASS: { label: "Pass", tone: "pass" },
   FAIL: { label: "Fail", tone: "critical" },
