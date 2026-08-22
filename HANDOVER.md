@@ -1,4 +1,4 @@
-# Handover — 2026-08-23 00:00 (Real logo added — committed, NOT pushed)
+# Handover — 2026-08-23 00:00 (Real logo added — committed and pushed)
 
 ## Real Eagle Labs Inc logo added (this session, after the rebrand)
 
@@ -10,7 +10,7 @@ User supplied the real company logo (`Downloads/1630590938201.jpg` — eagle mar
 
 **Verification note**: the Browser-pane automation tool itself became genuinely stuck this session (`navigate` timing out at 300s repeatedly, across multiple tabs, tab close/recreate didn't help) — confirmed this was a tool-side failure, not a real app bug, by verifying directly via `curl` instead: raw file now serves as a valid JPEG (200, correct bytes), `/_next/image?url=%2Feagle-labs-logo.jpg...` now returns 200 with a valid optimized JPEG (was 400 before both fixes), and the rendered `/login` HTML contains correct `srcset` references to both. `tsc`/`eslint`/106 tests all still clean.
 
-**Committed locally, NOT pushed** — same standing pattern, waiting for explicit go-ahead.
+**Committed (`cdf91d1`) and pushed to `origin/master`** after the user said "push it." Should be live on `webops-platform-three.vercel.app` shortly.
 
 ---
 
