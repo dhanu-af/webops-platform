@@ -40,6 +40,14 @@ model User {
   active       Boolean  @default(true)
   sectionId    String?
   section      Section? @relation(fields: [sectionId], references: [id])
+  // Area-level access scope (spec: section staff only see their own area's
+  // tasks). Distinct from sectionId above, which is only a display/record
+  // field - areaId is what actually restricts visibility. OPERATOR/
+  // TEAM_LEADER/SUPERVISOR with an areaId set are scoped to that area only;
+  // every other role, and any of those three roles left unassigned (e.g. a
+  // floor-wide "Production Supervisor"), sees everything. See lib/scope.ts.
+  areaId       String?
+  area         Area?    @relation("UserHomeArea", fields: [areaId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -118,6 +126,7 @@ model Area {
   equipment          Equipment[]
   checklistSchedules ChecklistSchedule[]
   inspections        Inspection[]
+  homeUsers          User[]              @relation("UserHomeArea")
   findings           Finding[]
   photoEvidence      PhotoEvidence[]
   correctiveActions  CorrectiveAction[]

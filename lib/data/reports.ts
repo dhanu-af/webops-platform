@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { subDays } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
+import { scopeWhere, type UserScope } from "@/lib/scope";
 import type { Frequency, InspectionStatus } from "@/app/generated/prisma/client";
 
 export type ReportFilters = {
@@ -28,19 +29,23 @@ export async function resolveReportRange(filters: ReportFilters): Promise<{ from
   return { from, to };
 }
 
-async function buildInspectionWhere(filters: ReportFilters) {
+async function buildInspectionWhere(filters: ReportFilters, scope: UserScope) {
   const { from, to } = await resolveReportRange(filters);
   return {
     createdAt: { gte: from, lte: to },
-    areaId: filters.areaId || undefined,
+    // A scoped user has no area picker (hidden in the UI); scopeWhere already
+    // covers their area plus any facility/section-wide record that applies
+    // to it, which a strict areaId-equals filter would miss.
+    areaId: scope.scoped ? undefined : filters.areaId || undefined,
     frequency: filters.frequency ? (filters.frequency as Frequency) : undefined,
     status: filters.status ? (filters.status as InspectionStatus) : undefined,
+    ...scopeWhere(scope),
   };
 }
 
-export async function getReportInspections(filters: ReportFilters = {}, limit = 500) {
+export async function getReportInspections(filters: ReportFilters = {}, scope: UserScope = { scoped: false }, limit = 500) {
   return db.inspection.findMany({
-    where: await buildInspectionWhere(filters),
+    where: await buildInspectionWhere(filters, scope),
     include: {
       checklistVersion: { include: { checklist: true } },
       facility: true,
@@ -57,8 +62,8 @@ export async function getReportInspections(filters: ReportFilters = {}, limit = 
   });
 }
 
-export async function getReportSummary(filters: ReportFilters = {}) {
-  const where = await buildInspectionWhere(filters);
+export async function getReportSummary(filters: ReportFilters = {}, scope: UserScope = { scoped: false }) {
+  const where = await buildInspectionWhere(filters, scope);
 
   const [total, closed, scoreAgg, openFindings, criticalFindings, overdueCorrectiveActions] = await Promise.all([
     db.inspection.count({ where }),

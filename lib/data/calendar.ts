@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
+import { scopeWhere, type UserScope } from "@/lib/scope";
 import type { Frequency } from "@/app/generated/prisma/client";
 
 // Only these three frequencies map onto a predictable calendar day — the
@@ -11,12 +12,17 @@ const CALENDAR_FREQUENCIES: Frequency[] = ["DAILY", "WEEKLY", "MONTHLY"];
 
 export type CalendarSchedule = Awaited<ReturnType<typeof getCalendarSchedules>>[number];
 
-async function getCalendarSchedules(filters: { areaId?: string; frequency?: string }) {
+async function getCalendarSchedules(filters: { areaId?: string; frequency?: string }, scope: UserScope) {
   return db.checklistSchedule.findMany({
     where: {
       active: true,
       frequency: filters.frequency ? (filters.frequency as Frequency) : { in: CALENDAR_FREQUENCIES },
-      areaId: filters.areaId || undefined,
+      // A scoped user has no area picker (hidden in the UI), so any areaId
+      // filter only ever applies for a full-visibility user narrowing down
+      // manually. scopeWhere already includes facility/section-wide entries
+      // that apply to the scoped user's area, not just an exact area match.
+      areaId: scope.scoped ? undefined : filters.areaId || undefined,
+      ...scopeWhere(scope),
     },
     include: { checklist: true, area: true, section: true, facility: true },
     orderBy: { dueTime: "asc" },
@@ -56,7 +62,7 @@ export type CalendarEntry = {
   status: "SCHEDULED" | "DUE" | "OVERDUE" | "NOT_STARTED" | "IN_PROGRESS" | "AWAITING_SUPERVISOR" | "AWAITING_QA" | "RETURNED" | "REJECTED" | "CLOSED";
 };
 
-export async function getCalendarMonth(monthDate: Date, filters: { areaId?: string; frequency?: string } = {}) {
+export async function getCalendarMonth(monthDate: Date, filters: { areaId?: string; frequency?: string } = {}, scope: UserScope = { scoped: false }) {
   // monthDate is expected to already be a UTC-midnight "label" (see
   // lib/timezone.ts's todayLabelInTimeZone) — computed with UTC-explicit
   // math here rather than date-fns' startOfMonth/endOfMonth (which read the
@@ -72,7 +78,7 @@ export async function getCalendarMonth(monthDate: Date, filters: { areaId?: stri
   // not the real Brisbane-midnight instant startOfDayInTimeZone returns.
   const today = todayLabelInTimeZone(timeZone);
 
-  const schedules = await getCalendarSchedules(filters);
+  const schedules = await getCalendarSchedules(filters, scope);
 
   const inspections = await db.inspection.findMany({
     where: {

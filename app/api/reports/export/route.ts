@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { getUserScope } from "@/lib/scope";
 import { getReportInspections, type ReportFilters } from "@/lib/data/reports";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 
@@ -29,7 +30,8 @@ export async function GET(request: NextRequest) {
     status: searchParams.get("status") || undefined,
   };
 
-  const inspections = await getReportInspections(filters, 5000);
+  const scope = getUserScope(session.user);
+  const inspections = await getReportInspections(filters, scope, 5000);
 
   const header = [
     "Checklist",

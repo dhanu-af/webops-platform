@@ -1,10 +1,14 @@
+import { auth } from "@/lib/auth";
+import { getUserScope } from "@/lib/scope";
 import { getDashboardKpis, getFacilityStatusMap } from "@/lib/data/dashboard";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { FacilityStatusMap } from "@/components/dashboard/facility-status-map";
 import { CheckCircle2, ClipboardList, AlertTriangle, UserCheck, ShieldCheck, FlagTriangleRight, LayoutGrid } from "lucide-react";
 
 export default async function DashboardPage() {
-  const [kpis, areas] = await Promise.all([getDashboardKpis(), getFacilityStatusMap()]);
+  const session = await auth();
+  const scope = getUserScope(session!.user);
+  const [kpis, areas] = await Promise.all([getDashboardKpis(scope), getFacilityStatusMap(scope)]);
 
   return (
     <div className="space-y-6">

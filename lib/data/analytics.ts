@@ -1,13 +1,14 @@
 import { db } from "@/lib/db";
 import { format, eachDayOfInterval, differenceInCalendarDays } from "date-fns";
 import { resolveReportRange, type ReportFilters } from "@/lib/data/reports";
+import { scopeWhere, type UserScope } from "@/lib/scope";
 
 export type ScoreTrendPoint = { date: string; label: string; avgScore: number | null };
 
-export async function getScoreTrend(filters: ReportFilters): Promise<ScoreTrendPoint[]> {
+export async function getScoreTrend(filters: ReportFilters, scope: UserScope = { scoped: false }): Promise<ScoreTrendPoint[]> {
   const { from, to } = await resolveReportRange(filters);
   const inspections = await db.inspection.findMany({
-    where: { createdAt: { gte: from, lte: to }, score: { not: null }, areaId: filters.areaId || undefined },
+    where: { createdAt: { gte: from, lte: to }, score: { not: null }, areaId: scope.scoped ? undefined : filters.areaId || undefined, ...scopeWhere(scope) },
     select: { createdAt: true, score: true },
   });
 
@@ -29,10 +30,10 @@ export async function getScoreTrend(filters: ReportFilters): Promise<ScoreTrendP
 
 export type AreaPerformancePoint = { name: string; avgScore: number; count: number };
 
-export async function getAreaPerformance(filters: ReportFilters): Promise<AreaPerformancePoint[]> {
+export async function getAreaPerformance(filters: ReportFilters, scope: UserScope = { scoped: false }): Promise<AreaPerformancePoint[]> {
   const { from, to } = await resolveReportRange(filters);
   const inspections = await db.inspection.findMany({
-    where: { createdAt: { gte: from, lte: to }, score: { not: null }, areaId: filters.areaId || undefined },
+    where: { createdAt: { gte: from, lte: to }, score: { not: null }, areaId: scope.scoped ? undefined : filters.areaId || undefined, ...scopeWhere(scope) },
     select: { score: true, area: { select: { id: true, name: true } } },
   });
 
@@ -55,10 +56,12 @@ export type FindingsByAreaPoint = { name: string; CRITICAL: number; MAJOR: numbe
 // Findings, not inspections, are the unit here — one inspection can carry several
 // findings, and the point of this chart is which *areas* keep recurring, not which
 // single inspection they came from.
-export async function getFindingsBySeverityByArea(filters: ReportFilters): Promise<FindingsByAreaPoint[]> {
+export async function getFindingsBySeverityByArea(filters: ReportFilters, scope: UserScope = { scoped: false }): Promise<FindingsByAreaPoint[]> {
   const { from, to } = await resolveReportRange(filters);
+  // Finding only ever carries a specific areaId (no section/facility-wide
+  // variant) - an exact match is the whole scope rule, same as elsewhere.
   const findings = await db.finding.findMany({
-    where: { createdAt: { gte: from, lte: to }, areaId: filters.areaId || undefined },
+    where: { createdAt: { gte: from, lte: to }, areaId: scope.scoped ? scope.areaId : filters.areaId || undefined },
     select: { severity: true, area: { select: { name: true } } },
   });
 
@@ -79,9 +82,12 @@ export type AgingBucket = { label: string; tone: "pass" | "warn" | "attention" |
 
 // Deliberately not scoped to the report date range — "ageing" describes actions
 // that are open *right now*, regardless of when the report window happens to start.
-export async function getCorrectiveActionAging(filters: Pick<ReportFilters, "areaId"> = {}): Promise<AgingBucket[]> {
+export async function getCorrectiveActionAging(
+  filters: Pick<ReportFilters, "areaId"> = {},
+  scope: UserScope = { scoped: false }
+): Promise<AgingBucket[]> {
   const openActions = await db.correctiveAction.findMany({
-    where: { status: { not: "CLOSED" }, areaId: filters.areaId || undefined },
+    where: { status: { not: "CLOSED" }, areaId: scope.scoped ? scope.areaId : filters.areaId || undefined },
     select: { createdAt: true },
   });
 

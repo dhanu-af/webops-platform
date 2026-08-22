@@ -16,7 +16,13 @@ const ROLES: { value: UserRole; label: string }[] = [
   { value: "VIEWER", label: "Viewer" },
 ];
 
-export function NewUserForm({ sections }: { sections: Array<{ id: string; label: string }> }) {
+export function NewUserForm({
+  sections,
+  areas,
+}: {
+  sections: Array<{ id: string; label: string }>;
+  areas: Array<{ id: string; label: string }>;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -26,6 +32,7 @@ export function NewUserForm({ sections }: { sections: Array<{ id: string; label:
   const [jobTitle, setJobTitle] = useState("");
   const [role, setRole] = useState<UserRole>("OPERATOR");
   const [sectionId, setSectionId] = useState("");
+  const [areaId, setAreaId] = useState("");
 
   return (
     <form
@@ -45,6 +52,7 @@ export function NewUserForm({ sections }: { sections: Array<{ id: string; label:
               role,
               employeeId: employeeId.trim() || undefined,
               sectionId: sectionId || undefined,
+              areaId: areaId || undefined,
               jobTitle: jobTitle.trim() || undefined,
             });
           } catch (err) {
@@ -119,6 +127,24 @@ export function NewUserForm({ sections }: { sections: Array<{ id: string; label:
             </option>
           ))}
         </select>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-strong">Assigned area (optional)</label>
+        <select
+          value={areaId}
+          onChange={(e) => setAreaId(e.target.value)}
+          className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
+        >
+          <option value="">— None (sees every area) —</option>
+          {areas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          For Operator / Team Leader / Supervisor: restricts them to only this area&apos;s tasks. Leave blank for QA, Management, or any role that should see every area.
+        </p>
       </div>
       <div>
         <label className="text-xs font-medium text-muted-strong">Job title (optional)</label>

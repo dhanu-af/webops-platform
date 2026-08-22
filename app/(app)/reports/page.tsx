@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { getUserScope } from "@/lib/scope";
 import { getReportInspections, getReportSummary, getReportAreaOptions, resolveReportRange, type ReportFilters } from "@/lib/data/reports";
 import { getFacilityTimezone, formatDateInTimeZone, formatDayInTimeZone } from "@/lib/timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,15 +54,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const session = await auth();
   if (!session?.user || !can(session.user.role, "reports.view")) notFound();
   const canExport = can(session.user.role, "reports.export");
+  const scope = getUserScope(session.user);
 
   const filters = await searchParams;
   const timeZone = await getFacilityTimezone();
   const { from, to } = await resolveReportRange(filters);
 
   const [summary, inspections, areas] = await Promise.all([
-    getReportSummary(filters),
-    getReportInspections(filters),
-    getReportAreaOptions(),
+    getReportSummary(filters, scope),
+    getReportInspections(filters, scope),
+    scope.scoped ? Promise.resolve([]) : getReportAreaOptions(),
   ]);
 
   const fromValue = formatDateInTimeZone(from, timeZone);
@@ -108,21 +110,23 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 className="mt-1.5 block rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
               />
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-strong">Area</label>
-              <select
-                name="areaId"
-                defaultValue={filters.areaId ?? ""}
-                className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-              >
-                <option value="">All areas</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.section.name} / {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!scope.scoped && (
+              <div>
+                <label className="text-xs font-medium text-muted-strong">Area</label>
+                <select
+                  name="areaId"
+                  defaultValue={filters.areaId ?? ""}
+                  className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+                >
+                  <option value="">All areas</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.section.name} / {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-strong">Frequency</label>
               <select

@@ -7,10 +7,13 @@ import { format, isPast } from "date-fns";
 import { CloseCorrectiveActionButton } from "@/components/inspection/close-corrective-action-button";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { getUserScope } from "@/lib/scope";
 
 export default async function CorrectiveActionsPage() {
-  const [actions, session] = await Promise.all([listCorrectiveActions(), auth()]);
-  const canClose = session?.user ? can(session.user.role, "inspection.verify.qa") || can(session.user.role, "inspection.verify.supervisor") : false;
+  const session = await auth();
+  const scope = getUserScope(session!.user);
+  const actions = await listCorrectiveActions({}, scope);
+  const canClose = can(session!.user.role, "inspection.verify.qa") || can(session!.user.role, "inspection.verify.supervisor");
 
   return (
     <div className="space-y-6">

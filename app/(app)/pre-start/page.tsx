@@ -1,8 +1,12 @@
+import { auth } from "@/lib/auth";
+import { getUserScope } from "@/lib/scope";
 import { getSchedulesByCategory } from "@/lib/data/by-category";
 import { ScheduleList } from "@/components/inspection/schedule-list";
 
 export default async function PreStartPage() {
-  const schedules = await getSchedulesByCategory("PRE_START");
+  const session = await auth();
+  const scope = getUserScope(session!.user);
+  const schedules = await getSchedulesByCategory("PRE_START", scope);
 
   return (
     <div className="space-y-6">

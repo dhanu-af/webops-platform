@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { addMonths, format } from "date-fns";
+import { auth } from "@/lib/auth";
+import { getUserScope } from "@/lib/scope";
 import { getCalendarMonth, getCalendarAreaOptions } from "@/lib/data/calendar";
 import { calendarEntryMeta } from "@/lib/calendar-status";
 import { getFacilityTimezone, todayLabelInTimeZone } from "@/lib/timezone";
@@ -39,14 +41,19 @@ function monthQuery(month: Date, areaId?: string, frequency?: string) {
 }
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; areaId?: string; frequency?: string }> }) {
+  const session = await auth();
+  const scope = getUserScope(session!.user);
   const params = await searchParams;
   const timeZone = await getFacilityTimezone();
   const todayMonth = todayLabelInTimeZone(timeZone);
   const month = parseMonth(params.month, todayMonth);
-  const areaId = params.areaId || undefined;
+  const areaId = scope.scoped ? undefined : params.areaId || undefined;
   const frequency = params.frequency || undefined;
 
-  const [{ days }, areas] = await Promise.all([getCalendarMonth(month, { areaId, frequency }), getCalendarAreaOptions()]);
+  const [{ days }, areas] = await Promise.all([
+    getCalendarMonth(month, { areaId, frequency }, scope),
+    scope.scoped ? Promise.resolve([]) : getCalendarAreaOptions(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -75,17 +82,19 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <CardContent className="pt-4">
           <form method="GET" className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="month" value={format(month, "yyyy-MM")} />
-            <div>
-              <label className="text-xs font-medium text-muted-strong">Area</label>
-              <select name="areaId" defaultValue={areaId ?? ""} className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent">
-                <option value="">All areas</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.section.name} / {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!scope.scoped && (
+              <div>
+                <label className="text-xs font-medium text-muted-strong">Area</label>
+                <select name="areaId" defaultValue={areaId ?? ""} className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent">
+                  <option value="">All areas</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.section.name} / {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-strong">Frequency</label>
               <select name="frequency" defaultValue={frequency ?? ""} className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { getUserScope } from "@/lib/scope";
 import { getReportInspections, getReportSummary, resolveReportRange, type ReportFilters } from "@/lib/data/reports";
 import { ReportDocument } from "@/lib/pdf/report-document";
 
@@ -20,8 +21,9 @@ export async function GET(request: NextRequest) {
     status: searchParams.get("status") || undefined,
   };
 
+  const scope = getUserScope(session.user);
   const { from, to } = await resolveReportRange(filters);
-  const [summary, inspections] = await Promise.all([getReportSummary(filters), getReportInspections(filters, 500)]);
+  const [summary, inspections] = await Promise.all([getReportSummary(filters, scope), getReportInspections(filters, scope, 500)]);
 
   const buffer = await renderToBuffer(
     ReportDocument({ from, to, summary, inspections, generatedAt: new Date(), generatedBy: session.user.name ?? session.user.email ?? "" })

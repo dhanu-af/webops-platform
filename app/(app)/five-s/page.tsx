@@ -1,8 +1,12 @@
+import { auth } from "@/lib/auth";
+import { getUserScope } from "@/lib/scope";
 import { getSchedulesByCategory } from "@/lib/data/by-category";
 import { ScheduleList } from "@/components/inspection/schedule-list";
 
 export default async function FiveSPage() {
-  const schedules = await getSchedulesByCategory("FIVE_S");
+  const session = await auth();
+  const scope = getUserScope(session!.user);
+  const schedules = await getSchedulesByCategory("FIVE_S", scope);
 
   return (
     <div className="space-y-6">

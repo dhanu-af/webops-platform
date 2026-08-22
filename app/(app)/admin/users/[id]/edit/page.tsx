@@ -10,9 +10,14 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   if (!session?.user || !can(session.user.role, "users.manage")) notFound();
 
   const { id } = await params;
-  const [user, sections] = await Promise.all([
+  const [user, sections, areas] = await Promise.all([
     db.user.findUnique({ where: { id } }),
     db.section.findMany({ include: { facility: true }, orderBy: [{ facility: { name: "asc" } }, { sortOrder: "asc" }] }),
+    db.area.findMany({
+      where: { archived: false },
+      include: { section: { include: { facility: true } } },
+      orderBy: [{ section: { facility: { name: "asc" } } }, { section: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+    }),
   ]);
   if (!user) notFound();
 
@@ -28,8 +33,10 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         initialRole={user.role}
         initialEmployeeId={user.employeeId ?? ""}
         initialSectionId={user.sectionId ?? ""}
+        initialAreaId={user.areaId ?? ""}
         initialJobTitle={user.jobTitle ?? ""}
         sections={sections.map((s) => ({ id: s.id, label: `${s.facility.name} / ${s.name}` }))}
+        areas={areas.map((a) => ({ id: a.id, label: `${a.section.facility.name} / ${a.section.name} / ${a.name}` }))}
       />
 
       {user.id === session.user.id ? (

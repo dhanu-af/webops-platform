@@ -1,12 +1,21 @@
 import Image from "next/image";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { getUserScope } from "@/lib/scope";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFacilityTimezone, formatDayInTimeZone } from "@/lib/timezone";
 
 export default async function EvidenceGalleryPage() {
+  const session = await auth();
+  const scope = getUserScope(session!.user);
+
+  // PhotoEvidence only ever carries a specific areaId (copied from its
+  // inspection at upload time) - no section/facility-wide variant - so an
+  // exact match is the whole scope rule, same as Findings/CorrectiveActions.
   const [photos, timeZone] = await Promise.all([
     db.photoEvidence.findMany({
+      where: scope.scoped ? { areaId: scope.areaId } : undefined,
       include: { area: true, inspection: { include: { checklistVersion: { include: { checklist: true } } } }, uploadedBy: true, finding: true },
       orderBy: { createdAt: "desc" },
       take: 60,

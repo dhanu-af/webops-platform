@@ -16,7 +16,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
 
-        const user = await db.user.findUnique({ where: { email: email.toLowerCase() } });
+        const user = await db.user.findUnique({
+          where: { email: email.toLowerCase() },
+          include: { area: { select: { id: true, sectionId: true, section: { select: { facilityId: true } } } } },
+        });
         if (!user || !user.active) return null;
 
         const valid = await bcrypt.compare(password, user.passwordHash);
@@ -29,6 +32,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
+          areaId: user.area?.id ?? null,
+          sectionId: user.area?.sectionId ?? null,
+          facilityId: user.area?.section.facilityId ?? null,
         };
       },
     }),
@@ -38,12 +44,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.role = user.role;
+        token.areaId = user.areaId;
+        token.sectionId = user.sectionId;
+        token.facilityId = user.facilityId;
       }
       return token;
     },
     session({ session, token }) {
       session.user.id = token.sub!;
       session.user.role = token.role;
+      session.user.areaId = token.areaId;
+      session.user.sectionId = token.sectionId;
+      session.user.facilityId = token.facilityId;
       return session;
     },
     redirect({ url, baseUrl }) {

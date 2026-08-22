@@ -1,11 +1,12 @@
 import { db } from "@/lib/db";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
+import { scopeWhere, type UserScope } from "@/lib/scope";
 
-export async function getTodaySchedules() {
+export async function getTodaySchedules(scope: UserScope) {
   const now = new Date();
   const timeZone = await getFacilityTimezone();
   return db.checklistSchedule.findMany({
-    where: { active: true, startDate: { lte: now } },
+    where: { active: true, startDate: { lte: now }, ...scopeWhere(scope) },
     include: {
       checklist: true,
       facility: true,
@@ -18,17 +19,24 @@ export async function getTodaySchedules() {
   });
 }
 
-export async function listInspections(filters: {
-  status?: string;
-  areaId?: string;
-  frequency?: string;
-  q?: string;
-} = {}) {
+export async function listInspections(
+  filters: {
+    status?: string;
+    sectionId?: string;
+    areaId?: string;
+    frequency?: string;
+    q?: string;
+  } = {},
+  scope: UserScope = { scoped: false }
+) {
   return db.inspection.findMany({
     where: {
       status: filters.status ? (filters.status as never) : undefined,
+      sectionId: filters.sectionId || undefined,
       areaId: filters.areaId || undefined,
       frequency: filters.frequency ? (filters.frequency as never) : undefined,
+      checklistVersion: filters.q ? { checklist: { name: { contains: filters.q, mode: "insensitive" } } } : undefined,
+      ...scopeWhere(scope),
     },
     include: {
       checklistVersion: { include: { checklist: true } },
@@ -44,9 +52,14 @@ export async function listInspections(filters: {
   });
 }
 
-export async function listCorrectiveActions(filters: { status?: string } = {}) {
+export async function listCorrectiveActions(filters: { status?: string; areaId?: string } = {}, scope: UserScope = { scoped: false }) {
+  // CorrectiveAction only ever has a specific areaId (no section/facility-wide
+  // variant), so an exact match is the whole scope rule here - no hierarchy.
   return db.correctiveAction.findMany({
-    where: { status: filters.status ? (filters.status as never) : undefined },
+    where: {
+      status: filters.status ? (filters.status as never) : undefined,
+      areaId: scope.scoped ? scope.areaId : filters.areaId || undefined,
+    },
     include: {
       finding: { include: { inspection: { include: { checklistVersion: { include: { checklist: true } } } } } },
       area: true,

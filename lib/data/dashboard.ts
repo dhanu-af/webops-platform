@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
+import { scopeWhere, type UserScope } from "@/lib/scope";
 
-export async function getDashboardKpis() {
+export async function getDashboardKpis(scope: UserScope = { scoped: false }) {
   const now = new Date();
   const timeZone = await getFacilityTimezone();
   const todayStart = startOfDayInTimeZone(timeZone, now);
   const todayEnd = endOfDayInTimeZone(timeZone, now);
+  const scopeFilter = scopeWhere(scope);
 
   const [
     todayTotal,
@@ -18,25 +20,26 @@ export async function getDashboardKpis() {
     totalLast30,
     fiveSResponses,
   ] = await Promise.all([
-    db.inspection.count({ where: { dueAt: { gte: todayStart, lte: todayEnd } } }),
+    db.inspection.count({ where: { dueAt: { gte: todayStart, lte: todayEnd }, ...scopeFilter } }),
     db.inspection.count({
-      where: { dueAt: { gte: todayStart, lte: todayEnd }, status: { in: ["SUPERVISOR_APPROVED", "QA_APPROVED", "CLOSED", "SUBMITTED", "AWAITING_SUPERVISOR", "AWAITING_QA"] } },
+      where: { dueAt: { gte: todayStart, lte: todayEnd }, status: { in: ["SUPERVISOR_APPROVED", "QA_APPROVED", "CLOSED", "SUBMITTED", "AWAITING_SUPERVISOR", "AWAITING_QA"] }, ...scopeFilter },
     }),
-    db.inspection.count({ where: { status: "OVERDUE" } }),
-    db.inspection.count({ where: { status: "AWAITING_SUPERVISOR" } }),
-    db.inspection.count({ where: { status: "AWAITING_QA" } }),
-    db.finding.count({ where: { status: { not: "CLOSED" } } }),
+    db.inspection.count({ where: { status: "OVERDUE", ...scopeFilter } }),
+    db.inspection.count({ where: { status: "AWAITING_SUPERVISOR", ...scopeFilter } }),
+    db.inspection.count({ where: { status: "AWAITING_QA", ...scopeFilter } }),
+    db.finding.count({ where: { status: { not: "CLOSED" }, inspection: scope.scoped ? { ...scopeFilter } : undefined } }),
     db.inspection.count({
-      where: { status: { in: ["QA_APPROVED", "CLOSED"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) } },
+      where: { status: { in: ["QA_APPROVED", "CLOSED"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) }, ...scopeFilter },
     }),
     db.inspection.count({
-      where: { status: { notIn: ["NOT_STARTED", "IN_PROGRESS"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) } },
+      where: { status: { notIn: ["NOT_STARTED", "IN_PROGRESS"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) }, ...scopeFilter },
     }),
     db.inspectionResponse.findMany({
       where: {
         checklistItem: { checklistVersion: { checklist: { category: "FIVE_S" } } },
         numericValue: { not: null },
         createdAt: { gte: new Date(now.getTime() - 30 * 86400000) },
+        inspection: scope.scoped ? { ...scopeFilter } : undefined,
       },
       select: { numericValue: true },
     }),
@@ -62,9 +65,9 @@ export async function getDashboardKpis() {
   };
 }
 
-export async function getFacilityStatusMap() {
+export async function getFacilityStatusMap(scope: UserScope = { scoped: false }) {
   const areas = await db.area.findMany({
-    where: { archived: false },
+    where: { archived: false, id: scope.scoped ? scope.areaId : undefined },
     orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     include: {
       section: { include: { facility: true } },

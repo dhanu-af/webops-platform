@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { getUserScope } from "@/lib/scope";
 import { resolveReportRange, getReportAreaOptions, type ReportFilters } from "@/lib/data/reports";
 import { getFacilityTimezone, formatDateInTimeZone } from "@/lib/timezone";
 import { getScoreTrend, getAreaPerformance, getFindingsBySeverityByArea, getCorrectiveActionAging } from "@/lib/data/analytics";
@@ -13,17 +14,18 @@ type AnalyticsFilters = Pick<ReportFilters, "from" | "to" | "areaId">;
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<AnalyticsFilters> }) {
   const session = await auth();
   if (!session?.user || !can(session.user.role, "reports.view")) notFound();
+  const scope = getUserScope(session.user);
 
   const filters = await searchParams;
   const timeZone = await getFacilityTimezone();
   const { from, to } = await resolveReportRange(filters);
 
   const [trend, areaPerformance, findingsBySeverity, aging, areas] = await Promise.all([
-    getScoreTrend(filters),
-    getAreaPerformance(filters),
-    getFindingsBySeverityByArea(filters),
-    getCorrectiveActionAging(filters),
-    getReportAreaOptions(),
+    getScoreTrend(filters, scope),
+    getAreaPerformance(filters, scope),
+    getFindingsBySeverityByArea(filters, scope),
+    getCorrectiveActionAging(filters, scope),
+    scope.scoped ? Promise.resolve([]) : getReportAreaOptions(),
   ]);
 
   const fromValue = formatDateInTimeZone(from, timeZone);
@@ -57,25 +59,27 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 className="mt-1.5 block rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
               />
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-strong">Area</label>
-              <select
-                name="areaId"
-                defaultValue={filters.areaId ?? ""}
-                className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-              >
-                <option value="">All areas</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.section.name} / {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!scope.scoped && (
+              <div>
+                <label className="text-xs font-medium text-muted-strong">Area</label>
+                <select
+                  name="areaId"
+                  defaultValue={filters.areaId ?? ""}
+                  className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+                >
+                  <option value="">All areas</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.section.name} / {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button type="submit" className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent-strong">
               Apply
             </button>
-            {filters.areaId && (
+            {!scope.scoped && filters.areaId && (
               <Link href={`/analytics?from=${fromValue}&to=${toValue}`} className="text-sm text-muted-strong hover:text-foreground">
                 Clear filters
               </Link>

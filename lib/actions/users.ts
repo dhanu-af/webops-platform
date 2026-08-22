@@ -23,6 +23,7 @@ export async function createUser(input: {
   role: UserRole;
   employeeId?: string;
   sectionId?: string;
+  areaId?: string;
   jobTitle?: string;
 }) {
   const actor = await requireUserManager();
@@ -39,6 +40,7 @@ export async function createUser(input: {
       role: input.role,
       employeeId: input.employeeId || undefined,
       sectionId: input.sectionId || undefined,
+      areaId: input.areaId || undefined,
       jobTitle: input.jobTitle || undefined,
     },
   });
@@ -52,6 +54,15 @@ export async function createUser(input: {
 export async function getSectionsForUserForm() {
   await requireUserManager();
   return db.section.findMany({ include: { facility: true }, orderBy: [{ facility: { name: "asc" } }, { sortOrder: "asc" }] });
+}
+
+export async function getAreasForUserForm() {
+  await requireUserManager();
+  return db.area.findMany({
+    where: { archived: false },
+    include: { section: { include: { facility: true } } },
+    orderBy: [{ section: { facility: { name: "asc" } } }, { section: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+  });
 }
 
 export async function changePassword(input: { currentPassword: string; newPassword: string }) {
@@ -69,7 +80,7 @@ export async function changePassword(input: { currentPassword: string; newPasswo
 
 export async function updateUser(
   userId: string,
-  input: { role: UserRole; employeeId?: string; sectionId?: string; jobTitle?: string }
+  input: { role: UserRole; employeeId?: string; sectionId?: string; areaId?: string; jobTitle?: string }
 ) {
   const actor = await requireUserManager();
 
@@ -87,6 +98,7 @@ export async function updateUser(
       role: input.role,
       employeeId: input.employeeId || null,
       sectionId: input.sectionId || null,
+      areaId: input.areaId || null,
       jobTitle: input.jobTitle || null,
     },
   });
@@ -96,7 +108,7 @@ export async function updateUser(
     entityId: userId,
     action: "EDITED",
     userId: actor.id,
-    oldValue: { role: before.role, employeeId: before.employeeId, sectionId: before.sectionId, jobTitle: before.jobTitle },
+    oldValue: { role: before.role, employeeId: before.employeeId, sectionId: before.sectionId, areaId: before.areaId, jobTitle: before.jobTitle },
     newValue: input,
   });
 
