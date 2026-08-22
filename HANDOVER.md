@@ -10,7 +10,7 @@
 
 ## State — as of this write-up
 
-- Local repo: `~/webops-platform`. **`HEAD` = `be85db4`, already pushed to `origin/master`** — confirmed this session (contradicted an earlier handover's "not yet pushed" note; that note was stale). **New work this session (Equipment Calibration Tracking) is committed locally but NOT yet pushed** — ask the user before pushing, per this project's standing pattern.
+- Local repo: `~/webops-platform`. **`HEAD` = `293086d`, pushed to `origin/master`** (Equipment Calibration Tracking, pushed this session after the user explicitly said "push"). Vercel auto-deploys on push including `prisma migrate deploy` — should be live on `webops-platform-three.vercel.app` shortly after; wasn't confirmed via Vercel dashboard from this session (no access), worth a quick spot-check.
 - **Live production**: Vercel team `DKNS` (`dkns1`) → project `webops-platform` → **https://webops-platform-three.vercel.app**. Neon Postgres + Vercel Blob (token confirmed present). Auto-deploy-on-push (including `prisma migrate deploy` via `vercel-build`) confirmed working reliably all project.
 - **Area-level access scoping — confirmed LIVE on production this session.** The user checked the real "New User" form on `webops-platform-three.vercel.app` and confirmed the "Assigned area (optional)" dropdown is there with the real area list and correct helper text. It's currently a no-op for everyone since no real user has an Assigned Area set yet — she needs to go into Users admin and assign areas to real Operators/Team Leaders/Supervisors for it to actually restrict anything.
 - **NEW: Equipment Calibration Tracking module — built, verified locally, NOT YET DEPLOYED.** See "This session's build" below.
