@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import { getFacilityTimezone } from "@/lib/timezone";
+import { facilityClockParts } from "@/lib/format-clock";
 import { getRecentNotifications } from "@/lib/data/notifications";
 import { LogOut } from "lucide-react";
 import { GlobalSearch } from "./global-search";
 import { NotificationBell } from "./notification-bell";
 import { MobileMenuButton } from "./mobile-menu-button";
+import { FacilityClock } from "./facility-clock";
 
 export async function Topbar({
   userId,
@@ -17,6 +19,7 @@ export async function Topbar({
   role: string;
 }) {
   const timeZone = await getFacilityTimezone();
+  const clockParts = facilityClockParts(timeZone);
   const { items, unreadCount } = await getRecentNotifications(userId);
   const initials = name
     .split(" ")
@@ -29,25 +32,7 @@ export async function Topbar({
     <header className="flex h-16 items-center gap-3 border-b border-border bg-surface/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-surface/70 sm:gap-4 sm:px-6">
       <MobileMenuButton />
 
-      <div className="hidden shrink-0 flex-col leading-tight md:flex">
-        <span className="text-sm font-medium text-foreground">
-          {new Date().toLocaleDateString("en-AU", {
-            timeZone,
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </span>
-        <span className="font-mono-tabular text-[11px] text-muted">
-          {new Date().toLocaleTimeString("en-AU", {
-            timeZone,
-            hour: "2-digit",
-            minute: "2-digit",
-          })}{" "}
-          · Facility time
-        </span>
-      </div>
+      <FacilityClock timeZone={timeZone} initialDate={clockParts.date} initialTime={clockParts.time} />
 
       <div className="flex flex-1 justify-center">
         <GlobalSearch />
