@@ -9,7 +9,11 @@ import {
   DIRECTION_LABEL,
   WEIGHT_FIELD_LABEL,
   QUANTITY_FIELD_LABEL,
+  PER_CONTAINER_LABEL,
+  CONTAINER_RESULT_LABEL,
   weightKind,
+  showsCapsulesResult,
+  kgResultLabel,
   computeCalculation,
   formatKg,
   formatWholeCount,
@@ -25,6 +29,8 @@ export type CalculationRow = {
   id: string;
   direction: CalculationDirection;
   label: string | null;
+  productName: string | null;
+  batchNumber: string | null;
   capsulesPerBottle: number;
   avgWeightMg: number;
   inputValue: number;
@@ -39,6 +45,7 @@ const DIRECTION_TONE: Record<CalculationDirection, StatusTone> = {
   BOTTLES_TO_KG: "accent",
   KG_TO_OUTPUT: "neutral",
   BAGGED_KG_TO_OUTPUT: "pass",
+  CAPSULES_TO_SHELLS: "warn",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -57,6 +64,8 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
   const [pending, startTransition] = useTransition();
   const [direction, setDirection] = useState<CalculationDirection>("BOTTLES_TO_KG");
   const [label, setLabel] = useState("");
+  const [productName, setProductName] = useState("");
+  const [batchNumber, setBatchNumber] = useState("");
   // Pre-filled with the facility's common values, still fully editable --
   // most runs use the same capsule count/fill weight, so this saves
   // re-typing them every time without locking the fields.
@@ -72,10 +81,13 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
     capsulesPerBottleNum > 0 && avgWeightMgNum > 0 && inputValueNum > 0
       ? computeCalculation(direction, inputValueNum, capsulesPerBottleNum, avgWeightMgNum)
       : null;
+  const kgLabel = kgResultLabel(direction);
+  const showCapsulesTile = showsCapsulesResult(direction);
+  const tileCount = (kgLabel ? 1 : 0) + (showCapsulesTile ? 1 : 0) + 1;
 
   function save() {
     setError("");
-    if (!capsulesPerBottleNum || capsulesPerBottleNum <= 0) return setError("Capsules per bottle must be greater than 0.");
+    if (!capsulesPerBottleNum || capsulesPerBottleNum <= 0) return setError(`${PER_CONTAINER_LABEL[direction]} must be greater than 0.`);
     if (!avgWeightMgNum || avgWeightMgNum <= 0) return setError(`${WEIGHT_FIELD_LABEL[direction]} must be greater than 0.`);
     if (!inputValueNum || inputValueNum <= 0) return setError(`Enter a value for "${QUANTITY_FIELD_LABEL[direction]}".`);
 
@@ -84,11 +96,15 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
         await createCalculation({
           direction,
           label: label || null,
+          productName: productName || null,
+          batchNumber: batchNumber || null,
           capsulesPerBottle: capsulesPerBottleNum,
           avgWeightMg: avgWeightMgNum,
           inputValue: inputValueNum,
         });
         setLabel("");
+        setProductName("");
+        setBatchNumber("");
         setInputValue("");
         router.refresh();
       } catch (err) {
@@ -139,11 +155,17 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label="Product Name (optional)">
+              <input className={INPUT_CLASS} placeholder="e.g. Gut Health Complex" value={productName} onChange={(e) => setProductName(e.target.value)} />
+            </Field>
+            <Field label="Batch Number (optional)">
+              <input className={INPUT_CLASS} placeholder="e.g. B-2026-08-14" value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} />
+            </Field>
             <Field label="Label (optional)">
               <input className={INPUT_CLASS} placeholder="e.g. August blend" value={label} onChange={(e) => setLabel(e.target.value)} />
             </Field>
-            <Field label="Capsules per Bottle">
+            <Field label={PER_CONTAINER_LABEL[direction]}>
               <input
                 type="number"
                 className={INPUT_CLASS}
@@ -163,22 +185,24 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
             <div
               className={cn(
                 "grid gap-3 rounded-lg border border-border bg-surface-sunken/60 p-3 text-center",
-                direction === "BOTTLES_TO_KG" ? "grid-cols-3" : "grid-cols-2"
+                tileCount === 3 ? "grid-cols-3" : "grid-cols-2"
               )}
             >
-              {direction === "BOTTLES_TO_KG" && (
+              {kgLabel && (
                 <div>
                   <p className="font-mono-tabular text-lg font-semibold text-foreground">{formatKg(preview.resultKg)} kg</p>
-                  <p className="text-xs text-muted">Powder to Blend</p>
+                  <p className="text-xs text-muted">{kgLabel}</p>
+                </div>
+              )}
+              {showCapsulesTile && (
+                <div>
+                  <p className="font-mono-tabular text-lg font-semibold text-foreground">{formatWholeCount(preview.resultCapsules)}</p>
+                  <p className="text-xs text-muted">Capsules</p>
                 </div>
               )}
               <div>
-                <p className="font-mono-tabular text-lg font-semibold text-foreground">{formatWholeCount(preview.resultCapsules)}</p>
-                <p className="text-xs text-muted">Capsules</p>
-              </div>
-              <div>
                 <p className="font-mono-tabular text-lg font-semibold text-foreground">{formatWholeCount(preview.resultBottles)}</p>
-                <p className="text-xs text-muted">Bottles</p>
+                <p className="text-xs text-muted">{CONTAINER_RESULT_LABEL[direction]}</p>
               </div>
             </div>
           )}
@@ -208,12 +232,12 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
               <Table className="min-w-[900px]">
                 <TableHead>
                   <TableRow className="hover:bg-transparent">
-                    <TableHeaderCell>Label</TableHeaderCell>
+                    <TableHeaderCell>Product / Batch</TableHeaderCell>
                     <TableHeaderCell>Type</TableHeaderCell>
                     <TableHeaderCell>Input</TableHeaderCell>
                     <TableHeaderCell>Kg</TableHeaderCell>
                     <TableHeaderCell>Capsules</TableHeaderCell>
-                    <TableHeaderCell>Bottles</TableHeaderCell>
+                    <TableHeaderCell>Bottles / Boxes</TableHeaderCell>
                     <TableHeaderCell>By</TableHeaderCell>
                     <TableHeaderCell></TableHeaderCell>
                   </TableRow>
@@ -221,20 +245,32 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                 <TableBody>
                   {calculations.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="text-foreground">{c.label ?? "—"}</TableCell>
+                      <TableCell className="text-foreground">
+                        {c.productName ?? "—"}
+                        <div className="mt-0.5 text-xs text-muted">
+                          {[c.batchNumber && `Batch #${c.batchNumber}`, c.label].filter(Boolean).join(" · ") || "—"}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge tone={DIRECTION_TONE[c.direction]}>{DIRECTION_LABEL[c.direction]}</Badge>
                       </TableCell>
                       <TableCell className="text-muted">
-                        {c.direction === "BOTTLES_TO_KG" ? `${formatWholeCount(c.inputValue)} bottles` : `${formatKg(c.inputValue)} kg`}
+                        {c.direction === "BOTTLES_TO_KG"
+                          ? `${formatWholeCount(c.inputValue)} bottles`
+                          : c.direction === "CAPSULES_TO_SHELLS"
+                            ? `${formatWholeCount(c.inputValue)} capsules`
+                            : `${formatKg(c.inputValue)} kg`}
                         <br />
                         <span className="text-xs">
-                          {c.capsulesPerBottle}/bottle, {c.avgWeightMg}mg {weightKind(c.direction)}
+                          {c.capsulesPerBottle}/{c.direction === "CAPSULES_TO_SHELLS" ? "box" : "bottle"}, {c.avgWeightMg}mg {weightKind(c.direction)}
                         </span>
                       </TableCell>
                       <TableCell className="font-mono-tabular">{formatKg(c.resultKg)}</TableCell>
                       <TableCell className="font-mono-tabular">{formatWholeCount(c.resultCapsules)}</TableCell>
-                      <TableCell className="font-mono-tabular">{formatWholeCount(c.resultBottles)}</TableCell>
+                      <TableCell className="font-mono-tabular">
+                        {formatWholeCount(c.resultBottles)}
+                        <span className="ml-1 font-sans text-[10px] text-muted">{CONTAINER_RESULT_LABEL[c.direction].toLowerCase()}</span>
+                      </TableCell>
                       <TableCell className="text-xs text-muted">
                         {c.createdByName}
                         <br />

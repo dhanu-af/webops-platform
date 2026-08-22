@@ -31,6 +31,8 @@ export async function listCalculations() {
 export async function createCalculation(data: {
   direction: CalculationDirection;
   label?: string | null;
+  productName?: string | null;
+  batchNumber?: string | null;
   capsulesPerBottle: number;
   avgWeightMg: number;
   inputValue: number;
@@ -46,6 +48,8 @@ export async function createCalculation(data: {
     data: {
       direction: data.direction,
       label: data.label?.trim() || null,
+      productName: data.productName?.trim() || null,
+      batchNumber: data.batchNumber?.trim() || null,
       capsulesPerBottle: data.capsulesPerBottle,
       avgWeightMg: data.avgWeightMg,
       inputValue: data.inputValue,
@@ -61,7 +65,13 @@ export async function createCalculation(data: {
     entityId: calc.id,
     action: "CREATED",
     userId: actor.id,
-    newValue: { direction: data.direction, label: data.label ?? null, inputValue: data.inputValue },
+    newValue: {
+      direction: data.direction,
+      label: data.label ?? null,
+      productName: data.productName ?? null,
+      batchNumber: data.batchNumber ?? null,
+      inputValue: data.inputValue,
+    },
   });
 
   revalidatePath(BASE_PATH);

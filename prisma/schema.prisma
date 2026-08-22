@@ -219,20 +219,33 @@ enum CalculationDirection {
   // KG_TO_OUTPUT. See lib/capsule-calculation.ts for the shared formula and
   // per-direction field labels.
   BAGGED_KG_TO_OUTPUT
+  // The reverse of KG_TO_OUTPUT: a known capsule count -> empty shell weight
+  // (kg) + boxes of empty shells to buy. `capsulesPerBottle` is reused here
+  // to mean capsules-per-box (bulk purchasing unit), and the box count is
+  // rounded UP (you can't buy a partial box), unlike the floor/round-down
+  // used for bottle counts elsewhere.
+  CAPSULES_TO_SHELLS
 }
 
 model CapsuleCalculation {
   id                String               @id @default(cuid())
   direction         CalculationDirection
   label             String?
+  productName       String?
+  batchNumber       String?
+  // Capsules-per-bottle for every direction except CAPSULES_TO_SHELLS,
+  // where it means capsules-per-box instead -- same "meaning depends on
+  // direction" reuse as avgWeightMg below.
   capsulesPerBottle Int
   // The weight figure this calculation used -- fill weight for
   // BOTTLES_TO_KG/KG_TO_OUTPUT, full (shell+fill) weight for
-  // BAGGED_KG_TO_OUTPUT. Which one it is is derived from `direction` at
-  // read time, not stored as a separate column (spec: "tag each row's
-  // weight figure as fill or full depending on which mode it came from").
+  // BAGGED_KG_TO_OUTPUT, empty shell weight for CAPSULES_TO_SHELLS. Which
+  // one it is is derived from `direction` at read time, not stored as a
+  // separate column (spec: "tag each row's weight figure as fill/full/shell
+  // depending on which mode it came from").
   avgWeightMg       Float
-  // The one given input: target bottle count for BOTTLES_TO_KG, or kg for
+  // The one given input: target bottle count for BOTTLES_TO_KG, capsule
+  // count for CAPSULES_TO_SHELLS, or kg for
   // the other two directions.
   inputValue        Float
   resultKg          Float

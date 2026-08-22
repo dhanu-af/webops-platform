@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeCalculation, weightKind } from "./capsule-calculation";
+import { computeCalculation, weightKind, showsCapsulesResult, kgResultLabel } from "./capsule-calculation";
 
 describe("computeCalculation", () => {
   it("BOTTLES_TO_KG: bottles -> capsules -> kg of powder", () => {
@@ -31,6 +31,26 @@ describe("computeCalculation", () => {
     const b = computeCalculation("BAGGED_KG_TO_OUTPUT", 5, 60, 500);
     expect(a).toEqual(b);
   });
+
+  it("CAPSULES_TO_SHELLS: capsule count -> empty shell weight (kg) + boxes, rounded UP", () => {
+    // 10,000 capsules * 90mg empty shell weight = 900,000mg = 0.9kg;
+    // 10,000 / 500 per box divides evenly -> exactly 20 boxes.
+    const result = computeCalculation("CAPSULES_TO_SHELLS", 10_000, 500, 90);
+    expect(result.resultCapsules).toBe(10_000);
+    expect(result.resultKg).toBeCloseTo(0.9, 6);
+    expect(result.resultBottles).toBe(20);
+  });
+
+  it("CAPSULES_TO_SHELLS rounds the box count UP for a non-exact division, unlike bottle counts elsewhere which are left as a fraction", () => {
+    // 10,001 capsules / 500 per box = 20.002 -> needs 21 boxes, not 20.
+    const result = computeCalculation("CAPSULES_TO_SHELLS", 10_001, 500, 90);
+    expect(result.resultBottles).toBe(21);
+
+    // Contrast: KG_TO_OUTPUT never rounds -- a fractional bottle count is
+    // left as-is (formatWholeCount() truncates for display only).
+    const kgResult = computeCalculation("KG_TO_OUTPUT", 5, 3, 500);
+    expect(Number.isInteger(kgResult.resultBottles)).toBe(false);
+  });
 });
 
 describe("weightKind", () => {
@@ -41,5 +61,27 @@ describe("weightKind", () => {
 
   it("tags BAGGED_KG_TO_OUTPUT as full weight", () => {
     expect(weightKind("BAGGED_KG_TO_OUTPUT")).toBe("full");
+  });
+
+  it("tags CAPSULES_TO_SHELLS as shell weight", () => {
+    expect(weightKind("CAPSULES_TO_SHELLS")).toBe("shell");
+  });
+});
+
+describe("showsCapsulesResult", () => {
+  it("is true for every direction except CAPSULES_TO_SHELLS, where capsules is the given input, not a result", () => {
+    expect(showsCapsulesResult("BOTTLES_TO_KG")).toBe(true);
+    expect(showsCapsulesResult("KG_TO_OUTPUT")).toBe(true);
+    expect(showsCapsulesResult("BAGGED_KG_TO_OUTPUT")).toBe(true);
+    expect(showsCapsulesResult("CAPSULES_TO_SHELLS")).toBe(false);
+  });
+});
+
+describe("kgResultLabel", () => {
+  it("only BOTTLES_TO_KG and CAPSULES_TO_SHELLS show a kg tile", () => {
+    expect(kgResultLabel("BOTTLES_TO_KG")).toBe("Powder to Blend");
+    expect(kgResultLabel("CAPSULES_TO_SHELLS")).toBe("Shell Weight");
+    expect(kgResultLabel("KG_TO_OUTPUT")).toBeNull();
+    expect(kgResultLabel("BAGGED_KG_TO_OUTPUT")).toBeNull();
   });
 });

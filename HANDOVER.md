@@ -1,4 +1,4 @@
-# Handover — 2026-08-23 02:40
+# Handover — 2026-08-23 03:10
 
 ## Goal
 
@@ -6,34 +6,38 @@
 
 ## State
 
-**Pushed to `origin/master`** (production, deployed): everything through commit `395fc60`. Live and working:
+**Pushed to `origin/master`** (production, deployed): everything through commit `4a0cfb4`. Live and working:
 - Premium visual redesign, real Eagle Labs Inc logo, "Eagle Labs" branding, mobile nav drawer, Rename capability for Areas & Equipment admin (Facility card "Rename" still needs one manual click from her to fix the "Northgate Manufacturing Facility" placeholder — I have no production DB/login access to do it myself).
 - Timezone display fix across Verification Timeline, Recent Logins, PDF/CSV exports, per-checklist-item attribution.
 - WEEKLY/MONTHLY schedule reset fix (`lib/schedule-recurrence.ts`).
 - Equipment task row (Clean/Sanitised/Dry): back to its original compact 3-column layout, checkbox icon removed, stale-tap race fixed invisibly via optimistic local state.
 - **A real, higher-severity bug fix**: `getOrCreateInspectionForSchedule` was deciding "does today's inspection exist" using the server's UTC midnight instead of the facility's Brisbane midnight — for the first ~10 hours of every real Brisbane day, clicking "Start" on a daily schedule could silently reopen **yesterday's already-closed inspection** instead of creating today's. Fixed to use the same `startOfDayInTimeZone`/`endOfDayInTimeZone` primitives the schedule list already used. **Not yet confirmed live by her** — ask her to retry "Start" on a fresh daily schedule, ideally early morning Brisbane time.
+- **Calculation module, v1** — 3-mode capsule/bottle planning calculator (Bottles→KG, KG→Output, Bagged Capsules→Output), pre-filled with default capsules-per-bottle (31) / fill weight (372mg) values.
 
-**Committed locally but NOT pushed** — a whole new module, built this session:
+**Committed locally but NOT pushed** — two more Calculation-module iterations, built later the same session in response to her live feedback on v1:
 
-### New "Calculation" module — capsule/bottle production planning calculator
+### Calculation v2: 4th mode — "Capsules → Empty shells needed"
 
-She asked for a standalone planning calculator with three conversion modes (all pure math, no allowance for spillage/rejects/QC/yield loss — noted in the UI):
-1. **Bottles → KG**: `capsules = bottles × capsulesPerBottle`, `kg = capsules × fillWeightMg / 1,000,000`
-2. **KG (blended powder) → Capsules & Bottles**: `capsules = kg × 1,000,000 / fillWeightMg`, `bottles = capsules / capsulesPerBottle`
-3. **Bagged capsules (KG) → Capsules & Bottles**: identical math to #2, but the weight figure is the capsule's **full** weight (shell + fill) since by that production stage you're weighing real pressed capsules, not powder — kept as a separate mode purely so the UI label is unambiguous about which weight to enter, not because the formula differs.
+The reverse of KG→Output: given a capsule count, computes empty shell weight (kg) and boxes of empty shells to buy (bulk purchasing unit). Two things make this mode different from the other three, both handled:
+- **Ceiling, not floor, on the container count** — `boxesNeeded = Math.ceil(capsules / capsulesPerBox)`, since you can't buy a partial box (the other three modes leave a fractional bottle count as-is, matching the app's existing "theoretical figures" framing).
+- **The "capsules" figure is the given input, not a computed output** — so the UI skips showing a capsules tile in the live preview/mode-1-style breakdown (only shell-weight-kg and boxes are shown), unlike the other three modes where capsules is always one of the results.
 
-She gave a reference implementation from a *different* one of her projects (`C:\Users\dnand\eagle-labs-schedule` — explicitly for pattern/structure only, not to copy verbatim; that project is otherwise unrelated and must stay unreferenced per her standing instruction). I read it for structure, then rebuilt it adapted to this project's own conventions (styling, DB schema shape, auth).
+**Built** (all in `lib/capsule-calculation.ts` + `app/(app)/calculation/calculation-client.tsx`):
+- `CalculationDirection` enum gained `CAPSULES_TO_SHELLS` (new migration, additive-only, see Gotchas).
+- New label maps: `PER_CONTAINER_LABEL` ("Capsules per Bottle" vs "Capsules per Box" — the schema's `capsulesPerBottle` column is reused to mean "per box" for this mode, same "meaning depends on direction" pattern the weight field already used) and `CONTAINER_RESULT_LABEL` ("Bottles" vs "Boxes").
+- `weightKind()` now returns `"fill" | "full" | "shell"`.
+- New `showsCapsulesResult()` and `kgResultLabel()` helpers drive which preview tiles render per direction (replacing the old `direction === "BOTTLES_TO_KG"` hardcoded checks) — the preview grid is now `tileCount === 3 ? 3-col : 2-col` computed from these, not hardcoded per-direction.
+- Log table: header renamed "Bottles" → "Bottles / Boxes"; each row's Bottles/Boxes cell now has a small inline caption ("bottles"/"boxes") so a CAPSULES_TO_SHELLS row's number is unambiguous even though it shares a column with bottle counts.
+- 5 new unit tests in `lib/capsule-calculation.test.ts` covering the ceiling-rounding behavior specifically (verified 10,001 capsules / 500 per box → 21 boxes, not 20 or 20.002).
 
-**Built**:
-- `prisma/schema.prisma` — new `CalculationDirection` enum + `CapsuleCalculation` model (real `createdBy User @relation`, not a denormalized name string, matching this project's `EquipmentCalibration` convention rather than the reference project's plain-string convention). Also added `DELETED` to the existing `AuditAction` enum — it had `CREATED`/`EDITED` etc. but no delete action, and mislabeling a delete as `EDITED` would have undermined the audit trail's honesty; this was a deliberate, small, additive choice, not scope creep.
-- `prisma/migrations/20260823023000_capsule_calculation/migration.sql` — **hand-written**, not `prisma migrate dev`-generated. `migrate dev` failed with a corrupted-shadow-database error (`P3006`: "type UserRole already exists") from stale local state; the obvious fix (`prisma migrate reset --force`) is a destructive command Prisma's own CLI explicitly refused to run without my asking her first (a built-in safety gate), so instead of asking to nuke local dev data I hand-wrote the migration SQL (matching this repo's existing migration style exactly) and applied it with `prisma migrate deploy` instead, which doesn't touch the shadow database at all. Cleanly applied and verified via `prisma migrate status` ("up to date") — this sidesteps the problem entirely rather than working around it.
-- `lib/capsule-calculation.ts` — pure calc functions + label maps (`DIRECTION_LABEL`, `WEIGHT_FIELD_LABEL`, `QUANTITY_FIELD_LABEL`, `weightKind()` for the fill/full tag), no DB import (safe for future client-side use, following the `lib/timezone-format.ts` lesson from earlier this session).
-- `lib/capsule-calculation.test.ts` — 6 unit tests covering all three directions' math and the fill/full tagging.
-- `lib/actions/capsule-calculations.ts` — `listCalculations`/`createCalculation`/`deleteCalculation` server actions, gated with `requirePermission(role, "reports.view")` — **reused the existing permission tier Reports/Analytics/Audit Trail already use, no new permission added**, per her explicit instruction. Both create and delete write an `AuditLog` entry.
-- `app/(app)/calculation/page.tsx` + `calculation-client.tsx` — Server Component fetches + gates (`notFound()` if not `reports.view`), Client Component holds the 3-way mode toggle, form, live preview (kg+capsules+bottles for Bottles→KG; capsules+bottles only for the other two, since kg would just restate the typed input), Calculate & Save, and the log table (most recent first, delete button per row, weight column tagged "fill"/"full" via `weightKind()`).
-- `components/nav/nav-items.ts` — new "Calculation" entry in the existing "Planning" group, gated to the same roles as `reports.view` (`SUPER_ADMIN`, `ADMIN`, `MANAGEMENT`, `QA`, `SUPERVISOR`) since this is a management/planning tool, not a floor task.
+### Calculation v3: Product Name + Batch Number fields
 
-**Verified**: `tsc --noEmit`, `eslint .`, `vitest run` (118/118, up from 112), `next build` (33 routes including `/calculation`) — all clean. Also did a **real end-to-end DB round-trip** via a throwaway `tsx` script (created, then deleted before committing): created a `CapsuleCalculation` row with real Prisma calls against the local dev DB, confirmed it round-trips through `listCalculations()`-equivalent query, wrote both `CREATED` and the new `DELETED` audit actions successfully, deleted it, confirmed it's actually gone. Also verified the permission gate directly: logged in as a demo `OPERATOR` → `/calculation` returns 404 and the nav link is absent; logged in as a demo `SUPERVISOR` → 200 and the nav link renders. **Not click-tested in an actual browser** — the Browser-pane tool was unreliable yet again this session (`computer` screenshot times out even after a clean `navigate`); all UI verification here was via curl-rendered HTML + a direct DB script, not an actual mouse/keyboard pass through the form. **Worth her trying the real thing once deployed** — enter a few values in each of the 3 modes, confirm the live preview updates as she types, save one, confirm it appears in the log with the right fill/full tag, delete it.
+She interrupted mid-build (pointing at a screenshot of the "Label"/"Capsules per Bottle" fields) asking to add these. Added as two more optional text fields:
+- `productName` and `batchNumber` columns on `CapsuleCalculation` (both nullable, additive migration).
+- Form now has 6 fields in a `grid-cols-2 sm:grid-cols-3` layout (was 4 in `sm:grid-cols-4`): Product Name, Batch Number, Label, then the existing Capsules-per-X/Weight/Quantity row.
+- Log table's first column (renamed "Label" → "Product / Batch") now shows product name as the primary line, with batch number + label combined on a muted secondary line (`Batch #X · label text`, or "—" if both are empty) — chose to fold these into the existing column rather than add 2 more raw table columns, since the table already needs horizontal scroll at `min-w-[900px]`.
+
+**Both v2 and v3 verified together**: `tsc --noEmit`, `eslint .`, `vitest run` (123/123, up from 118), `next build` (still 32 routes, `/calculation` present) — all clean. Did a second real DB round-trip via a throwaway `tsx` script: created a `CAPSULES_TO_SHELLS` row with `productName`/`batchNumber` set, confirmed the ceiling math (10,001 → 21 boxes, not 20), deleted it. Also re-verified via curl that the new mode's label and the two new field labels actually render in the HTML. **Still not click-tested in an actual browser** — Browser-pane tool unreliable yet again this session, same as v1. **Worth her trying all 4 modes plus the new fields live once deployed.**
 
 ## Key decisions
 
@@ -51,20 +55,20 @@ She gave a reference implementation from a *different* one of her projects (`C:\
 
 - **The Browser-pane automation tool remains unreliable across sessions** — `navigate` succeeds but `computer` screenshot times out ("the Browser pane is not displayed"). Budget 1-2 retries, then fall back to: (a) the curl+NextAuth recipe below for page-level checks, or (b) a throwaway `tsx` script with `import "dotenv/config"` at the top (plain `tsx` does **not** auto-load `.env` the way Next.js does — this caused an `ECONNREFUSED` red herring before adding that import) for direct DB-layer verification when no browser interaction is actually needed.
 - **Reliable page-level verification recipe without the Browser tool**: start `npm run dev` directly via Bash in the background, then authenticate via NextAuth's credentials flow with plain `curl`: `GET /api/auth/csrf` → extract `csrfToken` → `POST /api/auth/callback/credentials` with `email`/`password`/`csrfToken`/`callbackUrl`/`json=true`, saving cookies with `-c`/`-b`. Demo accounts (all share password `WebOps2026!`): `admin@webops.demo` (SUPER_ADMIN), `jordan.operator@webops.demo` (OPERATOR), `morgan.supervisor@webops.demo` (SUPERVISOR), others in `prisma/seed.ts`. Then `curl -b cookies.txt <url>` returns real HTML (not RSC flight format) — `grep` for hrefs/labels/markup works fine.
-- **Local `prisma dev` proxy is not persistent across sessions** — start it explicitly with `npx prisma dev` before anything else touches the DB. After starting/restarting it, also restart the Next dev server (stale connections), and watch for a **leftover `next dev` process on port 3000** surviving `pkill -f "next dev"` (Windows process-tree quirk) — a fresh `npm run dev` will report the PID; `Stop-Process -Id <PID> -Force` it specifically.
+- **Local `prisma dev` proxy is not persistent across sessions** — start it explicitly with `npx prisma dev` before anything else touches the DB. After starting/restarting it, also restart the Next dev server (stale connections), and watch for a **leftover `next dev` process on port 3000** surviving `pkill -f "next dev"` (Windows process-tree quirk) — a fresh `npm run dev` will report the PID; `Stop-Process -Id <PID> -Force` it specifically. **New failure mode seen this session**: the proxy can end up in a state where `Get-NetTCPConnection`/`Test-NetConnection` show the port genuinely listening, yet Prisma still gets `P1001: Can't reach database server` — not an IPv4/IPv6 localhost issue (tried `127.0.0.1` explicitly, same failure). Fix: find the actual owning PID via `Get-NetTCPConnection -LocalPort 51213,51214,51215,51216`, `Stop-Process -Id <that PID> -Force`, confirm the port is free, then `npx prisma dev` again. If that then reports "Lock file is already being held", delete the lock (`Remove-Item "$env:LOCALAPPDATA\prisma-dev-nodejs\Data\durable-streams\default\server.lock.lock" -Recurse -Force`) and retry once more — this combination (dead-but-listening port + stale lock) needed both fixes together this time, not just one.
 - **`prisma migrate dev` can fail with a corrupted shadow-database error (`P3006`) from unrelated stale local state**, independent of whether your actual schema change is valid. Don't reach for `migrate reset` to fix it (see Key Decisions) — hand-write the migration SQL (copy the style of an existing migration file in `prisma/migrations/`) and apply with `prisma migrate deploy`, which never touches the shadow DB.
 - **No Vercel/production access from this machine**: `vercel whoami` → "Not authorized". Any change needing a live click in production has to be handed to the user as an explicit manual step.
 
 ## Next steps
 
-1. **Ask before pushing** the Calculation module + the earlier equipment-row/inspection-reopen fixes (all currently local-only), as always.
-2. Once pushed and Vercel finishes deploying (which will also run the new migration automatically):
-   - Point her to **Planning → Calculation** in the nav and ask her to actually try it — enter real numbers in each of the 3 modes, confirm the live preview looks right, save one, check the log, delete it.
+1. **Ask before pushing** the Calculation v2+v3 work (2 new migrations, all currently local-only), as always.
+2. Once pushed and Vercel finishes deploying (which will also run both new migrations automatically):
+   - Point her to **Planning → Calculation** and ask her to try the 4th mode ("Capsules → Empty shells needed") plus the new Product Name/Batch Number fields — this is the first real click-through of the whole module, v1 through v3 have only been verified non-interactively so far.
    - Remind her: re-test the Clean/Sanitised/Dry buttons on her phone, and try "Start" on a fresh daily 5S check (ideally early morning) to confirm the reopens-yesterday bug is actually gone.
    - The Rename-the-Facility-card manual step and the never-live-tested mobile nav drawer are both still outstanding from earlier sessions.
 
 ## Open questions
 
-- Whether the Calculation module's numbers/labels match what she actually wants to see in practice — it was built from a written spec, not iterated on with her live yet.
+- Whether the Calculation module (all 4 modes, plus product/batch) matches what she actually wants in practice — built from written specs across 3 iterations, never yet click-tested by an actual person (me or her).
 - Whether the equipment task row fix and the inspection-reopen fix actually hold up under her real use — both were verified by code review + non-interactive checks this session, not a live click-through.
 - Whether she wants the mobile nav drawer explicitly click-tested by her on a real phone before trusting it (carried over, still open).
