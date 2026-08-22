@@ -25,7 +25,7 @@ export function Sidebar({ role }: { role: UserRole }) {
             />
           </div>
           <div className="text-[10px] font-medium tracking-wide text-sidebar-fg-muted">
-            Australia · Quality &amp; Operations
+            Quality &amp; Operations
           </div>
         </div>
       </div>

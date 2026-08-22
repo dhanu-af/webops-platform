@@ -120,10 +120,10 @@ export function ReportDocument({
 }) {
   return (
     <Document
-      title={`Eagle Labs Australia Report ${format(from, "d MMM yyyy")}–${format(to, "d MMM yyyy")}`}
+      title={`Eagle Labs Report ${format(from, "d MMM yyyy")}–${format(to, "d MMM yyyy")}`}
     >
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <Text style={styles.eyebrow}>EAGLE LABS AUSTRALIA</Text>
+        <Text style={styles.eyebrow}>EAGLE LABS</Text>
         <Text style={styles.title}>Operations Report</Text>
         <Text style={styles.subtitle}>
           {format(from, "d MMM yyyy")} – {format(to, "d MMM yyyy")}

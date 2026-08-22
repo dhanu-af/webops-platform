@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Eagle Labs Australia — Facility Operations & Compliance Platform",
+  title: "Eagle Labs — Facility Operations & Compliance Platform",
   description:
     "Digital facility operations, cleaning, 5S, inspections and audit-readiness platform.",
 };
