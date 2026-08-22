@@ -1,13 +1,23 @@
+import { auth } from "@/lib/auth";
+import { getUserScope, scopeWhere } from "@/lib/scope";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default async function ChecklistsPage() {
+  const session = await auth();
+  const scope = getUserScope(session!.user);
+  const scheduleWhere = { active: true, ...scopeWhere(scope) };
+
   const checklists = await db.checklist.findMany({
+    // A scoped user (Operator/Team Leader/Supervisor tied to one area) only
+    // sees checklists that actually have a schedule reaching their area --
+    // everyone else sees every checklist definition, scheduled or not.
+    where: scope.scoped ? { schedules: { some: scheduleWhere } } : undefined,
     include: {
       versions: { where: { isCurrent: true }, include: { items: true } },
       workflow: { include: { steps: true } },
-      schedules: { where: { active: true } },
+      schedules: { where: scheduleWhere },
     },
     orderBy: { name: "asc" },
   });
@@ -16,12 +26,16 @@ export default async function ChecklistsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Checklists</h1>
-        <p className="text-sm text-muted">Version-controlled checklist definitions and their verification workflow.</p>
+        <p className="text-sm text-muted">
+          {scope.scoped
+            ? "Version-controlled checklist definitions scheduled for your area."
+            : "Version-controlled checklist definitions and their verification workflow."}
+        </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Checklists</CardTitle>
+          <CardTitle>{scope.scoped ? "Checklists For Your Area" : "All Checklists"}</CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
           <div className="divide-y divide-border">
@@ -48,7 +62,11 @@ export default async function ChecklistsPage() {
               );
             })}
           </div>
-          {checklists.length === 0 && <p className="py-8 text-center text-sm text-muted">No checklists defined yet.</p>}
+          {checklists.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted">
+              {scope.scoped ? "No checklists scheduled for your area yet." : "No checklists defined yet."}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
