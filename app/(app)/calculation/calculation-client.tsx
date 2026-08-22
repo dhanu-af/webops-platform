@@ -57,8 +57,11 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
   const [pending, startTransition] = useTransition();
   const [direction, setDirection] = useState<CalculationDirection>("BOTTLES_TO_KG");
   const [label, setLabel] = useState("");
-  const [capsulesPerBottle, setCapsulesPerBottle] = useState("");
-  const [avgWeightMg, setAvgWeightMg] = useState("");
+  // Pre-filled with the facility's common values, still fully editable --
+  // most runs use the same capsule count/fill weight, so this saves
+  // re-typing them every time without locking the fields.
+  const [capsulesPerBottle, setCapsulesPerBottle] = useState("31");
+  const [avgWeightMg, setAvgWeightMg] = useState("372");
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
 
