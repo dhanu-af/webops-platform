@@ -21,6 +21,15 @@ export async function storePhoto(file: File): Promise<{ url: string; sizeBytes: 
     return { url: blob.url, sizeBytes: file.size };
   }
 
+  // On Vercel the filesystem is read-only (no BLOB_READ_WRITE_TOKEN means
+  // storage was never provisioned there) - writing to public/uploads below
+  // would throw an opaque EROFS deep inside the request, redacted to a
+  // useless generic error on the client. Fail with an actionable message
+  // instead of silently attempting something that can only work locally.
+  if (process.env.VERCEL) {
+    throw new Error("Photo storage isn't configured for this deployment (missing BLOB_READ_WRITE_TOKEN).");
+  }
+
   const uploadsDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
   await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes));
