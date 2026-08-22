@@ -8,15 +8,28 @@ import { db } from "@/lib/db";
 // Local dev has no Blob token provisioned yet, so we fall back to writing
 // under /public/uploads and serving it as a static file — same contract
 // (a durable URL comes back), swapped for real object storage at deploy time.
+const EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+};
+
 export async function storePhoto(file: File): Promise<{ url: string; sizeBytes: number }> {
-  const ext = file.name.split(".").pop() || "jpg";
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const filename = `${crypto.randomUUID()}.${ext}`;
   const bytes = await file.arrayBuffer();
+  // file.type can be empty for some HEIC uploads (see isAllowedPhotoFile) -
+  // fall back to a guess from the extension so Blob stores a real content
+  // type rather than none at all.
+  const contentType = file.type || EXTENSION_CONTENT_TYPES[ext] || "application/octet-stream";
 
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const blob = await put(`evidence/${filename}`, Buffer.from(bytes), {
       access: "public",
-      contentType: file.type,
+      contentType,
     });
     return { url: blob.url, sizeBytes: file.size };
   }
@@ -37,7 +50,18 @@ export async function storePhoto(file: File): Promise<{ url: string; sizeBytes: 
 }
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-export const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+export const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const ALLOWED_PHOTO_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+
+// Some phones (iOS HEIC photos especially) hand the browser a file with an
+// empty or generic file.type instead of "image/heic" - a strict MIME-type
+// check then rejects a perfectly real photo straight from the camera. Fall
+// back to the file extension rather than trust file.type alone.
+export function isAllowedPhotoFile(file: File): boolean {
+  if (ALLOWED_PHOTO_TYPES.includes(file.type)) return true;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  return !!ext && ALLOWED_PHOTO_EXTENSIONS.includes(ext);
+}
 
 // Admin-configurable via /admin/settings — falls back to the default above
 // when no SystemSettings row exists yet (nothing to configure until an

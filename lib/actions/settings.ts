@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
-import { storePhoto, ALLOWED_PHOTO_TYPES } from "@/lib/storage";
+import { storePhoto, isAllowedPhotoFile } from "@/lib/storage";
 import type { NotificationType } from "@/app/generated/prisma/client";
 
 async function requireSettingsManager() {
@@ -53,7 +53,7 @@ export async function updateBranding(formData: FormData) {
   const existing = await getOrCreateSettings();
   let logoUrl = existing.logoUrl;
   if (logoFile && logoFile.size > 0) {
-    if (!ALLOWED_PHOTO_TYPES.includes(logoFile.type)) throw new Error("Unsupported image type for logo — use JPEG, PNG, WebP, or HEIC.");
+    if (!isAllowedPhotoFile(logoFile)) throw new Error("Unsupported image type for logo — use JPEG, PNG, WebP, or HEIC.");
     logoUrl = (await storePhoto(logoFile)).url;
   }
 
