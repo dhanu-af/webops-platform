@@ -116,6 +116,27 @@ export function formatDateTimeInTimeZone(at: Date, timeZone: string): string {
   return `${get("day")} ${get("month")} ${get("year")}, ${get("hour")}:${get("minute")}`;
 }
 
+// Midnight of the 1st of "this month" as experienced in `timeZone`, same
+// UTC-instant trick as startOfDayInTimeZone above.
+export function startOfMonthInTimeZone(timeZone: string, at: Date = new Date()): Date {
+  const { year, month } = zonedDateParts(at, timeZone);
+  const utcGuess = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+  const offset = offsetMillisAt(utcGuess, timeZone);
+  return new Date(utcGuess.getTime() - offset);
+}
+
+// "DD/MM/YYYY" as perceived in `timeZone` — for the 5S leaderboard's period
+// labels (she asked for this exact format, not formatDayInTimeZone's
+// "23 Aug 2026" style).
+export function formatDateSlashInTimeZone(at: Date, timeZone: string): string {
+  const { year, month, day } = zonedDateParts(at, timeZone);
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+}
+
+export function monthNameInTimeZone(timeZone: string, at: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone, month: "long" }).format(at);
+}
+
 export function formatDayInTimeZone(at: Date, timeZone: string, withYear = true): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
