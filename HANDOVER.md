@@ -1,4 +1,4 @@
-# Handover — 2026-08-23 01:48
+# Handover — 2026-08-23 02:00
 
 ## Goal
 
@@ -6,7 +6,7 @@
 
 ## State
 
-**Pushed to `origin/master`** (production, deployed): everything through commit `8b939a1`. Live and working:
+**Pushed to `origin/master`** (production, deployed): everything through commit `677fbb6`. Live and working:
 - Premium visual redesign (dark navy sidebar, indigo tokens, KPI cards, Facility Status Map, header search/notifications, table primitives)
 - Real Eagle Labs Inc logo (`public/eagle-labs-logo.jpg`) in sidebar + login page
 - Branding fully says "Eagle Labs" (not "WEB OPS", not "Eagle Labs Australia")
@@ -15,14 +15,15 @@
 - Mobile navigation drawer — verified structurally, never click-tested live by a person.
 - Timezone display fix across Verification Timeline, Recent Logins, PDF/CSV exports, and the per-checklist-item attribution line (server timestamps were reading the server's UTC clock instead of the facility's `Australia/Brisbane` time).
 - WEEKLY/MONTHLY schedule reset fix — a completed weekly/monthly schedule (e.g. "Weekly 5S Audit") no longer reappears as "not started" on days it isn't actually due.
+- **A now-superseded equipment task row redesign** (commit `3d19622`, pushed to production then immediately walked back — see below). Don't be confused if you see it in `git log`; the correct/current version is `1e61559` (committed locally, not yet pushed as of this handover — see "Committed locally but NOT pushed" below), which reverts `3d19622`'s layout change while keeping a fix for the same underlying bug.
 
-**Committed locally but NOT pushed** (`3d19622` — 1 commit ahead of origin):
+**Committed locally but NOT pushed** (equipment task row, take 2):
 
-- **Equipment task row redesign** (`components/inspection/equipment-task-row.tsx`). The user tested the live "Weekly Cleaning Checklist" (Clean/Sanitised/Dry per equipment) on her phone and reported some taps "sometimes can't click", asking to remove the checkbox and match the 5S Audit checks' style instead.
-  - **Root cause**: each stage was a single checkbox-style button that **cycled** blank → Done → N/A → blank based on the last server-revalidated `choiceValue`. On a real mobile connection, tapping again before the server action's `revalidatePath` round-trip landed meant the button still saw the old (stale) value and computed the *same* next state again — visually, the tap did nothing.
-  - **Fix**: replaced the single cycling button per stage with two direct-set buttons (Done / N/A), matching the tap-a-fixed-value interaction already used by PASS_FAIL/ACKNOWLEDGEMENT items on 5S Audit checks elsewhere (those items use `db/prisma seed`'s `PASS_FAIL`/`ACKNOWLEDGEMENT` types) — each button always saves the same value regardless of current state, so there's no stale-state race left to hit. Also drops the small checkbox-square icon per her "remove tick box" ask; the button itself is now the sole indicator (solid fill = selected), same visual language as PASS_FAIL/ACKNOWLEDGEMENT.
-  - **Verified**: `tsc --noEmit`, `eslint .`, `vitest run` (112/112, unchanged), `next build` — all clean. Also did curl-based rendering checks against a real inspection (`Weekly Cleaning Checklist — Capsule Room`, id `cmt2uboa90000s49kbd3zcxwn` in local dev seed data) confirming the new Done/N/A markup renders (15 `>Clean<`/`>Sanitised<`/`>Dry<` labels, 45 `>Done<`, 66 `>N/A<`) and the old checkbox SVG/`(N/A)` suffix markup is completely gone.
-  - **Not click-tested live** — the Browser-pane automation tool was unreliable again this session (`computer` screenshot timed out repeatedly even after a clean `navigate`), so this hasn't actually been tapped by a finger/mouse, only verified by code review + rendered-HTML inspection. **Worth her re-testing on her phone once deployed** to confirm the original "can't click" complaint is actually resolved, since the root-cause diagnosis (stale-state race under slow mobile network) is inference from the code, not a reproduced-and-fixed bug.
+- **Background**: the user tested the live "Weekly Cleaning Checklist" (Clean/Sanitised/Dry per equipment) on her phone and reported some taps "sometimes can't click", asking to remove the checkbox and match the 5S Audit checks' style. My first attempt (`3d19622`, pushed) replaced the single per-stage cycling button with two direct-set buttons (Done / N/A) per stage — technically matching the 5S Audit interaction pattern and fixing the underlying race condition, but **she rejected the visual result**: "this one not good. previous style is good. only remove tik box." She wanted the original compact 3-column layout (one button per stage, matching the paper form's C/S/D columns) back — she only ever meant the small checkbox-square icon inside each button, not the whole button/cycling structure.
+- **Second fix** (`components/inspection/equipment-task-row.tsx`, current working state): reverted to the original layout — one button per stage in a 3-column grid, label cycles through Clean/Sanitised/Dry → `{stage} (N/A)` on tap, solid color fill for Done (green)/N/A (grey) — with **only the checkbox-square `<svg>` icon removed**, exactly as asked. To avoid silently reintroducing the original stale-tap race (a second rapid tap landing before the server's `revalidatePath` came back would previously read the same pre-tap `choiceValue` and cycle to the same next state again), added a small **optimistic local-state layer**: a `useState<Record<string,string>>` map of item id → just-set value, read *before* falling back to the server-provided `item.choiceValue`. Every tap immediately updates this local map before firing the save, so a fast second tap always builds on the outcome of the first tap rather than on stale props. This is invisible to the user — same look, same cycling interaction as before — it just removes the race that was likely causing the original complaint.
+- **Verified**: `tsc --noEmit`, `eslint .`, `vitest run` (112/112, unchanged), `next build` — all clean. Also did curl-based rendering checks against a real inspection (`Weekly Cleaning Checklist — Capsule Room`, id `cmt2uboa90000s49kbd3zcxwn` in local dev seed data): confirmed 15 `Clean`/`Sanitised`/`Dry` labels (matching original layout, `grid-cols-3` only, no `grid-cols-2`), the `(N/A)` suffix still working (2 instances found), and the checkbox `<svg>` path completely gone.
+- **Not click-tested live** — the Browser-pane automation tool remained unreliable this session (`navigate` succeeds, `computer` screenshot times out). Verified by code review + rendered-HTML inspection only. **This needs her live re-test on her phone once deployed** — the original "can't click" complaint's root cause (stale-state race) is still an inference from the code, not a reproduced-and-fixed bug; the optimistic-state fix should close that gap, but only her actual phone use will confirm it.
+- **Local dev environment note for whoever picks this up**: hit the `prisma dev` proxy instability documented below *twice* in a row this session getting to a working local server — don't be surprised if it takes 2-3 restart cycles.
 
 ## Key decisions
 
@@ -32,7 +33,7 @@
 - **GitHub push requires an account switch**: this repo's remote is `dhanu-af`, but the default active `gh` CLI account is `khdanushka-spec`. Every push: `gh auth switch --hostname github.com --user dhanu-af`, push, then switch back. Don't skip the switch-back.
 - **Always ask before `git push`, never before local `git commit`.**
 - **A file is only safe to import from a `"use client"` component if *nothing in its import chain* touches `lib/db` (or anything else Node-only) at module scope** — even a single unused named export from such a module will drag the whole chain into the client bundle and break `next build` (bundler tries to resolve `pg`'s Node built-ins for the browser: `Can't resolve 'net'/'tls'/'util/types'`). `tsc`/`eslint` both pass fine even when this is wrong; only `next build` catches it. This is why `lib/timezone-format.ts` exists separately from `lib/timezone.ts` (the latter imports `@/lib/db` for `getFacilityTimezone`). When adding client-side formatting/utility helpers, check this before wiring them in, not after a failed build.
-- **When a reported bug's actual mechanism is a client-side stale-state race** (a value computed from props that may be behind the latest server round-trip), prefer redesigning the interaction to be idempotent/direct-set over trying to patch the race directly — much simpler to reason about and verify, and removes the whole failure class rather than narrowing its window.
+- **When fixing a reported bug that also involves a visual complaint ("remove the checkbox"), don't let the technical fix change the layout/interaction more than the visual ask required.** First attempt at the equipment task row bug redesigned the whole interaction (1 cycling button → 2 direct-set buttons per stage) because that was the cleanest way to eliminate a stale-state race — but the user only wanted the checkbox icon gone, not the layout changed, and rejected it: "this one not good. previous style is good. only remove tik box." Correct approach (second attempt): keep the exact prior layout/interaction, remove only the literal thing asked about (the icon), and solve the underlying technical issue (the race) with an invisible mechanism (local optimistic state) that doesn't change what the user sees or how they interact with it. When a fix could go "redesign the interaction" or "patch invisibly, keep the interaction," and the user's ask was specifically about *appearance*, default to the invisible patch.
 
 ## Gotchas / constraints learned
 
@@ -43,13 +44,13 @@
 
 ## Next steps
 
-1. **Ask before pushing** the equipment task row commit (`3d19622`), as always.
+1. **Ask before pushing** the reverted-plus-fix equipment task row commit, as always.
 2. Once pushed, mention to her:
-   - Please re-test the Weekly Cleaning Checklist (Clean/Sanitised/Dry buttons) on her phone to confirm the "sometimes can't click" issue is actually resolved — this was fixed by diagnosis + code review, not by reproducing and confirming the fix live.
+   - The Clean/Sanitised/Dry buttons are back to the original look (just without the checkbox icon) — please re-test on her phone to confirm the "sometimes can't click" issue is actually resolved. This was fixed by diagnosis + code review, not by reproducing and confirming the fix live.
    - The Rename feature (from an earlier session, already pushed) still needs her to click "Rename" once on the Facility card in Areas & Equipment admin to fix the "Northgate Manufacturing Facility" placeholder name, if she hasn't already.
    - It'd be worth her clicking through the mobile nav drawer on an actual phone once too, since it's never been live-tested by a person.
 
 ## Open questions
 
 - Whether she wants the mobile nav drawer explicitly click-tested by her on a real phone before trusting it, given it's never been verified live (carried over from an earlier session, still open).
-- Whether the equipment task row fix actually resolves her "sometimes can't click" complaint — needs her live re-test since the Browser tool couldn't verify interactively this session either.
+- Whether the equipment task row fix (optimistic local state, same visual layout) actually resolves her "sometimes can't click" complaint — needs her live re-test since the Browser tool couldn't verify interactively this session either.
