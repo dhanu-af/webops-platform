@@ -11,14 +11,14 @@ import type { UserRole } from "@/app/generated/prisma/client";
 
 function BrandBlock() {
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="w-fit rounded-md bg-white px-2 py-1 shadow-[var(--shadow-xs)]">
+    <div className="flex items-center gap-3">
+      <div className="w-fit shrink-0 rounded-md bg-white px-2 py-1.5 shadow-[var(--shadow-xs)]">
         <Image
           src="/eagle-labs-logo.jpg"
           alt="Eagle Labs Inc"
           width={200}
           height={94}
-          className="h-6 w-auto"
+          className="h-9 w-auto"
           priority
         />
       </div>
