@@ -1,3 +1,19 @@
+# Handover — 2026-08-23 00:00 (Real logo added — committed, NOT pushed)
+
+## Real Eagle Labs Inc logo added (this session, after the rebrand)
+
+User supplied the real company logo (`Downloads/1630590938201.jpg` — eagle mark + "EAGLE LABS INC" wordmark, black on white). Copied to `public/eagle-labs-logo.jpg`, replaced the text-based "EAGLE LABS"/"EAGLE LABS AUSTRALIA" brand labels with the actual image (wrapped in a small white rounded chip so the black-on-white artwork stays legible against the dark navy sidebar and dark login hero panel) in three places: `components/nav/sidebar.tsx`, and both branding spots in `app/login/page.tsx` (desktop dark hero + mobile-only header).
+
+**Two real bugs found and fixed while wiring this up, not just styling:**
+1. **The source JPG had non-standard EXIF/JFIF metadata that Next's image optimizer (sharp) rejected outright** ("The requested resource isn't a valid image"), even though browsers/plain `<img>` would have rendered it fine. Fixed by re-encoding through `sharp` (`.rotate().jpeg({quality: 95})`) to strip whatever was malformed — same 200×94 dimensions, now a clean baseline JPEG.
+2. **The bigger one: `middleware.ts`'s auth matcher didn't exclude arbitrary root-level `/public` files**, only `_next/static`, `_next/image`, `favicon.ico`, `/api`, `/login`. Since the logo is used ON the unauthenticated `/login` page, every request for `/eagle-labs-logo.jpg` was getting caught by the auth check and silently 307-redirected to `/login?callbackUrl=...` — so both the raw file *and* Next's image optimizer (which fetches the raw file internally) were receiving a login-page redirect instead of image bytes. This is exactly the kind of bug that would have shipped invisibly to production and shown a broken-image icon everywhere the logo appears unauthenticated. **Fixed** by adding `eagle-labs-logo.jpg` to the matcher's exclusion list, following the exact same precedent already set for `favicon.ico`. **If any other public-facing brand asset gets added to `/login` in the future, it needs the same matcher exclusion** — this isn't a one-off, it's a real gap in how this middleware is scoped.
+
+**Verification note**: the Browser-pane automation tool itself became genuinely stuck this session (`navigate` timing out at 300s repeatedly, across multiple tabs, tab close/recreate didn't help) — confirmed this was a tool-side failure, not a real app bug, by verifying directly via `curl` instead: raw file now serves as a valid JPEG (200, correct bytes), `/_next/image?url=%2Feagle-labs-logo.jpg...` now returns 200 with a valid optimized JPEG (was 400 before both fixes), and the rendered `/login` HTML contains correct `srcset` references to both. `tsc`/`eslint`/106 tests all still clean.
+
+**Committed locally, NOT pushed** — same standing pattern, waiting for explicit go-ahead.
+
+---
+
 # Handover — 2026-08-22 23:10 (Premium visual redesign — committed and pushed)
 
 ## Goal

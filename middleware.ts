@@ -16,7 +16,10 @@ export default auth((req) => {
 
 // Excludes /api (routes authorize themselves), /login, /scan (QR landing
 // resolves publicly-scoped info only, real actions still require login on
-// the destination page), and static assets.
+// the destination page), static assets, and the brand logo (shown
+// unauthenticated on /login itself, so it can't require a session to load).
 export const config = {
-  matcher: ["/((?!api|login|_next/static|_next/image|favicon.ico|$).*)"],
+  matcher: [
+    "/((?!api|login|_next/static|_next/image|favicon.ico|eagle-labs-logo.jpg|$).*)",
+  ],
 };

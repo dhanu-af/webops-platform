@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -11,13 +12,17 @@ export function Sidebar({ role }: { role: UserRole }) {
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col bg-sidebar-bg md:flex">
-      <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-6">
-        <div className="flex size-8 items-center justify-center rounded-[10px] bg-[linear-gradient(150deg,var(--sidebar-accent),var(--accent-strong))] text-[13px] font-bold text-white shadow-[0_2px_8px_rgba(109,125,255,0.35)]">
-          E
-        </div>
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-[0.1em] text-sidebar-fg-active">
-            EAGLE LABS
+      <div className="flex h-16 items-center border-b border-sidebar-border px-6">
+        <div className="flex flex-col gap-1.5">
+          <div className="w-fit rounded-md bg-white px-2 py-1 shadow-[var(--shadow-xs)]">
+            <Image
+              src="/eagle-labs-logo.jpg"
+              alt="Eagle Labs Inc"
+              width={200}
+              height={94}
+              className="h-6 w-auto"
+              priority
+            />
           </div>
           <div className="text-[10px] font-medium tracking-wide text-sidebar-fg-muted">
             Australia · Quality &amp; Operations

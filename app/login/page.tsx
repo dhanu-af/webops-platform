@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
@@ -19,8 +20,15 @@ export default async function LoginPage({
           }}
         />
         <div className="relative z-10">
-          <div className="text-sm font-semibold tracking-[0.2em] text-white/60">
-            EAGLE LABS AUSTRALIA
+          <div className="w-fit rounded-md bg-white px-2.5 py-1.5 shadow-[var(--shadow-sm)]">
+            <Image
+              src="/eagle-labs-logo.jpg"
+              alt="Eagle Labs Inc"
+              width={200}
+              height={94}
+              className="h-8 w-auto"
+              priority
+            />
           </div>
         </div>
         <div className="relative z-10 max-w-md space-y-4">
@@ -43,10 +51,14 @@ export default async function LoginPage({
       </div>
       <div className="flex items-center justify-center bg-surface p-8">
         <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
-            <div className="text-sm font-semibold tracking-[0.2em] text-muted">
-              EAGLE LABS AUSTRALIA
-            </div>
+          <div className="mb-8 w-fit rounded-md border border-border bg-white px-2.5 py-1.5 shadow-[var(--shadow-xs)] lg:hidden">
+            <Image
+              src="/eagle-labs-logo.jpg"
+              alt="Eagle Labs Inc"
+              width={200}
+              height={94}
+              className="h-7 w-auto"
+            />
           </div>
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
             Sign in
