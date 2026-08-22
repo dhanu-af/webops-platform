@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
 
 export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [state, formAction, pending] = useActionState(loginAction, null);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={formAction} className="mt-7 space-y-4">
@@ -38,12 +40,20 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           <input
             id="password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             required
             autoComplete="current-password"
-            className="w-full rounded-lg border border-border-strong bg-surface py-2.5 pl-9 pr-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+            className="w-full rounded-lg border border-border-strong bg-surface py-2.5 pl-9 pr-9 text-sm text-foreground outline-none transition-colors focus:border-accent"
             placeholder="••••••••"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
+          >
+            {showPassword ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+          </button>
         </div>
       </div>
       {state?.error && (
