@@ -29,12 +29,14 @@ export const STAGE_AREA_KEYWORDS: Record<MfgStageKey, string[]> = {
 // matches their own assigned Area -- everyone else gets read-only access
 // to every stage (viewing the whole batch is never restricted, only
 // editing is).
-export function canEditMfgStage(role: UserRole, areaName: string | null, stage: MfgStageKey): boolean {
+export function canEditMfgStage(role: UserRole, areaNames: string[], stage: MfgStageKey): boolean {
   if (can(role, "mfg.manage")) return true;
   if (role !== "OPERATOR" && role !== "TEAM_LEADER") return false;
-  if (!areaName) return false;
-  const lower = areaName.toLowerCase();
-  return STAGE_AREA_KEYWORDS[stage].some((k) => lower.includes(k));
+  if (areaNames.length === 0) return false;
+  return areaNames.some((areaName) => {
+    const lower = areaName.toLowerCase();
+    return STAGE_AREA_KEYWORDS[stage].some((k) => lower.includes(k));
+  });
 }
 
 export const MFG_BATCH_STATUS_LABEL: Record<MfgBatchStatus, string> = {

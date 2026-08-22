@@ -22,7 +22,7 @@ export function EditUserForm({
   initialRole,
   initialEmployeeId,
   initialSectionId,
-  initialAreaId,
+  initialAreaIds,
   initialJobTitle,
   sections,
   areas,
@@ -32,7 +32,7 @@ export function EditUserForm({
   initialRole: UserRole;
   initialEmployeeId: string;
   initialSectionId: string;
-  initialAreaId: string;
+  initialAreaIds: string[];
   initialJobTitle: string;
   sections: Array<{ id: string; label: string }>;
   areas: Array<{ id: string; label: string }>;
@@ -42,8 +42,12 @@ export function EditUserForm({
   const [role, setRole] = useState<UserRole>(initialRole);
   const [employeeId, setEmployeeId] = useState(initialEmployeeId);
   const [sectionId, setSectionId] = useState(initialSectionId);
-  const [areaId, setAreaId] = useState(initialAreaId);
+  const [areaIds, setAreaIds] = useState<string[]>(initialAreaIds);
   const [jobTitle, setJobTitle] = useState(initialJobTitle);
+
+  function toggleArea(id: string) {
+    setAreaIds((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  }
 
   return (
     <form
@@ -57,7 +61,7 @@ export function EditUserForm({
               role,
               employeeId: employeeId.trim() || undefined,
               sectionId: sectionId || undefined,
-              areaId: areaId || undefined,
+              areaIds,
               jobTitle: jobTitle.trim() || undefined,
             });
           } catch (err) {
@@ -107,21 +111,18 @@ export function EditUserForm({
         </select>
       </div>
       <div>
-        <label className="text-xs font-medium text-muted-strong">Assigned area (optional)</label>
-        <select
-          value={areaId}
-          onChange={(e) => setAreaId(e.target.value)}
-          className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
-        >
-          <option value="">— None (sees every area) —</option>
+        <label className="text-xs font-medium text-muted-strong">Assigned area(s) (optional)</label>
+        <div className="mt-1.5 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border-strong bg-surface p-2.5">
+          {areas.length === 0 && <p className="px-1 py-1 text-sm text-muted">No areas defined yet.</p>}
           {areas.map((a) => (
-            <option key={a.id} value={a.id}>
+            <label key={a.id} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-surface-sunken">
+              <input type="checkbox" checked={areaIds.includes(a.id)} onChange={() => toggleArea(a.id)} />
               {a.label}
-            </option>
+            </label>
           ))}
-        </select>
+        </div>
         <p className="mt-1 text-xs text-muted">
-          For Operator / Team Leader / Supervisor: restricts them to only this area&apos;s tasks. Leave blank for QA, Management, or any role that should see every area. Takes effect next time they log in.
+          For Operator / Team Leader / Supervisor: restricts them to only these areas&apos; tasks — pick more than one for staff who work across sections (e.g. a team leader covering both Capsule Room and Bottling). Leave every box unchecked for QA, Management, or any role that should see every area. Takes effect next time they log in.
         </p>
       </div>
       <div>

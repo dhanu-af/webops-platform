@@ -65,7 +65,7 @@ export async function listCorrectiveActions(filters: { status?: string; areaId?:
   return db.correctiveAction.findMany({
     where: {
       status: filters.status ? (filters.status as never) : undefined,
-      areaId: scope.scoped ? scope.areaId : filters.areaId || undefined,
+      areaId: scope.scoped ? { in: scope.areaIds } : filters.areaId || undefined,
     },
     include: {
       finding: { include: { inspection: { include: { checklistVersion: { include: { checklist: true } } } } } },

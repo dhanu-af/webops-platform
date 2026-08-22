@@ -11,7 +11,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
 
   const { id } = await params;
   const [user, sections, areas] = await Promise.all([
-    db.user.findUnique({ where: { id } }),
+    db.user.findUnique({ where: { id }, include: { assignedAreas: { select: { id: true } } } }),
     db.section.findMany({ include: { facility: true }, orderBy: [{ facility: { name: "asc" } }, { sortOrder: "asc" }] }),
     db.area.findMany({
       where: { archived: false },
@@ -33,7 +33,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         initialRole={user.role}
         initialEmployeeId={user.employeeId ?? ""}
         initialSectionId={user.sectionId ?? ""}
-        initialAreaId={user.areaId ?? ""}
+        initialAreaIds={user.assignedAreas.map((a) => a.id)}
         initialJobTitle={user.jobTitle ?? ""}
         sections={sections.map((s) => ({ id: s.id, label: `${s.facility.name} / ${s.name}` }))}
         areas={areas.map((a) => ({ id: a.id, label: `${a.section.facility.name} / ${a.section.name} / ${a.name}` }))}

@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
 import { DEFAULT_PACKAGING_ISSUE_LINES, DEFAULT_PACKAGING_MATERIAL_LINES, canEditMfgStage, type MfgStageKey } from "@/lib/mfg-reconciliation";
-import { getUserAreaName } from "@/lib/data/mfg-reconciliation";
+import { getUserAreaNames } from "@/lib/data/mfg-reconciliation";
 import type { MfgMaterialGroup, MfgPackagingMaterialType } from "@/app/generated/prisma/client";
 
 const BASE_PATH = "/mfg-reconciliation";
@@ -27,8 +27,8 @@ async function requireAccess() {
 async function requireStageAccess(stage: MfgStageKey) {
   const session = await auth();
   if (!session?.user) throw new Error("Not authenticated");
-  const areaName = await getUserAreaName(session.user.areaId);
-  if (!canEditMfgStage(session.user.role, areaName, stage)) {
+  const areaNames = await getUserAreaNames(session.user.areaIds);
+  if (!canEditMfgStage(session.user.role, areaNames, stage)) {
     throw new Error("Forbidden: you don't have edit access to this stage.");
   }
   return session.user;

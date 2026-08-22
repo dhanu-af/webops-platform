@@ -15,7 +15,7 @@ export default async function EvidenceGalleryPage() {
   // exact match is the whole scope rule, same as Findings/CorrectiveActions.
   const [photos, timeZone] = await Promise.all([
     db.photoEvidence.findMany({
-      where: scope.scoped ? { areaId: scope.areaId } : undefined,
+      where: scope.scoped ? { areaId: { in: scope.areaIds } } : undefined,
       include: { area: true, inspection: { include: { checklistVersion: { include: { checklist: true } } } }, uploadedBy: true, finding: true },
       orderBy: { createdAt: "desc" },
       take: 60,

@@ -67,7 +67,7 @@ export async function getDashboardKpis(scope: UserScope = { scoped: false }) {
 
 export async function getFacilityStatusMap(scope: UserScope = { scoped: false }) {
   const areas = await db.area.findMany({
-    where: { archived: false, id: scope.scoped ? scope.areaId : undefined },
+    where: { archived: false, id: scope.scoped ? { in: scope.areaIds } : undefined },
     orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     include: {
       section: { include: { facility: true } },

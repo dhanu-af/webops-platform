@@ -16,7 +16,7 @@ export default async function UsersAdminPage() {
   const currentUserId = session.user.id;
 
   const [users, recentLogins, timeZone] = await Promise.all([
-    db.user.findMany({ include: { section: { include: { facility: true } }, area: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ include: { section: { include: { facility: true } }, assignedAreas: true }, orderBy: { name: "asc" } }),
     db.auditLog.findMany({ where: { action: "LOGIN" }, include: { user: true }, orderBy: { createdAt: "desc" }, take: 20 }),
     getFacilityTimezone(),
   ]);
@@ -52,7 +52,9 @@ export default async function UsersAdminPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge tone={u.active ? "pass" : "neutral"}>{u.active ? "Active" : "Inactive"}</Badge>
-                  {u.area && <Badge tone="neutral">{u.area.name} only</Badge>}
+                  {u.assignedAreas.length > 0 && (
+                    <Badge tone="neutral">{u.assignedAreas.map((a) => a.name).join(", ")} only</Badge>
+                  )}
                   <Badge tone="accent">{u.role.replace(/_/g, " ")}</Badge>
                   <Button href={`/admin/users/${u.id}/edit`} size="sm" variant="secondary">
                     Edit

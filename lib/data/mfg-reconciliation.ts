@@ -1,14 +1,14 @@
 import { db } from "@/lib/db";
 
-// Resolves the acting user's assigned Area name, for the per-stage edit
-// check in lib/mfg-reconciliation.ts's canEditMfgStage -- returns null for
-// an unassigned user (they get no stage-level edit rights as an
+// Resolves the acting user's assigned Area name(s), for the per-stage edit
+// check in lib/mfg-reconciliation.ts's canEditMfgStage -- returns [] for an
+// unassigned user (they get no stage-level edit rights as an
 // OPERATOR/TEAM_LEADER, only supervisors/QA/management/admins can edit
 // unconditionally).
-export async function getUserAreaName(areaId: string | null): Promise<string | null> {
-  if (!areaId) return null;
-  const area = await db.area.findUnique({ where: { id: areaId }, select: { name: true } });
-  return area?.name ?? null;
+export async function getUserAreaNames(areaIds: string[]): Promise<string[]> {
+  if (areaIds.length === 0) return [];
+  const areas = await db.area.findMany({ where: { id: { in: areaIds } }, select: { name: true } });
+  return areas.map((a) => a.name);
 }
 
 // Only the fields each stage's yield/reconciliation math actually needs --

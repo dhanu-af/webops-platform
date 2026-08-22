@@ -4,16 +4,16 @@ import type { DefaultSession } from "next-auth";
 declare module "next-auth" {
   interface User {
     role: UserRole;
-    areaId: string | null;
-    sectionId: string | null;
+    areaIds: string[];
+    sectionIds: string[];
     facilityId: string | null;
   }
   interface Session {
     user: {
       id: string;
       role: UserRole;
-      areaId: string | null;
-      sectionId: string | null;
+      areaIds: string[];
+      sectionIds: string[];
       facilityId: string | null;
     } & DefaultSession["user"];
   }
@@ -22,8 +22,8 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     role: UserRole;
-    areaId: string | null;
-    sectionId: string | null;
+    areaIds: string[];
+    sectionIds: string[];
     facilityId: string | null;
   }
 }
@@ -34,8 +34,8 @@ declare module "next-auth/jwt" {
 declare module "@auth/core/jwt" {
   interface JWT {
     role: UserRole;
-    areaId: string | null;
-    sectionId: string | null;
+    areaIds: string[];
+    sectionIds: string[];
     facilityId: string | null;
   }
 }

@@ -10,7 +10,7 @@ export async function listEquipmentCalibrationOverview(scope: UserScope = { scop
   const equipment = await db.equipment.findMany({
     where: {
       archived: false,
-      areaId: scope.scoped ? scope.areaId : undefined,
+      areaId: scope.scoped ? { in: scope.areaIds } : undefined,
     },
     include: {
       area: { select: { id: true, name: true, section: { select: { name: true } } } },

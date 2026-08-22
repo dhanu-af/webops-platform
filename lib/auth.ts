@@ -18,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await db.user.findUnique({
           where: { email: email.toLowerCase() },
-          include: { area: { select: { id: true, sectionId: true, section: { select: { facilityId: true } } } } },
+          include: { assignedAreas: { select: { id: true, sectionId: true, section: { select: { facilityId: true } } } } },
         });
         if (!user || !user.active) return null;
 
@@ -32,9 +32,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
-          areaId: user.area?.id ?? null,
-          sectionId: user.area?.sectionId ?? null,
-          facilityId: user.area?.section.facilityId ?? null,
+          areaIds: user.assignedAreas.map((a) => a.id),
+          sectionIds: [...new Set(user.assignedAreas.map((a) => a.sectionId))],
+          facilityId: user.assignedAreas[0]?.section.facilityId ?? null,
         };
       },
     }),
@@ -44,8 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.role = user.role;
-        token.areaId = user.areaId;
-        token.sectionId = user.sectionId;
+        token.areaIds = user.areaIds;
+        token.sectionIds = user.sectionIds;
         token.facilityId = user.facilityId;
       }
       return token;
@@ -53,8 +53,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       session.user.id = token.sub!;
       session.user.role = token.role;
-      session.user.areaId = token.areaId;
-      session.user.sectionId = token.sectionId;
+      session.user.areaIds = token.areaIds;
+      session.user.sectionIds = token.sectionIds;
       session.user.facilityId = token.facilityId;
       return session;
     },

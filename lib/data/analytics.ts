@@ -61,7 +61,7 @@ export async function getFindingsBySeverityByArea(filters: ReportFilters, scope:
   // Finding only ever carries a specific areaId (no section/facility-wide
   // variant) - an exact match is the whole scope rule, same as elsewhere.
   const findings = await db.finding.findMany({
-    where: { createdAt: { gte: from, lte: to }, areaId: scope.scoped ? scope.areaId : filters.areaId || undefined },
+    where: { createdAt: { gte: from, lte: to }, areaId: scope.scoped ? { in: scope.areaIds } : filters.areaId || undefined },
     select: { severity: true, area: { select: { name: true } } },
   });
 
@@ -87,7 +87,7 @@ export async function getCorrectiveActionAging(
   scope: UserScope = { scoped: false }
 ): Promise<AgingBucket[]> {
   const openActions = await db.correctiveAction.findMany({
-    where: { status: { not: "CLOSED" }, areaId: scope.scoped ? scope.areaId : filters.areaId || undefined },
+    where: { status: { not: "CLOSED" }, areaId: scope.scoped ? { in: scope.areaIds } : filters.areaId || undefined },
     select: { createdAt: true },
   });
 
