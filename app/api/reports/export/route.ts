@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getUserScope } from "@/lib/scope";
 import { getReportInspections, type ReportFilters } from "@/lib/data/reports";
+import { getFacilityTimezone, formatDateTimeIsoInTimeZone } from "@/lib/timezone";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 
 function csvEscape(value: string | number | null | undefined): string {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   };
 
   const scope = getUserScope(session.user);
-  const inspections = await getReportInspections(filters, scope, 5000);
+  const [inspections, timeZone] = await Promise.all([getReportInspections(filters, scope, 5000), getFacilityTimezone()]);
 
   const header = [
     "Checklist",
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       insp.qa?.name,
       insp.findings.filter((f) => f.status !== "CLOSED").length,
       insp.findings.filter((f) => f.severity === "CRITICAL" && f.status !== "CLOSED").length,
-      format(insp.createdAt, "yyyy-MM-dd HH:mm"),
-      insp.submittedAt ? format(insp.submittedAt, "yyyy-MM-dd HH:mm") : "",
+      formatDateTimeIsoInTimeZone(insp.createdAt, timeZone),
+      insp.submittedAt ? formatDateTimeIsoInTimeZone(insp.submittedAt, timeZone) : "",
     ])
   );
 

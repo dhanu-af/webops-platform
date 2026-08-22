@@ -48,9 +48,11 @@ export function ChecklistItemCard({
   editable,
   item,
   response,
+  timeZone,
 }: {
   inspectionId: string;
   editable: boolean;
+  timeZone: string;
   item: {
     id: string;
     prompt: string;
@@ -251,7 +253,7 @@ export function ChecklistItemCard({
 
       {response?.respondedBy && (
         <p className="mt-2 font-mono-tabular text-[11px] text-muted">
-          {formatAttribution(response.respondedBy.name, response.updatedAt)}
+          {formatAttribution(response.respondedBy.name, response.updatedAt, timeZone)}
         </p>
       )}
 

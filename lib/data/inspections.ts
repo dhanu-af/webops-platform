@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
-import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
+import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import { scopeWhere, type UserScope } from "@/lib/scope";
+import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
 
 export async function getTodaySchedules(scope: UserScope) {
   const now = new Date();
   const timeZone = await getFacilityTimezone();
-  return db.checklistSchedule.findMany({
+  const today = todayLabelInTimeZone(timeZone, now);
+  const schedules = await db.checklistSchedule.findMany({
     where: { active: true, startDate: { lte: now }, ...scopeWhere(scope) },
     include: {
       checklist: true,
@@ -17,6 +19,11 @@ export async function getTodaySchedules(scope: UserScope) {
     },
     orderBy: [{ dueTime: "asc" }],
   });
+
+  // Same recurrence-day fix as getSchedulesByCategory (lib/data/by-category.ts)
+  // -- without it a WEEKLY/MONTHLY schedule shows as freshly "not started"
+  // every day instead of only on its actual due day.
+  return schedules.filter((s) => scheduleAppliesOnDay(s, today));
 }
 
 export async function listInspections(

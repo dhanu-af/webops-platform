@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getUserScope } from "@/lib/scope";
 import { getReportInspections, getReportSummary, resolveReportRange, type ReportFilters } from "@/lib/data/reports";
+import { getFacilityTimezone } from "@/lib/timezone";
 import { ReportDocument } from "@/lib/pdf/report-document";
 
 export async function GET(request: NextRequest) {
@@ -23,10 +24,14 @@ export async function GET(request: NextRequest) {
 
   const scope = getUserScope(session.user);
   const { from, to } = await resolveReportRange(filters);
-  const [summary, inspections] = await Promise.all([getReportSummary(filters, scope), getReportInspections(filters, scope, 500)]);
+  const [summary, inspections, timeZone] = await Promise.all([
+    getReportSummary(filters, scope),
+    getReportInspections(filters, scope, 500),
+    getFacilityTimezone(),
+  ]);
 
   const buffer = await renderToBuffer(
-    ReportDocument({ from, to, summary, inspections, generatedAt: new Date(), generatedBy: session.user.name ?? session.user.email ?? "" })
+    ReportDocument({ from, to, summary, inspections, generatedAt: new Date(), generatedBy: session.user.name ?? session.user.email ?? "", timeZone })
   );
 
   const filename = `webops-report_${filters.from ?? "start"}_${filters.to ?? "end"}.pdf`;

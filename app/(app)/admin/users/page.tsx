@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
+import { getFacilityTimezone, formatDateTimeInTimeZone } from "@/lib/timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,10 @@ export default async function UsersAdminPage() {
 
   const currentUserId = session.user.id;
 
-  const [users, recentLogins] = await Promise.all([
+  const [users, recentLogins, timeZone] = await Promise.all([
     db.user.findMany({ include: { section: { include: { facility: true } }, area: true }, orderBy: { name: "asc" } }),
     db.auditLog.findMany({ where: { action: "LOGIN" }, include: { user: true }, orderBy: { createdAt: "desc" }, take: 20 }),
+    getFacilityTimezone(),
   ]);
 
   return (
@@ -76,7 +78,7 @@ export default async function UsersAdminPage() {
                 <div key={l.id} className="flex items-center justify-between gap-4 py-2.5">
                   <p className="text-sm font-medium text-foreground">{l.user.name}</p>
                   <p className="text-xs text-muted">
-                    {l.createdAt.toLocaleString("en-AU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {formatDateTimeInTimeZone(l.createdAt, timeZone)}
                   </p>
                 </div>
               ))}

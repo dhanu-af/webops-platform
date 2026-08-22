@@ -25,12 +25,14 @@ export function EquipmentTaskRow({
   equipmentName,
   helpText,
   items,
+  timeZone,
 }: {
   inspectionId: string;
   editable: boolean;
   equipmentName: string;
   helpText: string | null;
   items: SubItem[];
+  timeZone: string;
 }) {
   const [, startTransition] = useTransition();
 
@@ -55,7 +57,7 @@ export function EquipmentTaskRow({
   const latest = items
     .filter((i) => i.respondedAt)
     .sort((a, b) => (b.respondedAt as Date).getTime() - (a.respondedAt as Date).getTime())[0];
-  const attribution = latest ? formatAttribution(latest.respondedByName, latest.respondedAt) : null;
+  const attribution = latest ? formatAttribution(latest.respondedByName, latest.respondedAt, timeZone) : null;
 
   return (
     <div className="rounded-[var(--radius)] border border-border bg-surface p-4">

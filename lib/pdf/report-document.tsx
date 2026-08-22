@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import { format } from "date-fns";
+import { formatDayInTimeZone, formatDateTimeInTimeZone } from "@/lib/timezone";
 import type { StatusTone } from "@/lib/status";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 import type {
@@ -110,6 +110,7 @@ export function ReportDocument({
   inspections,
   generatedAt,
   generatedBy,
+  timeZone,
 }: {
   from: Date;
   to: Date;
@@ -117,16 +118,17 @@ export function ReportDocument({
   inspections: Inspection[];
   generatedAt: Date;
   generatedBy: string;
+  timeZone: string;
 }) {
   return (
     <Document
-      title={`Eagle Labs Report ${format(from, "d MMM yyyy")}–${format(to, "d MMM yyyy")}`}
+      title={`Eagle Labs Report ${formatDayInTimeZone(from, timeZone)}–${formatDayInTimeZone(to, timeZone)}`}
     >
       <Page size="A4" orientation="landscape" style={styles.page}>
         <Text style={styles.eyebrow}>EAGLE LABS</Text>
         <Text style={styles.title}>Operations Report</Text>
         <Text style={styles.subtitle}>
-          {format(from, "d MMM yyyy")} – {format(to, "d MMM yyyy")}
+          {formatDayInTimeZone(from, timeZone)} – {formatDayInTimeZone(to, timeZone)}
         </Text>
 
         <View style={styles.kpiRow}>
@@ -193,7 +195,7 @@ export function ReportDocument({
                 {meta?.label ?? insp.status}
               </Text>
               <Text style={[styles.td, styles.colDate]}>
-                {format(insp.createdAt, "d MMM yyyy")}
+                {formatDayInTimeZone(insp.createdAt, timeZone)}
               </Text>
             </View>
           );
@@ -207,7 +209,7 @@ export function ReportDocument({
 
         <View style={styles.footer} fixed>
           <Text>
-            Generated {format(generatedAt, "d MMM yyyy, HH:mm")} by{" "}
+            Generated {formatDateTimeInTimeZone(generatedAt, timeZone)} by{" "}
             {generatedBy}
           </Text>
           <Text

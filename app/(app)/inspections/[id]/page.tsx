@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getFacilityTimezone } from "@/lib/timezone";
 import { getInspection } from "@/lib/actions/inspections";
 import { Badge } from "@/components/ui/badge";
 import { INSPECTION_STATUS_META } from "@/lib/status";
@@ -23,6 +24,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
   const inspection = await getInspection(id).catch(() => null);
   if (!inspection) notFound();
+  const timeZone = await getFacilityTimezone();
 
   const meta = INSPECTION_STATUS_META[inspection.status];
   const editable =
@@ -95,6 +97,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
                     key={row.items[0].id}
                     inspectionId={inspection.id}
                     editable={editable}
+                    timeZone={timeZone}
                     equipmentName={row.equipmentName}
                     helpText={row.helpText}
                     items={row.items.map((item) => {
@@ -114,6 +117,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
                     key={row.item.id}
                     inspectionId={inspection.id}
                     editable={editable}
+                    timeZone={timeZone}
                     item={row.item}
                     response={responseByItem.get(row.item.id) ?? null}
                   />
@@ -134,6 +138,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
             submittedAt={inspection.submittedAt}
             records={inspection.verificationRecords}
             areaReleaseStatus={inspection.areaRelease?.status}
+            timeZone={timeZone}
           />
         </div>
       ) : null}

@@ -1,5 +1,5 @@
 import { Check, X, Undo2, ShieldCheck } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateTimeInTimeZone } from "@/lib/timezone";
 
 type Record = {
   id: string;
@@ -15,11 +15,13 @@ export function VerificationTimeline({
   submittedAt,
   records,
   areaReleaseStatus,
+  timeZone,
 }: {
   operatorName?: string | null;
   submittedAt?: Date | null;
   records: Record[];
   areaReleaseStatus?: string | null;
+  timeZone: string;
 }) {
   const steps = [
     operatorName && submittedAt
@@ -52,7 +54,7 @@ export function VerificationTimeline({
               {step.role} <span className="font-normal text-muted">· {step.name}</span>
             </p>
             <p className="text-xs text-muted">
-              {step.action} — {format(step.at, "d MMM yyyy — HH:mm")}
+              {step.action} — {formatDateTimeInTimeZone(step.at, timeZone)}
             </p>
             {step.comment && <p className="mt-1 text-xs text-status-critical">&ldquo;{step.comment}&rdquo;</p>}
           </div>

@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
-import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { isWithinInterval } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import { scopeWhere, type UserScope } from "@/lib/scope";
+import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
 import type { Frequency } from "@/app/generated/prisma/client";
 
 // Only these three frequencies map onto a predictable calendar day — the
@@ -27,29 +28,6 @@ async function getCalendarSchedules(filters: { areaId?: string; frequency?: stri
     include: { checklist: true, area: true, section: true, facility: true },
     orderBy: { dueTime: "asc" },
   });
-}
-
-// A schedule "applies" on a given day if that day matches its recurrence
-// rule and falls within its active date range. Empty recurrenceDays (never
-// set at seed/creation time) falls back to the single day implied by
-// startDate, rather than silently applying every day/date.
-function scheduleAppliesOnDay(schedule: CalendarSchedule, day: Date): boolean {
-  if (day < startOfDay(schedule.startDate)) return false;
-  if (schedule.endDate && day > endOfDay(schedule.endDate)) return false;
-
-  if (schedule.frequency === "DAILY") return true;
-
-  if (schedule.frequency === "WEEKLY") {
-    const days = schedule.recurrenceDays.length ? schedule.recurrenceDays : [schedule.startDate.getDay()];
-    return days.includes(day.getUTCDay());
-  }
-
-  if (schedule.frequency === "MONTHLY") {
-    const days = schedule.recurrenceDays.length ? schedule.recurrenceDays : [schedule.startDate.getDate()];
-    return days.includes(day.getUTCDate());
-  }
-
-  return false;
 }
 
 export type CalendarEntry = {

@@ -78,6 +78,24 @@ export function formatDateInTimeZone(at: Date, timeZone: string): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// "yyyy-MM-dd HH:mm" as perceived in `timeZone` — the sortable/machine-
+// readable timestamp format for CSV exports, same underlying fix as
+// formatDateInTimeZone above (a raw date-fns format() prints the server's
+// UTC fields, not the facility's).
+export function formatDateTimeIsoInTimeZone(at: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
 // Human-readable timestamps for *server*-rendered pages (audit trail,
 // reports table, checklist version history, evidence gallery) — a client
 // component reading the viewer's own device clock doesn't have this
