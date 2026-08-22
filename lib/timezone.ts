@@ -137,6 +137,14 @@ export function monthNameInTimeZone(timeZone: string, at: Date = new Date()): st
   return new Intl.DateTimeFormat("en-US", { timeZone, month: "long" }).format(at);
 }
 
+// "HH:mm" as perceived in `timeZone` -- the Recent Activity timeline's
+// per-entry timestamp.
+export function formatTimeInTimeZone(at: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("hour")}:${get("minute")}`;
+}
+
 export function formatDayInTimeZone(at: Date, timeZone: string, withYear = true): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,

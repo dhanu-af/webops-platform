@@ -15,6 +15,7 @@ export async function getTodaySchedules(scope: UserScope) {
       section: true,
       area: true,
       equipment: true,
+      assignedUser: { select: { name: true } },
       inspections: { where: { createdAt: { gte: startOfDayInTimeZone(timeZone, now), lte: endOfDayInTimeZone(timeZone, now) } }, take: 1 },
     },
     orderBy: [{ dueTime: "asc" }],
