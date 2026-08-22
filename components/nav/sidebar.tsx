@@ -13,14 +13,14 @@ export function Sidebar({ role }: { role: UserRole }) {
     <aside className="hidden w-64 shrink-0 flex-col bg-sidebar-bg md:flex">
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-6">
         <div className="flex size-8 items-center justify-center rounded-[10px] bg-[linear-gradient(150deg,var(--sidebar-accent),var(--accent-strong))] text-[13px] font-bold text-white shadow-[0_2px_8px_rgba(109,125,255,0.35)]">
-          W
+          E
         </div>
         <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-[0.14em] text-sidebar-fg-active">
-            WEB OPS
+          <div className="text-[13px] font-semibold tracking-[0.1em] text-sidebar-fg-active">
+            EAGLE LABS
           </div>
           <div className="text-[10px] font-medium tracking-wide text-sidebar-fg-muted">
-            Quality &amp; Operations
+            Australia · Quality &amp; Operations
           </div>
         </div>
       </div>

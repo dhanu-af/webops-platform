@@ -13,14 +13,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WEB OPS — Facility Operations & Compliance Platform",
-  description: "Digital facility operations, cleaning, 5S, inspections and audit-readiness platform.",
+  title: "Eagle Labs Australia — Facility Operations & Compliance Platform",
+  description:
+    "Digital facility operations, cleaning, 5S, inspections and audit-readiness platform.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
-      <body className="min-h-full bg-background text-foreground antialiased">{children}</body>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+    >
+      <body className="min-h-full bg-background text-foreground antialiased">
+        {children}
+      </body>
     </html>
   );
 }

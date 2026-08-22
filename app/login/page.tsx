@@ -10,22 +10,28 @@ export default async function LoginPage({
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,1fr)_480px]">
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0b0d12] p-12 text-white lg:flex">
-        <div className="absolute inset-0 opacity-[0.07]" style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }} />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
         <div className="relative z-10">
-          <div className="text-sm font-semibold tracking-[0.2em] text-white/60">WEB OPS</div>
+          <div className="text-sm font-semibold tracking-[0.2em] text-white/60">
+            EAGLE LABS AUSTRALIA
+          </div>
         </div>
         <div className="relative z-10 max-w-md space-y-4">
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">
             Every area. Every check. Every finding. Fully traceable.
           </h1>
           <p className="text-sm leading-relaxed text-white/60">
-            The digital facility operations and compliance platform for cleaning, 5S, inspections,
-            corrective actions and audit-ready evidence — replacing paper checklists with a
-            controlled, verifiable record.
+            The digital facility operations and compliance platform for
+            cleaning, 5S, inspections, corrective actions and audit-ready
+            evidence — replacing paper checklists with a controlled, verifiable
+            record.
           </p>
         </div>
         <div className="relative z-10 flex gap-8 text-xs text-white/40">
@@ -38,10 +44,16 @@ export default async function LoginPage({
       <div className="flex items-center justify-center bg-surface p-8">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <div className="text-sm font-semibold tracking-[0.2em] text-muted">WEB OPS</div>
+            <div className="text-sm font-semibold tracking-[0.2em] text-muted">
+              EAGLE LABS AUSTRALIA
+            </div>
           </div>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Sign in</h2>
-          <p className="mt-1 text-sm text-muted">Access your facility operations workspace.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            Sign in
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Access your facility operations workspace.
+          </p>
           <LoginForm callbackUrl={callbackUrl} />
         </div>
       </div>

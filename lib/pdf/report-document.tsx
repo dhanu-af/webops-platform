@@ -2,7 +2,10 @@ import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import type { StatusTone } from "@/lib/status";
 import { INSPECTION_STATUS_META } from "@/lib/status";
-import type { getReportInspections, getReportSummary } from "@/lib/data/reports";
+import type {
+  getReportInspections,
+  getReportSummary,
+} from "@/lib/data/reports";
 
 const TONE_COLOR: Record<StatusTone, string> = {
   pass: "#147a4a",
@@ -21,17 +24,59 @@ const COLORS = {
 };
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 32, paddingHorizontal: 32, paddingBottom: 48, fontSize: 9, fontFamily: "Helvetica", color: COLORS.ink },
-  eyebrow: { fontSize: 8, color: COLORS.accent, fontFamily: "Helvetica-Bold", letterSpacing: 1 },
+  page: {
+    paddingTop: 32,
+    paddingHorizontal: 32,
+    paddingBottom: 48,
+    fontSize: 9,
+    fontFamily: "Helvetica",
+    color: COLORS.ink,
+  },
+  eyebrow: {
+    fontSize: 8,
+    color: COLORS.accent,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1,
+  },
   title: { fontSize: 16, fontFamily: "Helvetica-Bold", marginTop: 2 },
   subtitle: { fontSize: 9, color: COLORS.muted, marginTop: 3 },
-  kpiRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginTop: 16, marginBottom: 16 },
-  kpiTile: { width: "15%", borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8 },
+  kpiRow: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-between",
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  kpiTile: {
+    width: "15%",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    padding: 8,
+  },
   kpiLabel: { fontSize: 6.5, color: COLORS.muted, textTransform: "uppercase" },
   kpiValue: { fontSize: 13, fontFamily: "Helvetica-Bold", marginTop: 3 },
-  tableHeaderRow: { flexDirection: "row", width: "100%", borderBottomWidth: 1, borderBottomColor: COLORS.ink, paddingBottom: 4, marginBottom: 4 },
-  tableRow: { flexDirection: "row", width: "100%", borderBottomWidth: 0.5, borderBottomColor: COLORS.border, paddingVertical: 4 },
-  th: { fontSize: 6.5, fontFamily: "Helvetica-Bold", color: COLORS.muted, textTransform: "uppercase" },
+  tableHeaderRow: {
+    flexDirection: "row",
+    width: "100%",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.ink,
+    paddingBottom: 4,
+    marginBottom: 4,
+  },
+  tableRow: {
+    flexDirection: "row",
+    width: "100%",
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.border,
+    paddingVertical: 4,
+  },
+  th: {
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    color: COLORS.muted,
+    textTransform: "uppercase",
+  },
   td: { fontSize: 8 },
   colChecklist: { width: "27%" },
   colArea: { width: "15%" },
@@ -74,9 +119,11 @@ export function ReportDocument({
   generatedBy: string;
 }) {
   return (
-    <Document title={`WEB OPS Report ${format(from, "d MMM yyyy")}–${format(to, "d MMM yyyy")}`}>
+    <Document
+      title={`Eagle Labs Australia Report ${format(from, "d MMM yyyy")}–${format(to, "d MMM yyyy")}`}
+    >
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <Text style={styles.eyebrow}>WEB OPS</Text>
+        <Text style={styles.eyebrow}>EAGLE LABS AUSTRALIA</Text>
         <Text style={styles.title}>Operations Report</Text>
         <Text style={styles.subtitle}>
           {format(from, "d MMM yyyy")} – {format(to, "d MMM yyyy")}
@@ -84,11 +131,27 @@ export function ReportDocument({
 
         <View style={styles.kpiRow}>
           <KpiTile label="Inspections" value={String(summary.total)} />
-          <KpiTile label="Completed" value={summary.completionRate !== null ? `${summary.completionRate}%` : "—"} />
-          <KpiTile label="Avg score" value={summary.avgScore !== null ? `${summary.avgScore}%` : "—"} />
+          <KpiTile
+            label="Completed"
+            value={
+              summary.completionRate !== null
+                ? `${summary.completionRate}%`
+                : "—"
+            }
+          />
+          <KpiTile
+            label="Avg score"
+            value={summary.avgScore !== null ? `${summary.avgScore}%` : "—"}
+          />
           <KpiTile label="Open findings" value={String(summary.openFindings)} />
-          <KpiTile label="Critical findings" value={String(summary.criticalFindings)} />
-          <KpiTile label="Overdue CAs" value={String(summary.overdueCorrectiveActions)} />
+          <KpiTile
+            label="Critical findings"
+            value={String(summary.criticalFindings)}
+          />
+          <KpiTile
+            label="Overdue CAs"
+            value={String(summary.overdueCorrectiveActions)}
+          />
         </View>
 
         <View style={styles.tableHeaderRow} fixed>
@@ -105,22 +168,53 @@ export function ReportDocument({
           const meta = INSPECTION_STATUS_META[insp.status];
           return (
             <View key={insp.id} style={styles.tableRow} wrap={false}>
-              <Text style={[styles.td, styles.colChecklist]}>{insp.checklistVersion.checklist.name}</Text>
-              <Text style={[styles.td, styles.colArea]}>{insp.area?.name ?? insp.section?.name ?? "—"}</Text>
-              <Text style={[styles.td, styles.colOperator]}>{insp.operator?.name ?? "—"}</Text>
-              <Text style={[styles.td, styles.colScore]}>{insp.score !== null ? `${insp.score}%` : "—"}</Text>
-              <Text style={[styles.td, styles.colFindings]}>{insp.findings.length || "—"}</Text>
-              <Text style={[styles.td, styles.colStatus, { color: TONE_COLOR[meta?.tone ?? "neutral"] }]}>{meta?.label ?? insp.status}</Text>
-              <Text style={[styles.td, styles.colDate]}>{format(insp.createdAt, "d MMM yyyy")}</Text>
+              <Text style={[styles.td, styles.colChecklist]}>
+                {insp.checklistVersion.checklist.name}
+              </Text>
+              <Text style={[styles.td, styles.colArea]}>
+                {insp.area?.name ?? insp.section?.name ?? "—"}
+              </Text>
+              <Text style={[styles.td, styles.colOperator]}>
+                {insp.operator?.name ?? "—"}
+              </Text>
+              <Text style={[styles.td, styles.colScore]}>
+                {insp.score !== null ? `${insp.score}%` : "—"}
+              </Text>
+              <Text style={[styles.td, styles.colFindings]}>
+                {insp.findings.length || "—"}
+              </Text>
+              <Text
+                style={[
+                  styles.td,
+                  styles.colStatus,
+                  { color: TONE_COLOR[meta?.tone ?? "neutral"] },
+                ]}
+              >
+                {meta?.label ?? insp.status}
+              </Text>
+              <Text style={[styles.td, styles.colDate]}>
+                {format(insp.createdAt, "d MMM yyyy")}
+              </Text>
             </View>
           );
         })}
 
-        {inspections.length === 0 && <Text style={{ marginTop: 12, color: COLORS.muted }}>No inspections in this range.</Text>}
+        {inspections.length === 0 && (
+          <Text style={{ marginTop: 12, color: COLORS.muted }}>
+            No inspections in this range.
+          </Text>
+        )}
 
         <View style={styles.footer} fixed>
-          <Text>Generated {format(generatedAt, "d MMM yyyy, HH:mm")} by {generatedBy}</Text>
-          <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+          <Text>
+            Generated {format(generatedAt, "d MMM yyyy, HH:mm")} by{" "}
+            {generatedBy}
+          </Text>
+          <Text
+            render={({ pageNumber, totalPages }) =>
+              `Page ${pageNumber} of ${totalPages}`
+            }
+          />
         </View>
       </Page>
     </Document>
