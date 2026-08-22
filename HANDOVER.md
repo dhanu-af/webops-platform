@@ -1,4 +1,4 @@
-# Handover — 2026-08-23 00:25 (Australia dropped + section click-through — committed, NOT pushed)
+# Handover — 2026-08-23 00:25 (Australia dropped + section click-through — committed and pushed)
 
 ## Two more small changes this session
 
@@ -9,7 +9,7 @@
    - `ScheduleList`'s `Schedule` type now requires `{ id, name }` for area/section (previously just `{ name }`) — the `id` was always present in the underlying Prisma query result (`include: { area: true, section: true }` returns the full row), this was purely a TypeScript narrowing gap, not a missing query field, so no data-layer changes were needed anywhere else.
    - **Verified with real data** (not just code review) via a curl-based NextAuth login (CSRF token → credentials callback → session cookie) since the Browser-pane tool was completely stuck this session (`navigate` timing out at 300s repeatedly, across tab close/recreate, independent of any app code) — confirmed `Today's Ops`, `Pre-Start`, and `Post-Op` all render real `?areaId=<real-id>` links with the correct place name and tooltip; `5S Audits` and `Line Clearance` show no scoped links in *this specific local dev dataset* only because those categories' local seed schedules happen to be facility-wide only here (not a bug — same fallback-to-`/inspections` behavior confirmed correct).
 
-`tsc`/`eslint`/106 tests/`next build` all clean. **Committed locally, NOT pushed** — waiting for explicit go-ahead per this project's standing pattern.
+`tsc`/`eslint`/106 tests/`next build` all clean. **Committed (`39aeb23`) and pushed to `origin/master`** after the user said "yes please."
 
 ---
 
