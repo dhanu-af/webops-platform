@@ -5,6 +5,7 @@ import { getRecentNotifications } from "@/lib/data/notifications";
 import { LogOut } from "lucide-react";
 import { GlobalSearch } from "./global-search";
 import { NotificationBell } from "./notification-bell";
+import { MobileMenuButton } from "./mobile-menu-button";
 
 export async function Topbar({
   userId,
@@ -25,7 +26,9 @@ export async function Topbar({
     .toUpperCase();
 
   return (
-    <header className="flex h-16 items-center gap-4 border-b border-border bg-surface/90 px-6 backdrop-blur supports-[backdrop-filter]:bg-surface/70">
+    <header className="flex h-16 items-center gap-3 border-b border-border bg-surface/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-surface/70 sm:gap-4 sm:px-6">
+      <MobileMenuButton />
+
       <div className="hidden shrink-0 flex-col leading-tight md:flex">
         <span className="text-sm font-medium text-foreground">
           {new Date().toLocaleDateString("en-AU", {

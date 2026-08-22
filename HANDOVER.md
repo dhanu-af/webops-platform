@@ -1,3 +1,33 @@
+# Handover — 2026-08-23 01:00 (Rename admin + mobile nav — committed, NOT pushed)
+
+## Two more changes this session
+
+### 1. Rename capability added to Areas & Equipment admin
+
+User pointed at a specific screenshot ("Weekly 5S Audit / WEEKLY · Northgate Manufacturing Facility") and said "please change name as Eagle Labs", then clarified "everywere change the name please" — she wants the placeholder facility name gone from every screen it appears on (schedule lists, PDF footers, dropdowns, etc.), not just one spot. Since `facility.name` is one field read everywhere it's displayed, the fix is a single rename, not a find-and-replace across the UI — **but this app's admin UI could Create and Archive at every level of the Facility → Section → Area → Equipment hierarchy and never Rename**, so I built that first:
+- `lib/actions/facility.ts`: added `renameFacility`/`renameSection`/`renameArea`/`renameEquipment`, each mirroring the existing `setXArchived` functions exactly (permission check via `requireAreasManager()`, audit log with old/new value, `revalidatePath`).
+- `components/admin/rename-button.tsx` (new): an inline "Rename" control matching this app's existing small-inline-form convention (see `AddFacilityForm`) rather than a `window.prompt()` (not used anywhere else in this app).
+- Wired into `app/(app)/admin/areas/page.tsx` next to every existing `ArchiveToggleButton`, at all 4 levels.
+
+**I could not actually apply the rename myself** — I don't have Vercel/production DB access (checked: `vercel whoami` → "Not authorized", no `.vercel` auth token locally), and logging into the live site with real credentials is off-limits for me regardless (hard rule, not a judgment call). **Once this is deployed, she needs to open Areas & Equipment admin and click "Rename" on the Facility card once** — that one click will fix the name everywhere it's displayed, immediately, with no further deploy needed. Make sure to tell her this clearly — she may not realize the placeholder name is one DB field, not something baked into each page.
+
+### 2. Mobile navigation — the sidebar had ZERO mobile alternative
+
+User asked "change and develop to mobile friendly aswell." Auditing the app at mobile widths surfaced one **critical, not cosmetic** gap: `Sidebar` was `hidden ... md:flex` with **no mobile alternative at all** — below 768px there was no way to navigate between pages except typing URLs directly. Every other responsive concern (KPI grid columns, filter-bar `flex-wrap`, table `overflow-x-auto`, the login page's split layout) was already handled reasonably from the earlier redesign session; this was the one real blocker.
+
+**Fix**: added a slide-in mobile drawer, reusing the exact same nav data/logic as the desktop sidebar (no duplicated nav config):
+- `components/nav/mobile-nav-context.tsx` (new) — a small React Context (`open`/`setOpen`) so the Topbar's hamburger button and the Sidebar's drawer can coordinate; they're siblings under the server-rendered `AppLayout`, not parent/child, so plain prop-drilling doesn't reach.
+- `components/nav/sidebar.tsx` — extracted the nav-groups-mapping JSX into an internal `NavContent` component, rendered twice: once in the existing permanent desktop `<aside>` (unchanged behavior), once inside a new `md:hidden` full-screen overlay (dimmed backdrop + slide-in panel, closes on backdrop click, X button, or any nav link click via `onNavigate`).
+- `components/nav/mobile-menu-button.tsx` (new) — the hamburger icon button, `md:hidden`, calls `setOpen(true)`.
+- `components/nav/topbar.tsx` — added the hamburger button, tightened header padding/gap below `sm` (`px-4`→`px-6`, `gap-3`→`gap-4`) to leave room for it on narrow phones.
+- `app/(app)/layout.tsx` — wraps the whole shell in `<MobileNavProvider>`; also tightened `main`'s padding on mobile (`p-4` → `p-6` at `sm+`).
+
+**Verification note (same Browser-pane tool instability as earlier in this session — `navigate` timing out at 300s repeatedly across tab close/recreate/fresh-server-restart)**: confirmed via `tsc`/`eslint`/106 tests/`next build` all clean, and structurally confirmed via authenticated `curl` (NextAuth credentials login → session cookie → fetch `/dashboard`) that the hamburger button (`aria-label="Open menu"`) and the new responsive header/main classes render correctly server-side. **Did not get a live click-through confirmation that the drawer actually opens/closes in a real browser** — the interaction itself (React state toggle + conditional render) is standard and low-risk, but this is the one piece of verification this session couldn't complete end-to-end. Worth a real manual check on an actual phone (or the user's own testing) before considering this fully proven, even though I'm confident in the implementation.
+
+`tsc`/`eslint`/106 tests/`next build` all clean. **Committed locally, NOT pushed** — waiting for explicit go-ahead, same as always. Also note: **the rename feature needs one manual click from her after deploy** (see above) — it's not something that "just works" the moment it's pushed, unlike every other change this session.
+
+---
+
 # Handover — 2026-08-23 00:25 (Australia dropped + section click-through — committed and pushed)
 
 ## Two more small changes this session
