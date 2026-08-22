@@ -14,11 +14,17 @@ type SubItem = {
   respondedAt: Date | null;
 };
 
-// Renders a Clean/Sanitised/Dry equipment row as one card with three inline
-// checkboxes, matching the paper form's C/S/D columns — instead of three
-// separate stacked cards repeating the same equipment name and instructions.
-// Each checkbox cycles blank -> Done -> N/A -> blank, since there's no room
-// for two separate buttons per stage in a 3-column grid.
+// Renders a Clean/Sanitised/Dry equipment row as one card, one labeled row
+// per stage with direct-set Done/N/A buttons — the same tap-a-fixed-value
+// interaction as the PASS_FAIL/ACKNOWLEDGEMENT items used by 5S Audit
+// checks elsewhere, not a single checkbox that cycled through blank -> Done
+// -> N/A -> blank on repeated taps. The cycling version depended on
+// `item.choiceValue` from the last server-revalidated render to compute
+// its next state; on a slow/flaky mobile connection a second tap could
+// land before that revalidation came back, so it read the same stale
+// current state and computed the same next state again — the tap visibly
+// "did nothing". Direct-set buttons don't have this failure mode: each one
+// always saves the same fixed value no matter what the current state is.
 export function EquipmentTaskRow({
   inspectionId,
   editable,
@@ -36,16 +42,15 @@ export function EquipmentTaskRow({
 }) {
   const [, startTransition] = useTransition();
 
-  function cycle(item: SubItem) {
-    const next = item.choiceValue === "DONE" ? "NA" : item.choiceValue === "NA" ? "" : "DONE";
+  function setStage(item: SubItem, value: "DONE" | "NA") {
     startTransition(async () => {
-      await saveResponse({ inspectionId, checklistItemId: item.id, choiceValue: next });
+      await saveResponse({ inspectionId, checklistItemId: item.id, choiceValue: value });
 
       // Marking "Clean" done completes Sanitised/Dry in the same tap — the
       // common case is all three happening in one pass, and this saves
-      // clicking each stage separately. Only fills in blanks: an already-set
+      // tapping each stage separately. Only fills in blanks: an already-set
       // Sanitised/Dry (e.g. a deliberate N/A) is left alone.
-      if (item.stage === "Clean" && next === "DONE") {
+      if (item.stage === "Clean" && value === "DONE") {
         const blankSiblings = items.filter((i) => i.id !== item.id && !i.choiceValue);
         await Promise.all(blankSiblings.map((sibling) => saveResponse({ inspectionId, checklistItemId: sibling.id, choiceValue: "DONE" })));
       }
@@ -67,40 +72,38 @@ export function EquipmentTaskRow({
       </p>
       {helpText && <p className="mt-0.5 text-xs text-muted">{helpText}</p>}
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 space-y-2">
         {items.map((item) => {
           const done = item.choiceValue === "DONE";
           const na = item.choiceValue === "NA";
           return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={!editable}
-              onClick={() => cycle(item)}
-              className={cn(
-                "flex h-14 flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold transition-colors",
-                done
-                  ? "border-status-pass/40 bg-status-pass-soft text-status-pass"
-                  : na
-                    ? "border-status-neutral/40 bg-status-neutral-soft text-status-neutral"
-                    : "border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
-              )}
-            >
-              <span
-                className={cn(
-                  "flex size-4 shrink-0 items-center justify-center rounded border-2 text-[10px]",
-                  done ? "border-status-pass bg-status-pass text-white" : na ? "border-status-neutral bg-status-neutral text-white" : "border-border-strong"
-                )}
-              >
-                {done && (
-                  <svg viewBox="0 0 16 16" fill="none" className="size-2.5">
-                    <path d="M3 8.5L6 11.5L13 4.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-                {na && <span className="leading-none">–</span>}
-              </span>
-              {na ? `${item.stage} (N/A)` : item.stage}
-            </button>
+            <div key={item.id} className="flex items-center gap-2">
+              <span className="w-20 shrink-0 text-xs font-medium text-muted-strong">{item.stage}</span>
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={!editable}
+                  onClick={() => setStage(item, "DONE")}
+                  className={cn(
+                    "h-11 rounded-xl text-sm font-semibold transition-colors",
+                    done ? "bg-status-pass text-white" : "border border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
+                  )}
+                >
+                  Done
+                </button>
+                <button
+                  type="button"
+                  disabled={!editable}
+                  onClick={() => setStage(item, "NA")}
+                  className={cn(
+                    "h-11 rounded-xl text-sm font-semibold transition-colors",
+                    na ? "bg-status-neutral text-white" : "border border-border-strong bg-surface text-muted-strong hover:bg-surface-sunken"
+                  )}
+                >
+                  N/A
+                </button>
+              </div>
+            </div>
           );
         })}
       </div>
