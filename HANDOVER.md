@@ -1,4 +1,4 @@
-# Handover — 2026-08-22 23:10 (Premium visual redesign — not committed, not pushed)
+# Handover — 2026-08-22 23:10 (Premium visual redesign — committed and pushed)
 
 ## Goal
 
@@ -54,9 +54,8 @@ Swapped the three literal `<table>` implementations onto the new `components/ui/
 
 Nothing else changed behaviourally. No schema change, no migration, no permission change, no route removed, no workflow altered.
 
-## NOT done this session (explicitly, per the user's instructions)
-- **Not committed.** All of the above is sitting as uncommitted working-tree changes.
-- **Not pushed, not deployed.** Vercel production (`webops-platform-three.vercel.app`) is completely untouched — still running the pre-redesign UI.
+## Push status
+Committed (`6d966db`) and pushed to `origin/master` after the user said "push it." Vercel auto-deploys on push (including `prisma migrate deploy`, though this session has zero schema changes so that step is a no-op) — should be live on `webops-platform-three.vercel.app` shortly; not confirmed via Vercel dashboard from this session (no access).
 
 ## Gotchas carried forward
 - **Local `prisma dev` proxy is unstable under heavy churn** (many rapid dev-server restarts/hot-reloads in one session reliably produces `P1017`/"Server has closed the connection" errors on *any* query, including ones this session never touched — confirmed 3 separate times today, unrelated to any code change). Fix each time: find the actual node process on ports 51213–51215 (`Get-CimInstance Win32_Process -Filter "Name='node.exe'"`, filter for `prisma dev`/`cli-dev` in the command line — never a blanket `taskkill`), `Stop-Process -Force`, delete the stale lock **directory** at `%LOCALAPPDATA%\prisma-dev-nodejs\Data\durable-streams\default\server.lock.lock`, `npx prisma dev` again, then restart the Next dev server itself (it holds its own now-stale connections to the old proxy instance).
@@ -66,6 +65,5 @@ Nothing else changed behaviourally. No schema change, no migration, no permissio
 - Test calibration record from the previous session (`CERT-TEST-001`, "NATA Cal Services Pty Ltd" on "High Shear Blender 1") is still sitting in local dev data — harmless, same category as the other `*.demo` test accounts already there.
 
 ## Next steps
-1. **Review the visual changes** — start the dev server (`npm run dev`) and click through Dashboard, Sidebar, Header, Equipment Calibration, Audit Trail, Inspections at minimum.
-2. Say the word and this gets committed (and pushed, if you also want it live) — nothing happens to git or Vercel until then.
-3. If you want the same design system pass extended further (Users admin, Checklist Builder, Workflows, Settings pages weren't individually opened/edited this session — they inherit the shared Card/Badge/Button/radius improvements automatically, but weren't given page-specific attention like Dashboard/Calibration were), say so and it can be a fast follow-up.
+1. **Spot-check the live redesign** on `webops-platform-three.vercel.app` once the deploy finishes — Dashboard, Sidebar, Header (search + notification bell), Equipment Calibration, Audit Trail, Inspections at minimum.
+2. If you want the same design system pass extended further (Users admin, Checklist Builder, Workflows, Settings pages weren't individually opened/edited this session — they inherit the shared Card/Badge/Button/radius improvements automatically, but weren't given page-specific attention like Dashboard/Calibration were), say so and it can be a fast follow-up.
