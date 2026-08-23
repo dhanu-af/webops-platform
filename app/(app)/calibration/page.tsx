@@ -72,18 +72,32 @@ function EquipmentRow({ e }: { e: EquipmentOverviewItem }) {
   );
 }
 
-export default async function CalibrationPage() {
+const FILTERABLE_STATUSES = ["CURRENT", "DUE_SOON", "OVERDUE", "NEVER_CALIBRATED"] as const;
+type FilterStatus = (typeof FILTERABLE_STATUSES)[number];
+
+export default async function CalibrationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const filterStatus: FilterStatus | null = FILTERABLE_STATUSES.includes(status as FilterStatus) ? (status as FilterStatus) : null;
+
   const session = await auth();
   const scope = getUserScope(session!.user);
   const equipment = await listEquipmentCalibrationOverview(scope);
-  const groups = groupEquipmentBySectionArea(equipment);
 
+  // KPI counts always reflect the full list -- only the grouped list below is filtered.
   const currentCount = equipment.filter((e) => e.status === "CURRENT").length;
   const dueSoonCount = equipment.filter((e) => e.status === "DUE_SOON").length;
   const overdueCount = equipment.filter((e) => e.status === "OVERDUE").length;
   const neverCount = equipment.filter(
     (e) => e.status === "NEVER_CALIBRATED",
   ).length;
+
+  const visibleEquipment = filterStatus ? equipment.filter((e) => e.status === filterStatus) : equipment;
+  const groups = groupEquipmentBySectionArea(visibleEquipment);
+  const filterLabel = filterStatus ? CALIBRATION_STATUS_META[filterStatus].label : null;
 
   return (
     <div className="space-y-6">
@@ -102,38 +116,69 @@ export default async function CalibrationPage() {
           label="Total Equipment"
           value={equipment.length}
           icon={Wrench}
+          href="/calibration"
+          active={!filterStatus}
         />
         <KpiCard
           label="Current"
           value={currentCount}
           icon={CheckCircle2}
           tone="pass"
+          href="/calibration?status=CURRENT"
+          active={filterStatus === "CURRENT"}
         />
         <KpiCard
           label="Due Soon"
           value={dueSoonCount}
           icon={Clock}
           tone={dueSoonCount > 0 ? "warn" : "neutral"}
+          href="/calibration?status=DUE_SOON"
+          active={filterStatus === "DUE_SOON"}
         />
         <KpiCard
           label="Overdue"
           value={overdueCount}
           icon={AlertTriangle}
           tone={overdueCount > 0 ? "critical" : "neutral"}
+          href="/calibration?status=OVERDUE"
+          active={filterStatus === "OVERDUE"}
         />
         <KpiCard
           label="Never Calibrated"
           value={neverCount}
           icon={HelpCircle}
           tone={neverCount > 0 ? "attention" : "neutral"}
+          href="/calibration?status=NEVER_CALIBRATED"
+          active={filterStatus === "NEVER_CALIBRATED"}
         />
       </div>
+
+      {filterLabel && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted">
+            Showing <span className="font-medium text-foreground">{visibleEquipment.length}</span> item{visibleEquipment.length === 1 ? "" : "s"} — {filterLabel}
+          </span>
+          <Link href="/calibration" className="text-accent hover:underline">
+            Clear filter
+          </Link>
+        </div>
+      )}
 
       {groups.length === 0 ? (
         <Card>
           <CardContent className="p-0">
             <p className="py-10 text-center text-sm text-muted">
-              No equipment set up yet — add some under Areas &amp; Equipment.
+              {filterLabel ? (
+                <>
+                  No equipment is currently {filterLabel.toLowerCase()} —{" "}
+                  <Link href="/calibration" className="text-accent hover:underline">
+                    clear filter
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>No equipment set up yet — add some under Areas &amp; Equipment.</>
+              )}
             </p>
           </CardContent>
         </Card>

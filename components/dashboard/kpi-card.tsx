@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import type { StatusTone } from "@/lib/status";
@@ -37,6 +38,8 @@ export function KpiCard({
   icon: Icon,
   tone = "neutral",
   progress,
+  href,
+  active,
 }: {
   label: string;
   value: string | number;
@@ -46,9 +49,19 @@ export function KpiCard({
   tone?: StatusTone;
   /** 0–100. When provided, renders a thin progress indicator under the number. */
   progress?: number;
+  /** When provided, the whole card becomes a link (e.g. filtering a list below to this KPI's status). */
+  href?: string;
+  /** Highlights the card as the currently-applied filter when linked via href. */
+  active?: boolean;
 }) {
-  return (
-    <div className="group flex h-full flex-col rounded-[var(--radius)] border border-border bg-surface p-4 shadow-[var(--shadow-xs)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]">
+  const className = cn(
+    "group flex h-full flex-col rounded-[var(--radius)] border bg-surface p-4 shadow-[var(--shadow-xs)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]",
+    href && "cursor-pointer",
+    active ? "border-accent ring-1 ring-accent/40" : "border-border",
+  );
+
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">
           {label}
@@ -87,6 +100,15 @@ export function KpiCard({
           />
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={className}>{content}</div>;
 }
