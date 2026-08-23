@@ -152,6 +152,22 @@ model Equipment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Equipment register detail -- all optional so nothing that already exists
+  // (or gets added by hand through the admin form) needs to carry them.
+  // Dates are kept as plain strings, not DateTime: real register data mixes
+  // real dates with "TBC"/"N/A"/prose ("before 31/10/2026"), which a strict
+  // date column can't hold without losing information.
+  manufacturerModel String?
+  criticality       String? // e.g. "Critical", "Major", "Minor", "Critical (CCP)"
+  foodSafetyRisk    Boolean?
+  ppmFrequency      String?
+  serviceProvider   String?
+  status            String? // e.g. "Active", "Retired 18/06/2026" -- free text, not an enum, since real records carry a reason/date inline
+  lastServiceDate   String?
+  nextServiceDue    String?
+  validationStatus  String?
+  comments          String?
+
   checklistSchedules ChecklistSchedule[]
   inspections        Inspection[]
   findings           Finding[]

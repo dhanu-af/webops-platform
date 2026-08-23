@@ -10,7 +10,11 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getUserScope } from "@/lib/scope";
-import { listEquipmentCalibrationOverview } from "@/lib/data/calibration";
+import {
+  listEquipmentCalibrationOverview,
+  groupEquipmentBySectionArea,
+  type EquipmentOverviewItem,
+} from "@/lib/data/calibration";
 import {
   Card,
   CardContent,
@@ -21,11 +25,58 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { CALIBRATION_STATUS_META } from "@/lib/status";
+import type { StatusTone } from "@/lib/status";
+
+const CRITICALITY_TONE: Record<string, StatusTone> = {
+  Critical: "critical",
+  Major: "attention",
+  Minor: "neutral",
+};
+
+function criticalityTone(criticality: string | null): StatusTone {
+  if (!criticality) return "neutral";
+  const key = Object.keys(CRITICALITY_TONE).find((k) => criticality.startsWith(k));
+  return key ? CRITICALITY_TONE[key] : "neutral";
+}
+
+function EquipmentRow({ e }: { e: EquipmentOverviewItem }) {
+  const statusMeta = CALIBRATION_STATUS_META[e.status];
+  const metaParts = [e.code, e.manufacturerModel, e.serialNumber ? `S/N ${e.serialNumber}` : null, e.ppmFrequency, e.serviceProvider].filter(Boolean);
+
+  return (
+    <Link
+      href={`/calibration/${e.id}`}
+      className="group flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="truncate text-sm font-medium text-foreground">{e.name}</p>
+          {e.criticality && <Badge tone={criticalityTone(e.criticality)}>{e.criticality}</Badge>}
+          {e.foodSafetyRisk && <Badge tone="warn">Food Safety</Badge>}
+        </div>
+        <p className="mt-1 truncate text-xs text-muted">{metaParts.join(" · ")}</p>
+        {e.comments && <p className="mt-0.5 truncate text-xs text-muted italic">{e.comments}</p>}
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        {e.latestCalibration && (
+          <span className="font-mono-tabular text-xs text-muted">
+            due {format(e.latestCalibration.dueDate, "d MMM yyyy")}
+          </span>
+        )}
+        <Badge tone={statusMeta.tone} dot>
+          {statusMeta.label}
+        </Badge>
+        <ChevronRight className="size-4 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+    </Link>
+  );
+}
 
 export default async function CalibrationPage() {
   const session = await auth();
   const scope = getUserScope(session!.user);
   const equipment = await listEquipmentCalibrationOverview(scope);
+  const groups = groupEquipmentBySectionArea(equipment);
 
   const currentCount = equipment.filter((e) => e.status === "CURRENT").length;
   const dueSoonCount = equipment.filter((e) => e.status === "DUE_SOON").length;
@@ -78,68 +129,44 @@ export default async function CalibrationPage() {
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>All Equipment</CardTitle>
-            <CardDescription>
-              Click any item for its full calibration history
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {equipment.length === 0 ? (
+      {groups.length === 0 ? (
+        <Card>
+          <CardContent className="p-0">
             <p className="py-10 text-center text-sm text-muted">
               No equipment set up yet — add some under Areas &amp; Equipment.
             </p>
-          ) : (
-            <div className="divide-y divide-border">
-              {equipment.map((e) => {
-                const statusMeta = CALIBRATION_STATUS_META[e.status];
-                return (
-                  <Link
-                    key={e.id}
-                    href={`/calibration/${e.id}`}
-                    className="group flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {e.name}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        {e.sectionName} / {e.areaName} · {e.code}
-                        {e.latestCalibration && (
-                          <>
-                            {" "}
-                            · last calibrated{" "}
-                            {format(
-                              e.latestCalibration.calibratedDate,
-                              "d MMM yyyy",
-                            )}{" "}
-                            by {e.latestCalibration.performedBy}
-                          </>
-                        )}
-                      </p>
+          </CardContent>
+        </Card>
+      ) : (
+        groups.map((section) => (
+          <div key={section.sectionName} className="space-y-3">
+            <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+              {section.sectionName}
+            </h2>
+            <div className="space-y-4">
+              {section.areas.map((area) => (
+                <Card key={area.areaId}>
+                  <CardHeader>
+                    <div>
+                      <CardTitle>{area.areaName}</CardTitle>
+                      <CardDescription>
+                        {area.equipment.length} item{area.equipment.length === 1 ? "" : "s"}
+                      </CardDescription>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      {e.latestCalibration && (
-                        <span className="font-mono-tabular text-xs text-muted">
-                          due{" "}
-                          {format(e.latestCalibration.dueDate, "d MMM yyyy")}
-                        </span>
-                      )}
-                      <Badge tone={statusMeta.tone} dot>
-                        {statusMeta.label}
-                      </Badge>
-                      <ChevronRight className="size-4 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border">
+                      {area.equipment.map((e) => (
+                        <EquipmentRow key={e.id} e={e} />
+                      ))}
                     </div>
-                  </Link>
-                );
-              })}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        ))
+      )}
     </div>
   );
 }

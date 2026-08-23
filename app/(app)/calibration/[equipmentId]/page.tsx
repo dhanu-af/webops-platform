@@ -62,6 +62,38 @@ export default async function EquipmentCalibrationDetailPage({
         </p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Equipment Register Detail</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          {[
+            ["Manufacturer / Model", equipment.manufacturerModel],
+            ["Criticality", equipment.criticality],
+            ["Food Safety Risk", equipment.foodSafetyRisk === null ? null : equipment.foodSafetyRisk ? "Yes" : "No"],
+            ["PPM Frequency", equipment.ppmFrequency],
+            ["Service Provider", equipment.serviceProvider],
+            ["Status", equipment.status],
+            ["Last Service Date", equipment.lastServiceDate],
+            ["Next Service Due", equipment.nextServiceDue],
+            ["Validation Status", equipment.validationStatus],
+          ]
+            .filter(([, value]) => value)
+            .map(([label, value]) => (
+              <div key={label}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">{label}</p>
+                <p className="mt-0.5 text-sm text-foreground">{value}</p>
+              </div>
+            ))}
+          {equipment.comments && (
+            <div className="sm:col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">Comments</p>
+              <p className="mt-0.5 text-sm text-foreground">{equipment.comments}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {canManage && <RecordCalibrationForm equipmentId={equipment.id} />}
 
       <Card>
