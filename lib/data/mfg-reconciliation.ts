@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db, withDbRetry } from "@/lib/db";
 
 // Resolves the acting user's assigned Area name(s), for the per-stage edit
 // check in lib/mfg-reconciliation.ts's canEditMfgStage -- returns [] for an
@@ -28,26 +28,34 @@ export async function listMfgBatches() {
 }
 
 export async function getMfgBatchAuditTrail(batchId: string) {
-  return db.auditLog.findMany({
-    where: { entityType: "MfgBatch", entityId: batchId },
-    include: { user: { select: { name: true } } },
-    orderBy: { createdAt: "asc" },
-  });
+  return withDbRetry(() =>
+    db.auditLog.findMany({
+      where: { entityType: "MfgBatch", entityId: batchId },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+    })
+  );
 }
 
+// The heaviest query in this module -- every stage joined in one shot -- and
+// so the one most exposed to a cold Neon compute's "connection terminated
+// unexpectedly" on the first query after idle (see lib/db.ts). Wrapped in
+// withDbRetry so opening a batch doesn't 500 and force a manual reload.
 export async function getMfgBatchDetail(id: string) {
-  return db.mfgBatch.findUnique({
-    where: { id },
-    include: {
-      createdBy: { select: { name: true } },
-      warehouseIssue: { include: { lines: { orderBy: { sortOrder: "asc" } } } },
-      blending: true,
-      encapsulation: true,
-      bottling: true,
-      xrayInspection: true,
-      packaging: { include: { lines: { orderBy: { sortOrder: "asc" } } } },
-      finishedGoodsWarehouse: true,
-      dispatchEvents: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  return withDbRetry(() =>
+    db.mfgBatch.findUnique({
+      where: { id },
+      include: {
+        createdBy: { select: { name: true } },
+        warehouseIssue: { include: { lines: { orderBy: { sortOrder: "asc" } } } },
+        blending: true,
+        encapsulation: true,
+        bottling: true,
+        xrayInspection: true,
+        packaging: { include: { lines: { orderBy: { sortOrder: "asc" } } } },
+        finishedGoodsWarehouse: true,
+        dispatchEvents: { orderBy: { createdAt: "desc" } },
+      },
+    })
+  );
 }
