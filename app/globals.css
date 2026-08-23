@@ -14,10 +14,11 @@
   --muted: #5c6472;
   --muted-strong: #384049;
 
-  /* Accent — refined indigo, premium enterprise SaaS signal colour */
-  --accent: #4338ca;
-  --accent-strong: #362da3;
-  --accent-soft: #eef0fe;
+  /* Accent — professional blue, ties the whole app back to the navy sidebar
+     (deep navy / steel blue / professional blue, per the brand brief). */
+  --accent: #1d4ed8;
+  --accent-strong: #1e3a8a;
+  --accent-soft: #e9f0fd;
   --accent-foreground: #ffffff;
 
   /* Status */
@@ -42,9 +43,9 @@
   --sidebar-fg-active: #ffffff;
   --sidebar-active-bg: rgba(255, 255, 255, 0.06);
   --sidebar-hover-bg: rgba(255, 255, 255, 0.035);
-  --sidebar-accent: #6d7dff;
+  --sidebar-accent: #3b82f6;
 
-  --focus-ring: #4338ca;
+  --focus-ring: #1d4ed8;
 
   /* Radius scale — restrained, not pill-happy */
   --radius-sm: 8px;
@@ -118,9 +119,9 @@
     --muted: #8b93a0;
     --muted-strong: #b7bec9;
 
-    --accent: #7b7ff2;
-    --accent-strong: #9a9df6;
-    --accent-soft: #1c1f3d;
+    --accent: #60a5fa;
+    --accent-strong: #93c5fd;
+    --accent-soft: #17233d;
     --accent-foreground: #0b0d12;
 
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
