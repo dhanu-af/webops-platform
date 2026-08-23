@@ -23,6 +23,7 @@ import {
   Calculator,
   FlaskConical,
   TestTube,
+  Beaker,
   type LucideIcon,
 } from "lucide-react";
 
@@ -60,6 +61,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Evidence Gallery", href: "/evidence", icon: Images },
       { label: "Equipment Calibration", href: "/calibration", icon: Gauge },
       { label: "Manufacturing Reconciliation", href: "/mfg-reconciliation", icon: FlaskConical },
+      {
+        label: "Formulation Manager",
+        href: "/formulations",
+        icon: Beaker,
+        // Master recipes + batch calculator is a QA/production-planning
+        // concern, not a floor task -- same nav-visibility precedent as
+        // QC Samples below.
+        roles: ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "QA", "MANAGEMENT", "VIEWER"],
+      },
       {
         label: "QC Samples",
         href: "/qc-samples",

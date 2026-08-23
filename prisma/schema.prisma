@@ -29,17 +29,17 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  employeeId   String?  @unique
-  role         UserRole
-  jobTitle     String?
-  phone        String?
-  active       Boolean  @default(true)
-  sectionId    String?
-  section      Section? @relation(fields: [sectionId], references: [id])
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  employeeId    String?  @unique
+  role          UserRole
+  jobTitle      String?
+  phone         String?
+  active        Boolean  @default(true)
+  sectionId     String?
+  section       Section? @relation(fields: [sectionId], references: [id])
   // Area-level access scope (spec: section staff only see their own areas'
   // tasks). Distinct from sectionId above, which is only a display/record
   // field - assignedAreas is what actually restricts visibility. An
@@ -48,35 +48,36 @@ model User {
   // Capsule Room and Bottling); every other role, and any of those three
   // roles left with zero areas assigned (e.g. a floor-wide "Production
   // Supervisor"), sees everything. See lib/scope.ts.
-  assignedAreas Area[]  @relation("UserAssignedAreas")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  assignedAreas Area[]   @relation("UserAssignedAreas")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  operatorInspections   Inspection[]      @relation("OperatorInspections")
-  supervisorInspections Inspection[]      @relation("SupervisorInspections")
-  qaInspections         Inspection[]      @relation("QaInspections")
-  scheduleAssignments   ChecklistSchedule[]
-  photoUploads          PhotoEvidence[]
-  findingsCreated       Finding[]         @relation("FindingCreatedBy")
-  correctiveActionsOwned    CorrectiveAction[] @relation("CorrectiveActionResponsible")
-  correctiveActionsClosed   CorrectiveAction[] @relation("CorrectiveActionClosedBy")
-  correctiveActionsVerified CorrectiveAction[] @relation("CorrectiveActionVerifiedBy")
-  verificationRecords   VerificationRecord[]
-  areaReleaseSupervised AreaRelease[]     @relation("AreaReleaseSupervisor")
-  areaReleaseQaVerified AreaRelease[]     @relation("AreaReleaseQa")
-  notifications         Notification[]
-  notificationRecipientOf NotificationRecipient[]
-  auditLogEntries       AuditLog[]
-  checklistVersionsCreated ChecklistVersion[]
-  respondedItems        InspectionResponse[]
-  calibrationsRecorded  EquipmentCalibration[]
-  capsuleCalculations   CapsuleCalculation[]
-  mfgBatches            MfgBatch[]
-  qcSamplesCollected    QcSample[]             @relation("QcSampleCollectedBy")
-  qcSamplesReceived     QcSample[]             @relation("QcSampleReceivedBy")
-  qcSamplesCreated      QcSample[]             @relation("QcSampleCreatedBy")
-  qcLabTestsPerformed   QcLabTest[]
-  qcAttachmentsUploaded QcSampleAttachment[]
+  operatorInspections       Inspection[]            @relation("OperatorInspections")
+  supervisorInspections     Inspection[]            @relation("SupervisorInspections")
+  qaInspections             Inspection[]            @relation("QaInspections")
+  scheduleAssignments       ChecklistSchedule[]
+  photoUploads              PhotoEvidence[]
+  findingsCreated           Finding[]               @relation("FindingCreatedBy")
+  correctiveActionsOwned    CorrectiveAction[]      @relation("CorrectiveActionResponsible")
+  correctiveActionsClosed   CorrectiveAction[]      @relation("CorrectiveActionClosedBy")
+  correctiveActionsVerified CorrectiveAction[]      @relation("CorrectiveActionVerifiedBy")
+  verificationRecords       VerificationRecord[]
+  areaReleaseSupervised     AreaRelease[]           @relation("AreaReleaseSupervisor")
+  areaReleaseQaVerified     AreaRelease[]           @relation("AreaReleaseQa")
+  notifications             Notification[]
+  notificationRecipientOf   NotificationRecipient[]
+  auditLogEntries           AuditLog[]
+  checklistVersionsCreated  ChecklistVersion[]
+  respondedItems            InspectionResponse[]
+  calibrationsRecorded      EquipmentCalibration[]
+  capsuleCalculations       CapsuleCalculation[]
+  mfgBatches                MfgBatch[]
+  qcSamplesCollected        QcSample[]              @relation("QcSampleCollectedBy")
+  qcSamplesReceived         QcSample[]              @relation("QcSampleReceivedBy")
+  qcSamplesCreated          QcSample[]              @relation("QcSampleCreatedBy")
+  qcLabTestsPerformed       QcLabTest[]
+  qcAttachmentsUploaded     QcSampleAttachment[]
+  formulationsCreated       Formulation[]
 
   @@index([role])
 }
@@ -193,9 +194,9 @@ model Equipment {
 // =========================================================================
 
 model EquipmentCalibration {
-  id            String    @id @default(cuid())
-  equipmentId   String
-  equipment     Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 
   calibratedDate DateTime
   // Stored (not just re-derived from a facility-wide default) so the next
@@ -295,19 +296,19 @@ enum WorkflowRole {
 }
 
 model VerificationWorkflow {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  requiresAreaRelease Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  description         String?
+  requiresAreaRelease Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   steps      VerificationStep[]
   checklists Checklist[]
 }
 
 model VerificationStep {
-  id         String       @id @default(cuid())
+  id         String               @id @default(cuid())
   workflowId String
   workflow   VerificationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   order      Int
@@ -357,15 +358,15 @@ enum ItemType {
 }
 
 model Checklist {
-  id          String            @id @default(cuid())
+  id          String                @id @default(cuid())
   name        String
   category    ChecklistCategory
   description String?
   workflowId  String?
   workflow    VerificationWorkflow? @relation(fields: [workflowId], references: [id])
-  active      Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  active      Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 
   versions  ChecklistVersion[]
   schedules ChecklistSchedule[]
@@ -388,20 +389,20 @@ model ChecklistVersion {
 }
 
 model ChecklistItem {
-  id                String           @id @default(cuid())
-  checklistVersionId String
-  checklistVersion  ChecklistVersion @relation(fields: [checklistVersionId], references: [id], onDelete: Cascade)
-  groupLabel        String // e.g. "PRODUCT CLEARANCE", "SORT", "EQUIPMENT"
-  sortOrder         Int              @default(0)
-  prompt            String
-  helpText          String?
-  type              ItemType
-  required          Boolean          @default(true)
-  choices           Json? // for MULTIPLE_CHOICE: string[]
-  minValue          Float?
-  maxValue          Float?
-  requiresPhotoOnFail Boolean        @default(false)
-  criticalFailure   Boolean          @default(false) // FAIL here forces severity >= MAJOR
+  id                  String           @id @default(cuid())
+  checklistVersionId  String
+  checklistVersion    ChecklistVersion @relation(fields: [checklistVersionId], references: [id], onDelete: Cascade)
+  groupLabel          String // e.g. "PRODUCT CLEARANCE", "SORT", "EQUIPMENT"
+  sortOrder           Int              @default(0)
+  prompt              String
+  helpText            String?
+  type                ItemType
+  required            Boolean          @default(true)
+  choices             Json? // for MULTIPLE_CHOICE: string[]
+  minValue            Float?
+  maxValue            Float?
+  requiresPhotoOnFail Boolean          @default(false)
+  criticalFailure     Boolean          @default(false) // FAIL here forces severity >= MAJOR
 
   responses InspectionResponse[]
   findings  Finding[]
@@ -418,30 +419,30 @@ model ChecklistSchedule {
   checklistId String
   checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
 
-  frequency    Frequency
-  startDate    DateTime
-  endDate      DateTime?
-  dueTime      String? // "HH:mm" local facility time
-  dueWindowMins Int      @default(120)
+  frequency      Frequency
+  startDate      DateTime
+  endDate        DateTime?
+  dueTime        String? // "HH:mm" local facility time
+  dueWindowMins  Int       @default(120)
   // Recurrence detail: for WEEKLY, day-of-week 0-6 (Sun-Sat); for MONTHLY, day-of-month or "first working day"
-  recurrenceDays Int[]   @default([])
+  recurrenceDays Int[]     @default([])
 
   facilityId  String
-  facility    Facility  @relation(fields: [facilityId], references: [id])
+  facility    Facility   @relation(fields: [facilityId], references: [id])
   sectionId   String?
-  section     Section?  @relation(fields: [sectionId], references: [id])
+  section     Section?   @relation(fields: [sectionId], references: [id])
   areaId      String?
-  area        Area?     @relation(fields: [areaId], references: [id])
+  area        Area?      @relation(fields: [areaId], references: [id])
   equipmentId String?
   equipment   Equipment? @relation(fields: [equipmentId], references: [id])
 
-  assignedRole UserRole?
+  assignedRole   UserRole?
   assignedUserId String?
-  assignedUser User?     @relation(fields: [assignedUserId], references: [id])
+  assignedUser   User?     @relation(fields: [assignedUserId], references: [id])
 
-  priority   Priority @default(NORMAL)
-  photoRequired Boolean @default(false)
-  active     Boolean  @default(true)
+  priority      Priority @default(NORMAL)
+  photoRequired Boolean  @default(false)
+  active        Boolean  @default(true)
 
   lastGeneratedAt DateTime?
 
@@ -479,29 +480,29 @@ enum InspectionStatus {
 }
 
 model Inspection {
-  id                 String    @id @default(cuid())
+  id                 String             @id @default(cuid())
   checklistVersionId String
-  checklistVersion   ChecklistVersion @relation(fields: [checklistVersionId], references: [id])
+  checklistVersion   ChecklistVersion   @relation(fields: [checklistVersionId], references: [id])
   scheduleId         String?
   schedule           ChecklistSchedule? @relation(fields: [scheduleId], references: [id])
 
   facilityId  String
-  facility    Facility  @relation(fields: [facilityId], references: [id])
+  facility    Facility   @relation(fields: [facilityId], references: [id])
   sectionId   String?
-  section     Section?  @relation(fields: [sectionId], references: [id])
+  section     Section?   @relation(fields: [sectionId], references: [id])
   areaId      String?
-  area        Area?     @relation(fields: [areaId], references: [id])
+  area        Area?      @relation(fields: [areaId], references: [id])
   equipmentId String?
   equipment   Equipment? @relation(fields: [equipmentId], references: [id])
 
-  frequency Frequency
-  priority  Priority  @default(NORMAL)
-  shift     String?
-  product   String?
+  frequency   Frequency
+  priority    Priority  @default(NORMAL)
+  shift       String?
+  product     String?
   batchNumber String?
 
-  status    InspectionStatus @default(NOT_STARTED)
-  score     Float? // % pass rate at close
+  status InspectionStatus @default(NOT_STARTED)
+  score  Float? // % pass rate at close
 
   dueAt       DateTime?
   startedAt   DateTime?
@@ -521,11 +522,11 @@ model Inspection {
   updatedAt DateTime @updatedAt
 
   responses           InspectionResponse[]
-  photoEvidence        PhotoEvidence[]
-  findings             Finding[]
-  verificationRecords  VerificationRecord[]
-  areaRelease          AreaRelease?
-  auditLogEntries      AuditLog[]
+  photoEvidence       PhotoEvidence[]
+  findings            Finding[]
+  verificationRecords VerificationRecord[]
+  areaRelease         AreaRelease?
+  auditLogEntries     AuditLog[]
 
   @@index([facilityId, status])
   @@index([areaId, status])
@@ -539,7 +540,7 @@ model InspectionResponse {
   checklistItemId String
   checklistItem   ChecklistItem @relation(fields: [checklistItemId], references: [id])
 
-  passFail   ResponseValue?
+  passFail     ResponseValue?
   numericValue Float?
   textValue    String?
   choiceValue  String?
@@ -551,7 +552,7 @@ model InspectionResponse {
   // (e.g. "record operator initials" on several items in the real C-FORM-002
   // documents), not just one signature for the whole form.
   respondedById String?
-  respondedBy   User?    @relation(fields: [respondedById], references: [id])
+  respondedBy   User?   @relation(fields: [respondedById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -579,35 +580,35 @@ enum PhotoKind {
 }
 
 model PhotoEvidence {
-  id           String     @id @default(cuid())
-  inspectionId String?
-  inspection   Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  responseId   String?
-  response     InspectionResponse? @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  findingId    String?
+  id                 String              @id @default(cuid())
+  inspectionId       String?
+  inspection         Inspection?         @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  responseId         String?
+  response           InspectionResponse? @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  findingId          String?
   // SetNull, not Cascade: a photo is durable evidence of what was observed —
   // it must survive even if the Finding bookkeeping row it was attached to
   // later gets deleted (e.g. an operator's auto-cleanup correction), per
   // spec §14 "never create orphaned photos" / never silently destroy evidence.
-  finding      Finding?   @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  finding            Finding?            @relation(fields: [findingId], references: [id], onDelete: SetNull)
   correctiveActionId String?
-  correctiveAction   CorrectiveAction? @relation(fields: [correctiveActionId], references: [id], onDelete: Cascade)
+  correctiveAction   CorrectiveAction?   @relation(fields: [correctiveActionId], references: [id], onDelete: Cascade)
 
   areaId      String?
   area        Area?      @relation(fields: [areaId], references: [id])
   equipmentId String?
   equipment   Equipment? @relation(fields: [equipmentId], references: [id])
 
-  kind         PhotoKind @default(GENERAL)
-  storagePath  String // Vercel Blob URL
+  kind          PhotoKind @default(GENERAL)
+  storagePath   String // Vercel Blob URL
   thumbnailPath String?
-  filename     String
-  mimeType     String
-  sizeBytes    Int
-  caption      String?
+  filename      String
+  mimeType      String
+  sizeBytes     Int
+  caption       String?
 
   uploadedById String
-  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
 
   @@index([inspectionId])
@@ -632,32 +633,32 @@ enum FindingStatus {
 }
 
 model Finding {
-  id           String     @id @default(cuid())
-  inspectionId String
-  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  responseId   String?    @unique
-  response     InspectionResponse? @relation(fields: [responseId], references: [id])
+  id              String              @id @default(cuid())
+  inspectionId    String
+  inspection      Inspection          @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  responseId      String?             @unique
+  response        InspectionResponse? @relation(fields: [responseId], references: [id])
   checklistItemId String?
-  checklistItem   ChecklistItem? @relation(fields: [checklistItemId], references: [id])
+  checklistItem   ChecklistItem?      @relation(fields: [checklistItemId], references: [id])
 
   areaId      String?
   area        Area?      @relation(fields: [areaId], references: [id])
   equipmentId String?
   equipment   Equipment? @relation(fields: [equipmentId], references: [id])
 
-  description       String
-  reason             String?
-  severity           Severity
-  status             FindingStatus @default(OPEN)
+  description         String
+  reason              String?
+  severity            Severity
+  status              FindingStatus @default(OPEN)
   immediateCorrection String?
 
   createdById String
-  createdBy   User   @relation("FindingCreatedBy", fields: [createdById], references: [id])
+  createdBy   User     @relation("FindingCreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  photoEvidence     PhotoEvidence[]
-  correctiveAction  CorrectiveAction?
+  photoEvidence    PhotoEvidence[]
+  correctiveAction CorrectiveAction?
 
   @@index([areaId, status])
   @@index([severity])
@@ -672,31 +673,31 @@ enum CorrectiveActionStatus {
 }
 
 model CorrectiveAction {
-  id          String  @id @default(cuid())
-  findingId   String  @unique
-  finding     Finding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  findingId String  @unique
+  finding   Finding @relation(fields: [findingId], references: [id], onDelete: Cascade)
 
   areaId      String?
   area        Area?      @relation(fields: [areaId], references: [id])
   equipmentId String?
   equipment   Equipment? @relation(fields: [equipmentId], references: [id])
 
-  rootCause          String?
+  rootCause           String?
   immediateCorrection String?
   correctiveAction    String
   preventiveAction    String?
 
   responsibleUserId String
-  responsibleUser   User   @relation("CorrectiveActionResponsible", fields: [responsibleUserId], references: [id])
+  responsibleUser   User                   @relation("CorrectiveActionResponsible", fields: [responsibleUserId], references: [id])
   dueDate           DateTime
   status            CorrectiveActionStatus @default(OPEN)
 
   closedById String?
-  closedBy   User?    @relation("CorrectiveActionClosedBy", fields: [closedById], references: [id])
+  closedBy   User?     @relation("CorrectiveActionClosedBy", fields: [closedById], references: [id])
   closedAt   DateTime?
 
   verifiedById String?
-  verifiedBy   User?    @relation("CorrectiveActionVerifiedBy", fields: [verifiedById], references: [id])
+  verifiedBy   User?     @relation("CorrectiveActionVerifiedBy", fields: [verifiedById], references: [id])
   verifiedAt   DateTime?
 
   createdAt DateTime @default(now())
@@ -718,15 +719,15 @@ enum VerificationAction {
 }
 
 model VerificationRecord {
-  id           String     @id @default(cuid())
+  id           String             @id @default(cuid())
   inspectionId String
-  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  inspection   Inspection         @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
   stepRole     WorkflowRole
   actorId      String
-  actor        User       @relation(fields: [actorId], references: [id])
+  actor        User               @relation(fields: [actorId], references: [id])
   action       VerificationAction
   comment      String?
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime           @default(now())
 
   @@index([inspectionId])
 }
@@ -743,20 +744,20 @@ enum AreaReleaseStatus {
 }
 
 model AreaRelease {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   areaId       String
-  area         Area     @relation(fields: [areaId], references: [id])
-  inspectionId String   @unique
+  area         Area       @relation(fields: [areaId], references: [id])
+  inspectionId String     @unique
   inspection   Inspection @relation(fields: [inspectionId], references: [id])
 
-  status         AreaReleaseStatus @default(NOT_RELEASED)
-  supervisorId   String?
-  supervisor     User?    @relation("AreaReleaseSupervisor", fields: [supervisorId], references: [id])
-  supervisorAt   DateTime?
-  qaId           String?
-  qa             User?    @relation("AreaReleaseQa", fields: [qaId], references: [id])
-  qaAt           DateTime?
-  releasedAt     DateTime?
+  status       AreaReleaseStatus @default(NOT_RELEASED)
+  supervisorId String?
+  supervisor   User?             @relation("AreaReleaseSupervisor", fields: [supervisorId], references: [id])
+  supervisorAt DateTime?
+  qaId         String?
+  qa           User?             @relation("AreaReleaseQa", fields: [qaId], references: [id])
+  qaAt         DateTime?
+  releasedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -781,15 +782,15 @@ enum NotificationType {
 }
 
 model Notification {
-  id        String            @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
   message   String
   link      String?
-  read      Boolean           @default(false)
-  createdAt DateTime          @default(now())
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
 
   @@index([userId, read])
 }
@@ -936,9 +937,9 @@ enum MfgPackagingMaterialType {
 }
 
 model MfgBatch {
-  id          String   @id @default(cuid())
-  batchNumber String
-  productName String
+  id                   String  @id @default(cuid())
+  batchNumber          String
+  productName          String
   // This project has no first-class Formulation/BOM/BatchRecord module to
   // link to (unlike the reference implementation this feature is adapted
   // from) -- kept as a free-text reference note instead of a relation.
@@ -1387,4 +1388,131 @@ model QcRetentionRecord {
   updatedAt DateTime @updatedAt
 
   @@index([expiryDate])
+}
+
+// =========================================================================
+// FORMULATION MANAGER — master recipes (organized into folders), scaled by
+// the Batch Calculator to any production batch size with per-ingredient
+// tolerance bands, plus a regulatory/safety/QC reference library that
+// ingredient names are matched against by (normalized) name -- see
+// lib/formulation-calc.ts and lib/ingredient-match.ts.
+// =========================================================================
+
+/// Groups formulations by product line / country / whatever grouping the
+/// business uses (e.g. "AU Products", "NZ Products"). Deletable only when empty.
+model FormulationFolder {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  formulations Formulation[]
+}
+
+/// The master recipe header. baseBatchSize is never entered directly -- it's
+/// the sum of every ingredient's baseQty, computed at save time (see
+/// lib/actions/formulation-actions.ts).
+model Formulation {
+  id            String   @id @default(cuid())
+  folderId      String
+  productName   String
+  baseBatchSize Float
+  baseUnit      String   @default("kg")
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  folder      FormulationFolder       @relation(fields: [folderId], references: [id])
+  createdBy   User?                   @relation(fields: [createdById], references: [id])
+  ingredients FormulationIngredient[]
+
+  @@index([folderId])
+}
+
+/// One recipe line. ingredientName is free text, matched against the
+/// Ingredient reference library by (normalized) name -- no FK, since the
+/// same recipe text ("Vitamin C (Ascorbic Acid)") rarely matches a library
+/// entry's canonical name byte-for-byte.
+model FormulationIngredient {
+  id               String  @id @default(cuid())
+  formulationId    String
+  order            Int
+  rmNumber         String?
+  ingredientName   String
+  uin              String?
+  baseQty          Float
+  tolerancePct     Float   @default(2)
+  controlStatus    String?
+  changeControlRef String?
+  approvedBy       String?
+  comments         String?
+
+  formulation Formulation @relation(fields: [formulationId], references: [id], onDelete: Cascade)
+
+  @@index([formulationId])
+}
+
+/// Regulatory/safety/QC reference library, matched to formulation ingredient
+/// lines by name only (see lib/ingredient-match.ts). Not required for a
+/// formulation to exist -- a lookup that finds nothing just says so.
+model Ingredient {
+  id                 String    @id @default(cuid())
+  name               String    @unique
+  category           String?
+  verified           Boolean   @default(false)
+  verificationSource String?
+  verifiedBy         String?
+  verifiedAt         DateTime?
+
+  // Per-authority regulatory status -- leave blank unless confirmed
+  tgaStatus        String?
+  apvmaStatus      String?
+  fdaStatus        String?
+  emaStatus        String?
+  aicisStatus      String?
+  regulatoryStatus String?
+
+  // Safety
+  safetyNotes         String?
+  ghsClassification   String?
+  signalWord          String?
+  ppe                 String?
+  handlingPrecautions String?
+
+  // Quality specifications
+  qcIdentity        String?
+  qcAssay           String?
+  qcMoisture        String?
+  qcHeavyMetals     String?
+  qcMicrobialLimits String?
+
+  // Physical properties
+  appearance   String?
+  colour       String?
+  odour        String?
+  solubility   String?
+  density      String?
+  meltingPoint String?
+  phValue      String?
+
+  // Chemistry
+  casNumber        String?
+  molecularFormula String?
+  molecularWeight  String?
+  chemicalName     String?
+  synonyms         String?
+
+  // General use
+  mainBenefit       String?
+  usedFor           String?
+  typicalDosage     String?
+  storageConditions String?
+  shelfLife         String?
+  faq               String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
 }
