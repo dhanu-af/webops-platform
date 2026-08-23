@@ -115,3 +115,52 @@ export async function storeCalibrationCertificate(file: File): Promise<{ url: st
   await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes));
   return { url: `/uploads/${filename}`, sizeBytes: file.size };
 }
+
+// QC sample attachments (COA/lab report PDFs, product photos) -- same
+// contract as storeCalibrationCertificate above, own Blob prefix so the two
+// document types don't share a folder.
+const QC_ATTACHMENT_EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+};
+
+export const MAX_QC_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const ALLOWED_QC_ATTACHMENT_EXTENSIONS = Object.keys(QC_ATTACHMENT_EXTENSION_CONTENT_TYPES);
+
+// Some phones hand the browser a HEIC photo with an empty or generic
+// file.type (see isAllowedPhotoFile above) -- fall back to the extension
+// rather than trust file.type alone.
+export function isAllowedQcAttachmentFile(file: File): boolean {
+  if (Object.values(QC_ATTACHMENT_EXTENSION_CONTENT_TYPES).includes(file.type)) return true;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  return !!ext && ALLOWED_QC_ATTACHMENT_EXTENSIONS.includes(ext);
+}
+
+export async function storeQcAttachment(file: File): Promise<{ url: string; sizeBytes: number }> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  const bytes = await file.arrayBuffer();
+  const contentType = file.type || QC_ATTACHMENT_EXTENSION_CONTENT_TYPES[ext] || "application/octet-stream";
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(`qc-attachments/${filename}`, Buffer.from(bytes), {
+      access: "public",
+      contentType,
+    });
+    return { url: blob.url, sizeBytes: file.size };
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error("Attachment storage isn't configured for this deployment (missing BLOB_READ_WRITE_TOKEN).");
+  }
+
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  await mkdir(uploadsDir, { recursive: true });
+  await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes));
+  return { url: `/uploads/${filename}`, sizeBytes: file.size };
+}

@@ -72,6 +72,11 @@ model User {
   calibrationsRecorded  EquipmentCalibration[]
   capsuleCalculations   CapsuleCalculation[]
   mfgBatches            MfgBatch[]
+  qcSamplesCollected    QcSample[]             @relation("QcSampleCollectedBy")
+  qcSamplesReceived     QcSample[]             @relation("QcSampleReceivedBy")
+  qcSamplesCreated      QcSample[]             @relation("QcSampleCreatedBy")
+  qcLabTestsPerformed   QcLabTest[]
+  qcAttachmentsUploaded QcSampleAttachment[]
 
   @@index([role])
 }
@@ -812,6 +817,17 @@ enum AuditAction {
   LOGIN
   AREA_RELEASED
   DELETED
+  QC_COLLECTED
+  QC_SENT_TO_LAB
+  QC_RECEIVED_AT_LAB
+  QC_TESTING_STARTED
+  QC_RESULTS_RECORDED
+  QC_APPROVED
+  QC_MOVED_TO_RETENTION
+  QC_EXPIRED
+  QC_DISPOSED
+  QC_ATTACHMENT_ADDED
+  QC_ATTACHMENT_REMOVED
 }
 
 model AuditLog {
@@ -944,6 +960,7 @@ model MfgBatch {
   packaging              MfgPackaging?
   finishedGoodsWarehouse MfgFinishedGoodsWarehouse?
   dispatchEvents         MfgDispatchEvent[]
+  qcSamples              QcSample[]
 
   @@index([batchNumber])
   @@index([status])
@@ -1189,4 +1206,185 @@ model MfgDispatchEvent {
   createdAt DateTime @default(now())
 
   @@index([mfgBatchId])
+}
+
+// =========================================================================
+// QC SAMPLES — GMP/TGA-style quality-control sample lifecycle tracker.
+// Adapted from a working reference implementation in a sibling project
+// (eagle-labs-schedule), rewired onto this app's own conventions: real User
+// relations instead of free-text actor names (matching Inspection's
+// operatorId/supervisorId/qaId pattern), an optional link to this app's own
+// MfgBatch instead of that project's BatchRecord, and the shared AuditLog/
+// AuditAction convention instead of a bespoke audit table.
+// =========================================================================
+
+enum QcSampleType {
+  FINISHED_PRODUCT
+  STABILITY
+  RETENTION
+  INVESTIGATION
+  COMPLAINT
+}
+
+enum QcSampleStatus {
+  WAITING_COLLECTION
+  COLLECTED
+  WAITING_LAB
+  IN_LABORATORY
+  TESTING
+  WAITING_RESULTS
+  APPROVED
+  REJECTED
+  RETENTION
+  EXPIRED
+  DISPOSED
+}
+
+enum QcProductCategory {
+  CAPSULE
+  GUMMY
+}
+
+enum QcTestResult {
+  PASS
+  FAIL
+}
+
+enum QcAttachmentKind {
+  COA
+  LAB_REPORT
+  PHOTO
+  OTHER
+}
+
+/// sampleId (e.g. QC-2026-000124) is derived from `sequence` at creation and
+/// then stored so it never changes even if the format logic does later.
+model QcSample {
+  id       String @id @default(cuid())
+  sequence Int    @unique @default(autoincrement())
+  sampleId String @unique
+
+  productName String
+  batchNumber String
+  mfgBatchId  String?
+  mfgBatch    MfgBatch? @relation(fields: [mfgBatchId], references: [id])
+
+  manufacturingDate DateTime?
+  expiryDate        DateTime?
+
+  sampleType      QcSampleType
+  productCategory QcProductCategory?
+  quantity        Float
+  unit            String
+
+  collectedById  String?
+  collectedBy    User?     @relation("QcSampleCollectedBy", fields: [collectedById], references: [id])
+  collectionDate DateTime?
+  collectionTime String?
+
+  productionRoom        String?
+  sampleStorageLocation String?
+  storageTemperature    String?
+  storageCondition      String?
+
+  sentToLab          Boolean   @default(false)
+  sentDate           DateTime?
+  courierOrInternal  String?
+  laboratoryName     String?
+  laboratoryLocation String?
+  receivedByQcId     String?
+  receivedByQc       User?     @relation("QcSampleReceivedBy", fields: [receivedByQcId], references: [id])
+  receivedDate       DateTime?
+
+  status  QcSampleStatus @default(WAITING_COLLECTION)
+  remarks String?
+
+  createdById String
+  createdBy   User     @relation("QcSampleCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  labTest         QcLabTest?
+  retentionRecord QcRetentionRecord?
+  attachments     QcSampleAttachment[]
+
+  @@index([batchNumber])
+  @@index([status])
+  @@index([sampleType])
+}
+
+/// Real files (COA/lab report PDFs, product photos) for a sample — distinct
+/// from the "COA Upload"/"Laboratory Report"/"Photographs" rows in the lab
+/// test checklist below, which are just Pass/Fail + a text-field stand-in.
+model QcSampleAttachment {
+  id            String           @id @default(cuid())
+  sampleId      String
+  sample        QcSample         @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  kind          QcAttachmentKind
+  url           String
+  fileName      String
+  fileSizeBytes Int
+  uploadedById  String?
+  uploadedBy    User?            @relation(fields: [uploadedById], references: [id])
+  uploadedAt    DateTime         @default(now())
+
+  @@index([sampleId])
+}
+
+/// Header record for a sample's lab testing pass — the checklist rows are
+/// QcLabTestItem, generated from the CAPSULE/GUMMY template in
+/// lib/qc-sample-defaults.ts for the sample's productCategory the moment
+/// testing starts (the template lives in code, not the database).
+model QcLabTest {
+  id       String   @id @default(cuid())
+  sampleId String   @unique
+  sample   QcSample @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  testedById String?
+  testedBy   User?     @relation(fields: [testedById], references: [id])
+  testedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items QcLabTestItem[]
+}
+
+/// One row of the product-category test checklist (e.g. section "Physical
+/// Testing", parameter "Appearance"). Rows are always replaced wholesale
+/// when results are recorded, never edited piecemeal.
+model QcLabTestItem {
+  id        String    @id @default(cuid())
+  labTestId String
+  labTest   QcLabTest @relation(fields: [labTestId], references: [id], onDelete: Cascade)
+
+  section   String
+  parameter String
+  result    QcTestResult?
+  details   String?
+  sortOrder Int
+
+  @@index([labTestId])
+}
+
+/// Where an approved sample physically lives after testing.
+model QcRetentionRecord {
+  id       String   @id @default(cuid())
+  sampleId String   @unique
+  sample   QcSample @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  shelf             String?
+  cabinet           String?
+  boxNumber         String?
+  position          String?
+  quantityRemaining Float?
+  opened            Boolean   @default(false)
+  lastChecked       DateTime?
+  expiryDate        DateTime?
+  destroyDate       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiryDate])
 }

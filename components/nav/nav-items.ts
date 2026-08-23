@@ -22,6 +22,7 @@ import {
   Gauge,
   Calculator,
   FlaskConical,
+  TestTube,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,6 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Evidence Gallery", href: "/evidence", icon: Images },
       { label: "Equipment Calibration", href: "/calibration", icon: Gauge },
       { label: "Manufacturing Reconciliation", href: "/mfg-reconciliation", icon: FlaskConical },
+      { label: "QC Samples", href: "/qc-samples", icon: TestTube },
     ],
   },
   {

@@ -48,6 +48,27 @@ export const CALIBRATION_STATUS_META: Record<string, { label: string; tone: Stat
   NEVER_CALIBRATED: { label: "Never Calibrated", tone: "attention" },
 };
 
+export const QC_SAMPLE_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+  WAITING_COLLECTION: { label: "Waiting Collection", tone: "neutral" },
+  COLLECTED: { label: "Collected", tone: "accent" },
+  WAITING_LAB: { label: "Waiting Lab", tone: "warn" },
+  IN_LABORATORY: { label: "In Laboratory", tone: "accent" },
+  TESTING: { label: "Testing", tone: "accent" },
+  WAITING_RESULTS: { label: "Waiting Results", tone: "warn" },
+  APPROVED: { label: "Approved", tone: "pass" },
+  REJECTED: { label: "Rejected", tone: "critical" },
+  RETENTION: { label: "Retention", tone: "accent" },
+  EXPIRED: { label: "Expired", tone: "critical" },
+  DISPOSED: { label: "Disposed", tone: "neutral" },
+};
+
+export const QC_ATTACHMENT_KIND_LABEL: Record<string, string> = {
+  COA: "COA",
+  LAB_REPORT: "Laboratory Report",
+  PHOTO: "Photo",
+  OTHER: "Other",
+};
+
 export const RESPONSE_VALUE_META: Record<string, { label: string; tone: StatusTone }> = {
   PASS: { label: "Pass", tone: "pass" },
   FAIL: { label: "Fail", tone: "critical" },
