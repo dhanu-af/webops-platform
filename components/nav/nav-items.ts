@@ -60,7 +60,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Evidence Gallery", href: "/evidence", icon: Images },
       { label: "Equipment Calibration", href: "/calibration", icon: Gauge },
       { label: "Manufacturing Reconciliation", href: "/mfg-reconciliation", icon: FlaskConical },
-      { label: "QC Samples", href: "/qc-samples", icon: TestTube },
+      {
+        label: "QC Samples",
+        href: "/qc-samples",
+        icon: TestTube,
+        // Operators/Team Leaders still hold qc.collect (they can reach the
+        // page via a QR-scan deep link to perform the physical collection
+        // step) -- this only keeps the module out of their sidebar.
+        roles: ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "QA", "MANAGEMENT", "VIEWER"],
+      },
     ],
   },
   {
