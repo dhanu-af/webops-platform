@@ -28,11 +28,22 @@ function toLineForm(l: PackagingMaterialLineData): LineForm {
 
 const DEFAULT_LINES: LineForm[] = DEFAULT_PACKAGING_MATERIAL_LINES.map((materialType) => toLineForm({ materialType, issued: null, used: null, damaged: null, returned: null, destroyed: null }));
 
-export function PackagingSection({ batchId, data, canManage }: { batchId: string; data: PackagingData | null; canManage: boolean }) {
+export function PackagingSection({
+  batchId,
+  data,
+  canManage,
+  priorStageReleased = null,
+}: {
+  batchId: string;
+  data: PackagingData | null;
+  canManage: boolean;
+  priorStageReleased?: number | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [packedBottles, setPackedBottles] = useState(data?.packedBottles?.toString() ?? "");
+  const [packedBottles, setPackedBottles] = useState(data?.packedBottles?.toString() ?? priorStageReleased?.toString() ?? "");
+  const packedBottlesAutoFilled = data?.packedBottles == null && priorStageReleased != null;
   const [cartonsProduced, setCartonsProduced] = useState(data?.cartonsProduced?.toString() ?? "");
   const [casesProduced, setCasesProduced] = useState(data?.casesProduced?.toString() ?? "");
   const [packedByName, setPackedByName] = useState(data?.packedByName ?? "");
@@ -103,7 +114,7 @@ export function PackagingSection({ batchId, data, canManage }: { batchId: string
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Field label="Packed Bottles">
+        <Field label="Packed Bottles" note={packedBottlesAutoFilled ? "auto-filled from X-Ray" : undefined}>
           <input type="number" className={MFG_INPUT_CLASS} disabled={!canManage} value={packedBottles} onChange={(e) => setPackedBottles(e.target.value)} />
         </Field>
         <Field label="Cartons Produced">

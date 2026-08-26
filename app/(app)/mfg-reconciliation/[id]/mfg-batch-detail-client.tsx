@@ -152,11 +152,46 @@ export function MfgBatchDetailClient({
         )}
         {stage === "warehouseIssue" && <WarehouseIssueSection batchId={batch.id} data={batch.warehouseIssue} canManage={canEditStage.warehouseIssue} />}
         {stage === "blending" && <BlendingSection batchId={batch.id} data={batch.blending} canManage={canEditStage.blending} />}
-        {stage === "encapsulation" && <EncapsulationSection batchId={batch.id} data={batch.encapsulation} canManage={canEditStage.encapsulation} />}
-        {stage === "bottling" && <BottlingSection batchId={batch.id} data={batch.bottling} canManage={canEditStage.bottling} />}
-        {stage === "xray" && <XraySection batchId={batch.id} data={batch.xrayInspection} canManage={canEditStage.xray} />}
-        {stage === "packaging" && <PackagingSection batchId={batch.id} data={batch.packaging} canManage={canEditStage.packaging} />}
-        {stage === "fgWarehouse" && <FgWarehouseSection batchId={batch.id} data={batch.finishedGoodsWarehouse} canManage={canEditStage.fgWarehouse} />}
+        {stage === "encapsulation" && (
+          <EncapsulationSection
+            batchId={batch.id}
+            data={batch.encapsulation}
+            canManage={canEditStage.encapsulation}
+            priorStageBulkBlendKg={batch.blending?.totalBlendProducedKg ?? null}
+          />
+        )}
+        {stage === "bottling" && (
+          <BottlingSection
+            batchId={batch.id}
+            data={batch.bottling}
+            canManage={canEditStage.bottling}
+            priorStageCapsulesKg={batch.encapsulation?.capsulesProducedKg ?? null}
+          />
+        )}
+        {stage === "xray" && (
+          <XraySection
+            batchId={batch.id}
+            data={batch.xrayInspection}
+            canManage={canEditStage.xray}
+            priorStageBottlesProduced={batch.bottling?.bottlesProduced ?? null}
+          />
+        )}
+        {stage === "packaging" && (
+          <PackagingSection
+            batchId={batch.id}
+            data={batch.packaging}
+            canManage={canEditStage.packaging}
+            priorStageReleased={batch.xrayInspection?.released ?? null}
+          />
+        )}
+        {stage === "fgWarehouse" && (
+          <FgWarehouseSection
+            batchId={batch.id}
+            data={batch.finishedGoodsWarehouse}
+            canManage={canEditStage.fgWarehouse}
+            priorStagePackedBottles={batch.packaging?.packedBottles ?? null}
+          />
+        )}
         {stage === "dispatch" && <DispatchSection batchId={batch.id} events={batch.dispatchEvents} canManage={canEditStage.dispatch} />}
         {stage === "finalReconciliation" && (
           <FinalReconciliationTab blending={batch.blending} encapsulation={batch.encapsulation} bottling={batch.bottling} />

@@ -49,10 +49,10 @@ const REJECT_FIELDS: { key: NumKey; label: string }[] = [
   { key: "rejectMissingDesiccant", label: "Missing Desiccant" },
 ];
 
-function toForm(d: XrayData | null): Form {
+function toForm(d: XrayData | null, priorStageBottlesProduced: number | null): Form {
   const n = (v: number | null | undefined) => v?.toString() ?? "";
   return {
-    bottlesReceived: n(d?.bottlesReceived),
+    bottlesReceived: n(d?.bottlesReceived ?? priorStageBottlesProduced),
     bottlesScanned: n(d?.bottlesScanned),
     passed: n(d?.passed),
     failed: n(d?.failed),
@@ -72,13 +72,24 @@ function toForm(d: XrayData | null): Form {
   };
 }
 
-export function XraySection({ batchId, data, canManage }: { batchId: string; data: XrayData | null; canManage: boolean }) {
+export function XraySection({
+  batchId,
+  data,
+  canManage,
+  priorStageBottlesProduced = null,
+}: {
+  batchId: string;
+  data: XrayData | null;
+  canManage: boolean;
+  priorStageBottlesProduced?: number | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [form, setForm] = useState<Form>(toForm(data));
+  const [form, setForm] = useState<Form>(toForm(data, priorStageBottlesProduced));
   const set = (patch: Partial<Form>) => setForm((prev) => ({ ...prev, ...patch }));
   const num = (v: string) => (v ? Number(v) : null);
+  const bottlesReceivedAutoFilled = data?.bottlesReceived == null && priorStageBottlesProduced != null;
 
   function save() {
     setError("");
@@ -115,7 +126,7 @@ export function XraySection({ batchId, data, canManage }: { batchId: string; dat
       <StageSection title="Inspection">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {COUNT_FIELDS.map((f) => (
-            <Field key={f.key} label={f.label}>
+            <Field key={f.key} label={f.label} note={f.key === "bottlesReceived" && bottlesReceivedAutoFilled ? "auto-filled from Bottling" : undefined}>
               <input type="number" className={MFG_INPUT_CLASS} disabled={!canManage} value={form[f.key]} onChange={(e) => set({ [f.key]: e.target.value } as Partial<Form>)} />
             </Field>
           ))}

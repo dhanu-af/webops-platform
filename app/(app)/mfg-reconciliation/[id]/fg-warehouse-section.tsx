@@ -18,11 +18,22 @@ export type FgWarehouseData = {
   remarks: string | null;
 };
 
-export function FgWarehouseSection({ batchId, data, canManage }: { batchId: string; data: FgWarehouseData | null; canManage: boolean }) {
+export function FgWarehouseSection({
+  batchId,
+  data,
+  canManage,
+  priorStagePackedBottles = null,
+}: {
+  batchId: string;
+  data: FgWarehouseData | null;
+  canManage: boolean;
+  priorStagePackedBottles?: number | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [finishedGoodsReceived, setFinishedGoodsReceived] = useState(data?.finishedGoodsReceived?.toString() ?? "");
+  const [finishedGoodsReceived, setFinishedGoodsReceived] = useState(data?.finishedGoodsReceived?.toString() ?? priorStagePackedBottles?.toString() ?? "");
+  const finishedGoodsReceivedAutoFilled = data?.finishedGoodsReceived == null && priorStagePackedBottles != null;
   const [qaReleased, setQaReleased] = useState(data?.qaReleased ?? false);
   const [qaReleasedByName, setQaReleasedByName] = useState(data?.qaReleasedByName ?? "");
   const [qaReleasedAt, setQaReleasedAt] = useState(data?.qaReleasedAt ? data.qaReleasedAt.slice(0, 10) : "");
@@ -57,7 +68,7 @@ export function FgWarehouseSection({ batchId, data, canManage }: { batchId: stri
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Field label="Finished Goods Received">
+        <Field label="Finished Goods Received" note={finishedGoodsReceivedAutoFilled ? "auto-filled from Packaging" : undefined}>
           <input type="number" className={MFG_INPUT_CLASS} disabled={!canManage} value={finishedGoodsReceived} onChange={(e) => setFinishedGoodsReceived(e.target.value)} />
         </Field>
         <Field label="Storage Location">

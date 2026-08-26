@@ -1,7 +1,13 @@
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// `note` flags a value that was carried over from a prior stage's output
+// rather than entered directly here -- shown next to the label so it's
+// clear the field is pre-filled but still editable, never disabled.
+export function Field({ label, note, children }: { label: string; note?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-muted-strong">{label}</span>
+      <span className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs font-medium text-muted-strong">
+        {label}
+        {note && <span className="text-[10px] font-normal normal-case text-accent">{note}</span>}
+      </span>
       {children}
     </label>
   );

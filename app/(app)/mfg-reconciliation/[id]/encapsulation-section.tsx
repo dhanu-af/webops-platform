@@ -31,12 +31,12 @@ export type EncapsulationData = {
 type NumKey = Exclude<keyof EncapsulationData, "disintegrationResult" | "completedByName" | "completedAt" | "checkedByName" | "checkedAt" | "comments">;
 type Form = Record<NumKey, string> & { disintegrationResult: string; completedByName: string; completedAt: string; checkedByName: string; checkedAt: string; comments: string };
 
-function toForm(d: EncapsulationData | null): Form {
+function toForm(d: EncapsulationData | null, priorStageBulkBlendKg: number | null): Form {
   const n = (v: number | null | undefined) => v?.toString() ?? "";
   return {
     targetCapsuleFillWeightMg: n(d?.targetCapsuleFillWeightMg),
     avgCapsuleFullWeightMg: n(d?.avgCapsuleFullWeightMg),
-    issuedBulkBlendKg: n(d?.issuedBulkBlendKg),
+    issuedBulkBlendKg: n(d?.issuedBulkBlendKg ?? priorStageBulkBlendKg),
     capsulesProducedKg: n(d?.capsulesProducedKg),
     capsuleSamplesKg: n(d?.capsuleSamplesKg),
     rejectCapsulesKg: n(d?.rejectCapsulesKg),
@@ -54,20 +54,31 @@ function toForm(d: EncapsulationData | null): Form {
   };
 }
 
-function NumField({ label, form, k, set, disabled, hint }: { label: string; form: Form; k: NumKey; set: (patch: Partial<Form>) => void; disabled: boolean; hint?: string }) {
+function NumField({ label, form, k, set, disabled, hint, note }: { label: string; form: Form; k: NumKey; set: (patch: Partial<Form>) => void; disabled: boolean; hint?: string; note?: string }) {
   return (
-    <Field label={label}>
+    <Field label={label} note={note}>
       <input type="number" step="0.001" className={MFG_INPUT_CLASS} disabled={disabled} value={form[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} placeholder={hint} />
     </Field>
   );
 }
 
-export function EncapsulationSection({ batchId, data, canManage }: { batchId: string; data: EncapsulationData | null; canManage: boolean }) {
+export function EncapsulationSection({
+  batchId,
+  data,
+  canManage,
+  priorStageBulkBlendKg = null,
+}: {
+  batchId: string;
+  data: EncapsulationData | null;
+  canManage: boolean;
+  priorStageBulkBlendKg?: number | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [form, setForm] = useState<Form>(toForm(data));
+  const [form, setForm] = useState<Form>(toForm(data, priorStageBulkBlendKg));
   const set = (patch: Partial<Form>) => setForm((prev) => ({ ...prev, ...patch }));
+  const bulkBlendAutoFilled = data?.issuedBulkBlendKg == null && priorStageBulkBlendKg != null;
 
   const num = (v: string) => (v ? Number(v) : null);
   const issuedBulkBlendKg = num(form.issuedBulkBlendKg);
@@ -137,7 +148,14 @@ export function EncapsulationSection({ batchId, data, canManage }: { batchId: st
 
       <StageSection title="Batch Total Weights">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <NumField label="Issued Bulk Blend (kg)" form={form} k="issuedBulkBlendKg" set={set} disabled={!canManage} />
+          <NumField
+            label="Issued Bulk Blend (kg)"
+            form={form}
+            k="issuedBulkBlendKg"
+            set={set}
+            disabled={!canManage}
+            note={bulkBlendAutoFilled ? "auto-filled from Blending" : undefined}
+          />
           <NumField label="Capsules Produced (kg)" form={form} k="capsulesProducedKg" set={set} disabled={!canManage} />
           <NumField label="Capsule Samples (kg)" form={form} k="capsuleSamplesKg" set={set} disabled={!canManage} />
           <NumField label="Reject Capsules (kg)" form={form} k="rejectCapsulesKg" set={set} disabled={!canManage} />
