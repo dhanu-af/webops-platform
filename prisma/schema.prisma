@@ -259,6 +259,12 @@ enum CalculationDirection {
   // purely for distinct field labels/defaults, not a different formula.
   KG_TO_GUMMY_POUCHES
   KG_TO_GUMMY_BOTTLES
+  // The alternative to KG_TO_GUMMY_POUCHES: the pouch's own fill weight is
+  // known directly (e.g. "360g pouches") instead of a gummy piece count and
+  // per-gummy weight -- `capsulesPerBottle` is always stored as 1 for this
+  // direction (its field is hidden in the UI) so the shared kg -> pieces ->
+  // containers formula still applies with a no-op second division.
+  KG_TO_POUCHES_BY_WEIGHT
 }
 
 model CapsuleCalculation {

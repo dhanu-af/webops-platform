@@ -7,6 +7,7 @@ export const CALCULATION_DIRECTIONS: CalculationDirection[] = [
   "CAPSULES_TO_SHELLS",
   "KG_TO_GUMMY_POUCHES",
   "KG_TO_GUMMY_BOTTLES",
+  "KG_TO_POUCHES_BY_WEIGHT",
 ];
 
 export const DIRECTION_LABEL: Record<CalculationDirection, string> = {
@@ -16,6 +17,10 @@ export const DIRECTION_LABEL: Record<CalculationDirection, string> = {
   CAPSULES_TO_SHELLS: "Capsules → Empty shells needed",
   KG_TO_GUMMY_POUCHES: "Final batch weight (KG) → Gummies & pouches",
   KG_TO_GUMMY_BOTTLES: "Final batch weight (KG) → Gummies & bottles",
+  // The alternative to KG_TO_GUMMY_POUCHES: instead of piece count + weight
+  // per gummy, you know the pouch's own fill weight directly (e.g. "360g
+  // pouches") -- skips the gummy-piece-count step entirely.
+  KG_TO_POUCHES_BY_WEIGHT: "Final batch weight (KG) → Pouches (by pouch weight)",
 };
 
 // The weight figure each direction asks for -- BOTTLES_TO_KG/KG_TO_OUTPUT
@@ -32,9 +37,37 @@ export const WEIGHT_FIELD_LABEL: Record<CalculationDirection, string> = {
   KG_TO_OUTPUT: "Avg. Fill Weight (mg)",
   BAGGED_KG_TO_OUTPUT: "Avg. Capsule Full Weight (mg)",
   CAPSULES_TO_SHELLS: "Empty Shell Weight (mg)",
-  KG_TO_GUMMY_POUCHES: "Avg. Gummy Weight (mg)",
-  KG_TO_GUMMY_BOTTLES: "Avg. Gummy Weight (mg)",
+  KG_TO_GUMMY_POUCHES: "Avg. Gummy Weight (g)",
+  KG_TO_GUMMY_BOTTLES: "Avg. Gummy Weight (g)",
+  KG_TO_POUCHES_BY_WEIGHT: "Pouch Fill Weight (g)",
 };
+
+const GRAM_DIRECTIONS: CalculationDirection[] = ["KG_TO_GUMMY_POUCHES", "KG_TO_GUMMY_BOTTLES", "KG_TO_POUCHES_BY_WEIGHT"];
+
+// The unit the weight field is entered/displayed in -- capsules are tiny
+// enough that mg is the natural unit, gummies/pouches are heavy enough
+// (several grams to hundreds of grams) that mg would mean typing "4000" for
+// a 4g gummy or "360000" for a 360g pouch, so those directions use grams
+// instead. `CapsuleCalculation.avgWeightMg` always stores milligrams
+// regardless -- see toAvgWeightMg/fromAvgWeightMg below for the conversion
+// at the UI boundary.
+export function weightFieldUnit(direction: CalculationDirection): "mg" | "g" {
+  return GRAM_DIRECTIONS.includes(direction) ? "g" : "mg";
+}
+
+// Converts a value the user typed into the weight field (already in that
+// direction's own display unit) into the milligrams computeCalculation and
+// the DB column expect.
+export function toAvgWeightMg(direction: CalculationDirection, displayValue: number): number {
+  return weightFieldUnit(direction) === "g" ? displayValue * 1000 : displayValue;
+}
+
+// The inverse of toAvgWeightMg -- turns a stored `avgWeightMg` (always
+// milligrams) back into the direction's own display unit, for re-rendering
+// a logged row.
+export function fromAvgWeightMg(direction: CalculationDirection, mg: number): number {
+  return weightFieldUnit(direction) === "g" ? mg / 1000 : mg;
+}
 
 export const QUANTITY_FIELD_LABEL: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "Target Bottles",
@@ -43,12 +76,14 @@ export const QUANTITY_FIELD_LABEL: Record<CalculationDirection, string> = {
   CAPSULES_TO_SHELLS: "Capsule Count",
   KG_TO_GUMMY_POUCHES: "Final Batch Weight (kg)",
   KG_TO_GUMMY_BOTTLES: "Final Batch Weight (kg)",
+  KG_TO_POUCHES_BY_WEIGHT: "Final Batch Weight (kg)",
 };
 
 // The "how many pieces per container" field -- capsules-per-bottle for the
 // capsule directions, capsules-per-box for CAPSULES_TO_SHELLS (a bulk
 // purchasing box of empty shells), gummies-per-pouch/bottle for the gummy
-// directions.
+// directions. Not applicable to KG_TO_POUCHES_BY_WEIGHT -- see
+// showsPerContainerField.
 export const PER_CONTAINER_LABEL: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "Capsules per Bottle",
   KG_TO_OUTPUT: "Capsules per Bottle",
@@ -56,7 +91,19 @@ export const PER_CONTAINER_LABEL: Record<CalculationDirection, string> = {
   CAPSULES_TO_SHELLS: "Capsules per Box",
   KG_TO_GUMMY_POUCHES: "Gummies per Pouch",
   KG_TO_GUMMY_BOTTLES: "Gummies per Bottle",
+  KG_TO_POUCHES_BY_WEIGHT: "Pouches per Box",
 };
+
+// Whether the "pieces per container" field is a meaningful input for this
+// direction -- false for KG_TO_POUCHES_BY_WEIGHT, which goes straight from
+// total weight to pouch count (a pouch's own fill weight already IS the
+// per-container figure, entered via the weight field instead). The field is
+// hidden and silently fixed to 1 for this direction (see
+// calculation-client.tsx) so the shared kg -> pieces -> containers formula
+// still applies without a second division.
+export function showsPerContainerField(direction: CalculationDirection): boolean {
+  return direction !== "KG_TO_POUCHES_BY_WEIGHT";
+}
 
 // What resultBottles actually counts -- bottles for the capsule directions,
 // boxes of empty shells for CAPSULES_TO_SHELLS, pouches/bottles for the
@@ -68,10 +115,12 @@ export const CONTAINER_RESULT_LABEL: Record<CalculationDirection, string> = {
   CAPSULES_TO_SHELLS: "Boxes",
   KG_TO_GUMMY_POUCHES: "Pouches",
   KG_TO_GUMMY_BOTTLES: "Bottles",
+  KG_TO_POUCHES_BY_WEIGHT: "Pouches",
 };
 
 // What the "pieces produced" result tile/column calls the unit -- gummies
-// for the gummy directions, capsules for every other direction.
+// for the gummy directions, capsules for every other direction. Unused for
+// KG_TO_POUCHES_BY_WEIGHT (see showsCapsulesResult).
 export const PIECES_LABEL: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "Capsules",
   KG_TO_OUTPUT: "Capsules",
@@ -79,11 +128,14 @@ export const PIECES_LABEL: Record<CalculationDirection, string> = {
   CAPSULES_TO_SHELLS: "Capsules",
   KG_TO_GUMMY_POUCHES: "Gummies",
   KG_TO_GUMMY_BOTTLES: "Gummies",
+  KG_TO_POUCHES_BY_WEIGHT: "Pouches",
 };
 
 // Sensible starting values for the per-container/weight fields, seeded when
 // a direction is selected -- still fully editable, just saves re-typing the
-// common case each time (see calculation-client.tsx).
+// common case each time (see calculation-client.tsx). KG_TO_POUCHES_BY_WEIGHT's
+// per-container default of "1" is what makes the shared formula (which
+// divides by it) a no-op for that direction -- the field itself is hidden.
 export const DEFAULT_PER_CONTAINER: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "31",
   KG_TO_OUTPUT: "31",
@@ -91,29 +143,37 @@ export const DEFAULT_PER_CONTAINER: Record<CalculationDirection, string> = {
   CAPSULES_TO_SHELLS: "31",
   KG_TO_GUMMY_POUCHES: "90",
   KG_TO_GUMMY_BOTTLES: "9",
+  KG_TO_POUCHES_BY_WEIGHT: "1",
 };
 
-export const DEFAULT_AVG_WEIGHT_MG: Record<CalculationDirection, string> = {
+// In each direction's own display unit (see weightFieldUnit) -- mg for the
+// capsule directions, grams for the gummy/pouch directions (a 4g gummy or a
+// 360g pouch, not 4000mg/360000mg).
+export const DEFAULT_AVG_WEIGHT_DISPLAY: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "372",
   KG_TO_OUTPUT: "372",
   BAGGED_KG_TO_OUTPUT: "372",
   CAPSULES_TO_SHELLS: "372",
-  KG_TO_GUMMY_POUCHES: "4000",
-  KG_TO_GUMMY_BOTTLES: "4000",
+  KG_TO_GUMMY_POUCHES: "4",
+  KG_TO_GUMMY_BOTTLES: "4",
+  KG_TO_POUCHES_BY_WEIGHT: "360",
 };
 
-export function weightKind(direction: CalculationDirection): "fill" | "full" | "shell" | "gummy" {
+export function weightKind(direction: CalculationDirection): "fill" | "full" | "shell" | "gummy" | "pouch" {
   if (direction === "BAGGED_KG_TO_OUTPUT") return "full";
   if (direction === "CAPSULES_TO_SHELLS") return "shell";
   if (direction === "KG_TO_GUMMY_POUCHES" || direction === "KG_TO_GUMMY_BOTTLES") return "gummy";
+  if (direction === "KG_TO_POUCHES_BY_WEIGHT") return "pouch";
   return "fill";
 }
 
-// Whether this direction's preview/log should show a capsule-count tile --
-// skipped for CAPSULES_TO_SHELLS, where the capsule count is the given
-// input, not a computed output (it's just restating what was typed in).
+// Whether this direction's preview/log should show a "pieces produced"
+// tile -- skipped for CAPSULES_TO_SHELLS, where the capsule count is the
+// given input rather than a computed output, and for
+// KG_TO_POUCHES_BY_WEIGHT, which has no piece-count concept at all (it
+// stops at pouches).
 export function showsCapsulesResult(direction: CalculationDirection): boolean {
-  return direction !== "CAPSULES_TO_SHELLS";
+  return direction !== "CAPSULES_TO_SHELLS" && direction !== "KG_TO_POUCHES_BY_WEIGHT";
 }
 
 // The kg tile's caption -- only BOTTLES_TO_KG and CAPSULES_TO_SHELLS show a

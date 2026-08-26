@@ -10,10 +10,14 @@ import {
   WEIGHT_FIELD_LABEL,
   QUANTITY_FIELD_LABEL,
   PER_CONTAINER_LABEL,
+  showsPerContainerField,
   CONTAINER_RESULT_LABEL,
   PIECES_LABEL,
   DEFAULT_PER_CONTAINER,
-  DEFAULT_AVG_WEIGHT_MG,
+  DEFAULT_AVG_WEIGHT_DISPLAY,
+  weightFieldUnit,
+  toAvgWeightMg,
+  fromAvgWeightMg,
   weightKind,
   showsCapsulesResult,
   kgResultLabel,
@@ -51,6 +55,7 @@ const DIRECTION_TONE: Record<CalculationDirection, StatusTone> = {
   CAPSULES_TO_SHELLS: "warn",
   KG_TO_GUMMY_POUCHES: "pass",
   KG_TO_GUMMY_BOTTLES: "attention",
+  KG_TO_POUCHES_BY_WEIGHT: "neutral",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -78,18 +83,22 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
   // capsule count/weight doesn't carry any meaning once you switch to a
   // gummy direction and vice versa.
   const [capsulesPerBottle, setCapsulesPerBottle] = useState(DEFAULT_PER_CONTAINER.BOTTLES_TO_KG);
-  const [avgWeightMg, setAvgWeightMg] = useState(DEFAULT_AVG_WEIGHT_MG.BOTTLES_TO_KG);
+  // In the selected direction's own display unit (see weightFieldUnit) --
+  // mg for capsules, grams for gummies. Converted to milligrams via
+  // toAvgWeightMg right before it's used in a calculation or saved.
+  const [avgWeightDisplay, setAvgWeightDisplay] = useState(DEFAULT_AVG_WEIGHT_DISPLAY.BOTTLES_TO_KG);
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
 
   function selectDirection(d: CalculationDirection) {
     setDirection(d);
     setCapsulesPerBottle(DEFAULT_PER_CONTAINER[d]);
-    setAvgWeightMg(DEFAULT_AVG_WEIGHT_MG[d]);
+    setAvgWeightDisplay(DEFAULT_AVG_WEIGHT_DISPLAY[d]);
   }
 
   const capsulesPerBottleNum = Number(capsulesPerBottle);
-  const avgWeightMgNum = Number(avgWeightMg);
+  const avgWeightDisplayNum = Number(avgWeightDisplay);
+  const avgWeightMgNum = toAvgWeightMg(direction, avgWeightDisplayNum);
   const inputValueNum = Number(inputValue);
   const preview =
     capsulesPerBottleNum > 0 && avgWeightMgNum > 0 && inputValueNum > 0
@@ -179,16 +188,18 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
             <Field label="Label (optional)">
               <input className={INPUT_CLASS} placeholder="e.g. August blend" value={label} onChange={(e) => setLabel(e.target.value)} />
             </Field>
-            <Field label={PER_CONTAINER_LABEL[direction]}>
-              <input
-                type="number"
-                className={INPUT_CLASS}
-                value={capsulesPerBottle}
-                onChange={(e) => setCapsulesPerBottle(e.target.value)}
-              />
-            </Field>
+            {showsPerContainerField(direction) && (
+              <Field label={PER_CONTAINER_LABEL[direction]}>
+                <input
+                  type="number"
+                  className={INPUT_CLASS}
+                  value={capsulesPerBottle}
+                  onChange={(e) => setCapsulesPerBottle(e.target.value)}
+                />
+              </Field>
+            )}
             <Field label={WEIGHT_FIELD_LABEL[direction]}>
-              <input type="number" step="0.1" className={INPUT_CLASS} value={avgWeightMg} onChange={(e) => setAvgWeightMg(e.target.value)} />
+              <input type="number" step="0.1" className={INPUT_CLASS} value={avgWeightDisplay} onChange={(e) => setAvgWeightDisplay(e.target.value)} />
             </Field>
             <Field label={QUANTITY_FIELD_LABEL[direction]}>
               <input type="number" step="0.001" className={INPUT_CLASS} value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
@@ -276,8 +287,14 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                             : `${formatKg(c.inputValue)} kg`}
                         <br />
                         <span className="text-xs">
-                          {c.capsulesPerBottle}/{c.direction === "CAPSULES_TO_SHELLS" ? "box" : c.direction === "KG_TO_GUMMY_POUCHES" ? "pouch" : "bottle"},{" "}
-                          {c.avgWeightMg}mg {weightKind(c.direction)}
+                          {showsPerContainerField(c.direction) && (
+                            <>
+                              {c.capsulesPerBottle}/{c.direction === "CAPSULES_TO_SHELLS" ? "box" : c.direction === "KG_TO_GUMMY_POUCHES" ? "pouch" : "bottle"}
+                              ,{" "}
+                            </>
+                          )}
+                          {fromAvgWeightMg(c.direction, c.avgWeightMg)}
+                          {weightFieldUnit(c.direction)} {weightKind(c.direction)}
                         </span>
                       </TableCell>
                       <TableCell className="font-mono-tabular">{formatKg(c.resultKg)}</TableCell>
