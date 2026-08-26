@@ -56,6 +56,7 @@ const DIRECTION_TONE: Record<CalculationDirection, StatusTone> = {
   KG_TO_GUMMY_POUCHES: "pass",
   KG_TO_GUMMY_BOTTLES: "attention",
   KG_TO_POUCHES_BY_WEIGHT: "neutral",
+  POUCHES_TO_KG_BY_WEIGHT: "accent",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -284,7 +285,9 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                           ? `${formatWholeCount(c.inputValue)} bottles`
                           : c.direction === "CAPSULES_TO_SHELLS"
                             ? `${formatWholeCount(c.inputValue)} capsules`
-                            : `${formatKg(c.inputValue)} kg`}
+                            : c.direction === "POUCHES_TO_KG_BY_WEIGHT"
+                              ? `${formatWholeCount(c.inputValue)} pouches`
+                              : `${formatKg(c.inputValue)} kg`}
                         <br />
                         <span className="text-xs">
                           {showsPerContainerField(c.direction) && (

@@ -265,6 +265,11 @@ enum CalculationDirection {
   // direction (its field is hidden in the UI) so the shared kg -> pieces ->
   // containers formula still applies with a no-op second division.
   KG_TO_POUCHES_BY_WEIGHT
+  // The reverse of KG_TO_POUCHES_BY_WEIGHT: a target pouch count -> kg of
+  // batch needed to produce it, using the pouch's own fill weight. Shares
+  // BOTTLES_TO_KG's formula (target count * per-container weight) --
+  // `capsulesPerBottle` stored as 1 same as the forward direction.
+  POUCHES_TO_KG_BY_WEIGHT
 }
 
 model CapsuleCalculation {
