@@ -252,6 +252,13 @@ enum CalculationDirection {
   // rounded UP (you can't buy a partial box), unlike the floor/round-down
   // used for bottle counts elsewhere.
   CAPSULES_TO_SHELLS
+  // Gummies: a finished batch's actual weighed output (kg) -> gummy piece
+  // count & pouch/bottle output. Same kg<->pieces math as KG_TO_OUTPUT
+  // (`avgWeightMg` is the weight of one gummy, `capsulesPerBottle` is
+  // pieces-per-pouch or pieces-per-bottle) -- kept as separate directions
+  // purely for distinct field labels/defaults, not a different formula.
+  KG_TO_GUMMY_POUCHES
+  KG_TO_GUMMY_BOTTLES
 }
 
 model CapsuleCalculation {

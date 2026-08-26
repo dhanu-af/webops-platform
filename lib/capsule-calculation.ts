@@ -1,12 +1,21 @@
 import type { CalculationDirection } from "@/app/generated/prisma/client";
 
-export const CALCULATION_DIRECTIONS: CalculationDirection[] = ["BOTTLES_TO_KG", "KG_TO_OUTPUT", "BAGGED_KG_TO_OUTPUT", "CAPSULES_TO_SHELLS"];
+export const CALCULATION_DIRECTIONS: CalculationDirection[] = [
+  "BOTTLES_TO_KG",
+  "KG_TO_OUTPUT",
+  "BAGGED_KG_TO_OUTPUT",
+  "CAPSULES_TO_SHELLS",
+  "KG_TO_GUMMY_POUCHES",
+  "KG_TO_GUMMY_BOTTLES",
+];
 
 export const DIRECTION_LABEL: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "Bottles needed → KG to blend",
   KG_TO_OUTPUT: "KG blended (powder) → Capsules & bottles",
   BAGGED_KG_TO_OUTPUT: "Bagged capsules (KG) → Capsules & bottles",
   CAPSULES_TO_SHELLS: "Capsules → Empty shells needed",
+  KG_TO_GUMMY_POUCHES: "Final batch weight (KG) → Gummies & pouches",
+  KG_TO_GUMMY_BOTTLES: "Final batch weight (KG) → Gummies & bottles",
 };
 
 // The weight figure each direction asks for -- BOTTLES_TO_KG/KG_TO_OUTPUT
@@ -23,6 +32,8 @@ export const WEIGHT_FIELD_LABEL: Record<CalculationDirection, string> = {
   KG_TO_OUTPUT: "Avg. Fill Weight (mg)",
   BAGGED_KG_TO_OUTPUT: "Avg. Capsule Full Weight (mg)",
   CAPSULES_TO_SHELLS: "Empty Shell Weight (mg)",
+  KG_TO_GUMMY_POUCHES: "Avg. Gummy Weight (mg)",
+  KG_TO_GUMMY_BOTTLES: "Avg. Gummy Weight (mg)",
 };
 
 export const QUANTITY_FIELD_LABEL: Record<CalculationDirection, string> = {
@@ -30,30 +41,71 @@ export const QUANTITY_FIELD_LABEL: Record<CalculationDirection, string> = {
   KG_TO_OUTPUT: "Blended Powder (kg)",
   BAGGED_KG_TO_OUTPUT: "Bagged Capsules (kg)",
   CAPSULES_TO_SHELLS: "Capsule Count",
+  KG_TO_GUMMY_POUCHES: "Final Batch Weight (kg)",
+  KG_TO_GUMMY_BOTTLES: "Final Batch Weight (kg)",
 };
 
-// The "how many capsules per container" field -- capsules-per-bottle for
-// every direction except CAPSULES_TO_SHELLS, where the container is a bulk
-// purchasing box of empty shells instead of a finished bottle.
+// The "how many pieces per container" field -- capsules-per-bottle for the
+// capsule directions, capsules-per-box for CAPSULES_TO_SHELLS (a bulk
+// purchasing box of empty shells), gummies-per-pouch/bottle for the gummy
+// directions.
 export const PER_CONTAINER_LABEL: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "Capsules per Bottle",
   KG_TO_OUTPUT: "Capsules per Bottle",
   BAGGED_KG_TO_OUTPUT: "Capsules per Bottle",
   CAPSULES_TO_SHELLS: "Capsules per Box",
+  KG_TO_GUMMY_POUCHES: "Gummies per Pouch",
+  KG_TO_GUMMY_BOTTLES: "Gummies per Bottle",
 };
 
-// What resultBottles actually counts -- bottles for every direction except
-// CAPSULES_TO_SHELLS, where it's boxes of empty shells.
+// What resultBottles actually counts -- bottles for the capsule directions,
+// boxes of empty shells for CAPSULES_TO_SHELLS, pouches/bottles for the
+// gummy directions.
 export const CONTAINER_RESULT_LABEL: Record<CalculationDirection, string> = {
   BOTTLES_TO_KG: "Bottles",
   KG_TO_OUTPUT: "Bottles",
   BAGGED_KG_TO_OUTPUT: "Bottles",
   CAPSULES_TO_SHELLS: "Boxes",
+  KG_TO_GUMMY_POUCHES: "Pouches",
+  KG_TO_GUMMY_BOTTLES: "Bottles",
 };
 
-export function weightKind(direction: CalculationDirection): "fill" | "full" | "shell" {
+// What the "pieces produced" result tile/column calls the unit -- gummies
+// for the gummy directions, capsules for every other direction.
+export const PIECES_LABEL: Record<CalculationDirection, string> = {
+  BOTTLES_TO_KG: "Capsules",
+  KG_TO_OUTPUT: "Capsules",
+  BAGGED_KG_TO_OUTPUT: "Capsules",
+  CAPSULES_TO_SHELLS: "Capsules",
+  KG_TO_GUMMY_POUCHES: "Gummies",
+  KG_TO_GUMMY_BOTTLES: "Gummies",
+};
+
+// Sensible starting values for the per-container/weight fields, seeded when
+// a direction is selected -- still fully editable, just saves re-typing the
+// common case each time (see calculation-client.tsx).
+export const DEFAULT_PER_CONTAINER: Record<CalculationDirection, string> = {
+  BOTTLES_TO_KG: "31",
+  KG_TO_OUTPUT: "31",
+  BAGGED_KG_TO_OUTPUT: "31",
+  CAPSULES_TO_SHELLS: "31",
+  KG_TO_GUMMY_POUCHES: "90",
+  KG_TO_GUMMY_BOTTLES: "9",
+};
+
+export const DEFAULT_AVG_WEIGHT_MG: Record<CalculationDirection, string> = {
+  BOTTLES_TO_KG: "372",
+  KG_TO_OUTPUT: "372",
+  BAGGED_KG_TO_OUTPUT: "372",
+  CAPSULES_TO_SHELLS: "372",
+  KG_TO_GUMMY_POUCHES: "4000",
+  KG_TO_GUMMY_BOTTLES: "4000",
+};
+
+export function weightKind(direction: CalculationDirection): "fill" | "full" | "shell" | "gummy" {
   if (direction === "BAGGED_KG_TO_OUTPUT") return "full";
   if (direction === "CAPSULES_TO_SHELLS") return "shell";
+  if (direction === "KG_TO_GUMMY_POUCHES" || direction === "KG_TO_GUMMY_BOTTLES") return "gummy";
   return "fill";
 }
 
@@ -76,18 +128,18 @@ export function kgResultLabel(direction: CalculationDirection): string | null {
 export type CalculationResult = { resultKg: number; resultCapsules: number; resultBottles: number };
 
 /**
- * Runs one of the four capsule/bottle/shell <-> kg conversions. KG_TO_OUTPUT
- * and BAGGED_KG_TO_OUTPUT are the identical kg -> capsules -> bottles
- * calculation; they're only kept as separate directions because they use a
- * different real-world weight figure (fill weight vs full weight -- see
- * WEIGHT_FIELD_LABEL). CAPSULES_TO_SHELLS is the reverse of those two
- * (capsules -> weight instead of weight -> capsules), and rounds its
- * container count UP rather than down -- you can round down a partial
- * bottle's worth of loose capsules, but you can't buy a partial box of
- * empty shells. These are theoretical figures (no allowance for spillage,
- * rejects, QC samples, or process yield loss) -- a real batch will use
- * somewhat more material / produce somewhat fewer good units than this
- * shows.
+ * Runs one of the capsule/bottle/shell/gummy <-> kg conversions. KG_TO_OUTPUT,
+ * BAGGED_KG_TO_OUTPUT, KG_TO_GUMMY_POUCHES, and KG_TO_GUMMY_BOTTLES all fall
+ * through to the same kg -> pieces -> containers formula (the generic branch
+ * below); they're only kept as separate directions because they use
+ * different real-world weight figures and container labels (fill weight vs
+ * full weight vs one gummy's weight -- see WEIGHT_FIELD_LABEL). CAPSULES_TO_SHELLS
+ * is the reverse (capsules -> weight instead of weight -> capsules), and
+ * rounds its container count UP rather than down -- you can round down a
+ * partial bottle's worth of loose capsules, but you can't buy a partial box
+ * of empty shells. These are theoretical figures (no allowance for spillage,
+ * rejects, QC samples, or process yield loss) -- feed in the batch's actual
+ * final/weighed output instead of the planned weight to account for that.
  */
 export function computeCalculation(
   direction: CalculationDirection,

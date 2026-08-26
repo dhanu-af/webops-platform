@@ -11,6 +11,9 @@ import {
   QUANTITY_FIELD_LABEL,
   PER_CONTAINER_LABEL,
   CONTAINER_RESULT_LABEL,
+  PIECES_LABEL,
+  DEFAULT_PER_CONTAINER,
+  DEFAULT_AVG_WEIGHT_MG,
   weightKind,
   showsCapsulesResult,
   kgResultLabel,
@@ -46,6 +49,8 @@ const DIRECTION_TONE: Record<CalculationDirection, StatusTone> = {
   KG_TO_OUTPUT: "neutral",
   BAGGED_KG_TO_OUTPUT: "pass",
   CAPSULES_TO_SHELLS: "warn",
+  KG_TO_GUMMY_POUCHES: "pass",
+  KG_TO_GUMMY_BOTTLES: "attention",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -66,13 +71,22 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
   const [label, setLabel] = useState("");
   const [productName, setProductName] = useState("");
   const [batchNumber, setBatchNumber] = useState("");
-  // Pre-filled with the facility's common values, still fully editable --
-  // most runs use the same capsule count/fill weight, so this saves
-  // re-typing them every time without locking the fields.
-  const [capsulesPerBottle, setCapsulesPerBottle] = useState("31");
-  const [avgWeightMg, setAvgWeightMg] = useState("372");
+  // Pre-filled with the facility's common values for the selected direction,
+  // still fully editable -- most runs use the same per-container count/fill
+  // weight, so this saves re-typing them every time without locking the
+  // fields. Re-seeded (not preserved) when the direction changes, since a
+  // capsule count/weight doesn't carry any meaning once you switch to a
+  // gummy direction and vice versa.
+  const [capsulesPerBottle, setCapsulesPerBottle] = useState(DEFAULT_PER_CONTAINER.BOTTLES_TO_KG);
+  const [avgWeightMg, setAvgWeightMg] = useState(DEFAULT_AVG_WEIGHT_MG.BOTTLES_TO_KG);
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
+
+  function selectDirection(d: CalculationDirection) {
+    setDirection(d);
+    setCapsulesPerBottle(DEFAULT_PER_CONTAINER[d]);
+    setAvgWeightMg(DEFAULT_AVG_WEIGHT_MG[d]);
+  }
 
   const capsulesPerBottleNum = Number(capsulesPerBottle);
   const avgWeightMgNum = Number(avgWeightMg);
@@ -130,8 +144,8 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Calculation</h1>
         <p className="text-sm text-muted">
-          Capsule/bottle ↔ kg production planning math. Theoretical figures only — no allowance for spillage, rejects, QC samples, or process yield
-          loss.
+          Capsule/bottle and gummy/pouch ↔ kg production planning math. Theoretical figures only — no allowance for spillage, rejects, QC samples, or
+          process yield loss; use the batch&apos;s actual final weight as the input to account for that.
         </p>
       </div>
 
@@ -142,7 +156,7 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
               <button
                 key={d}
                 type="button"
-                onClick={() => setDirection(d)}
+                onClick={() => selectDirection(d)}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
                   direction === d
@@ -197,7 +211,7 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
               {showCapsulesTile && (
                 <div>
                   <p className="font-mono-tabular text-lg font-semibold text-foreground">{formatWholeCount(preview.resultCapsules)}</p>
-                  <p className="text-xs text-muted">Capsules</p>
+                  <p className="text-xs text-muted">{PIECES_LABEL[direction]}</p>
                 </div>
               )}
               <div>
@@ -236,8 +250,8 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                     <TableHeaderCell>Type</TableHeaderCell>
                     <TableHeaderCell>Input</TableHeaderCell>
                     <TableHeaderCell>Kg</TableHeaderCell>
-                    <TableHeaderCell>Capsules</TableHeaderCell>
-                    <TableHeaderCell>Bottles / Boxes</TableHeaderCell>
+                    <TableHeaderCell>Pieces</TableHeaderCell>
+                    <TableHeaderCell>Bottles / Boxes / Pouches</TableHeaderCell>
                     <TableHeaderCell>By</TableHeaderCell>
                     <TableHeaderCell></TableHeaderCell>
                   </TableRow>
@@ -262,7 +276,8 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                             : `${formatKg(c.inputValue)} kg`}
                         <br />
                         <span className="text-xs">
-                          {c.capsulesPerBottle}/{c.direction === "CAPSULES_TO_SHELLS" ? "box" : "bottle"}, {c.avgWeightMg}mg {weightKind(c.direction)}
+                          {c.capsulesPerBottle}/{c.direction === "CAPSULES_TO_SHELLS" ? "box" : c.direction === "KG_TO_GUMMY_POUCHES" ? "pouch" : "bottle"},{" "}
+                          {c.avgWeightMg}mg {weightKind(c.direction)}
                         </span>
                       </TableCell>
                       <TableCell className="font-mono-tabular">{formatKg(c.resultKg)}</TableCell>
