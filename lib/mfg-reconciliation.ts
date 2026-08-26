@@ -130,11 +130,11 @@ export function checkBelow(label: string, pct: number | null, max: number): Reco
   return { label, pct, limitLabel: `Below ${max}%`, pass: pct === null ? null : pct <= max };
 }
 
-// "000,000.00" display format for computed Batch Calculations figures --
-// thousands separators, always 2 decimals.
+// "000,000" display format for computed Batch Calculations figures --
+// thousands separators, rounded to the nearest whole number.
 export function formatCount(n: number | null): string {
   if (n === null) return "—";
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
 type BlendingCheckInput = { totalBlendProducedKg: number | null; totalTheoreticalWeightKg: number | null };
