@@ -20,7 +20,9 @@ export type Permission =
   | "qc.manage"
   | "qc.collect"
   | "qc.lab"
-  | "formulation.manage";
+  | "formulation.manage"
+  | "drying.update"
+  | "drying.manage";
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   SUPER_ADMIN: [
@@ -41,6 +43,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "qc.collect",
     "qc.lab",
     "formulation.manage",
+    "drying.update",
+    "drying.manage",
   ],
   ADMIN: [
     "view",
@@ -55,11 +59,13 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "qc.collect",
     "qc.lab",
     "formulation.manage",
+    "drying.update",
+    "drying.manage",
   ],
-  OPERATOR: ["view", "inspection.create", "inspection.submit", "qc.collect"],
-  TEAM_LEADER: ["view", "inspection.create", "inspection.submit", "inspection.verify.supervisor", "qc.collect"],
-  SUPERVISOR: ["view", "inspection.verify.supervisor", "reports.view", "mfg.manage", "qc.manage", "qc.collect", "formulation.manage"],
-  QA: ["view", "inspection.verify.qa", "area.release", "calibration.manage", "reports.view", "reports.export", "mfg.manage", "qc.manage", "qc.collect", "qc.lab", "formulation.manage"],
+  OPERATOR: ["view", "inspection.create", "inspection.submit", "qc.collect", "drying.update"],
+  TEAM_LEADER: ["view", "inspection.create", "inspection.submit", "inspection.verify.supervisor", "qc.collect", "drying.update"],
+  SUPERVISOR: ["view", "inspection.verify.supervisor", "reports.view", "mfg.manage", "qc.manage", "qc.collect", "formulation.manage", "drying.update", "drying.manage"],
+  QA: ["view", "inspection.verify.qa", "area.release", "calibration.manage", "reports.view", "reports.export", "mfg.manage", "qc.manage", "qc.collect", "qc.lab", "formulation.manage", "drying.update", "drying.manage"],
   MANAGEMENT: ["view", "reports.view", "reports.export", "mfg.manage", "formulation.manage"],
   VIEWER: ["view"],
 };

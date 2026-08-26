@@ -103,4 +103,5 @@ export const AUDIT_ACTION_META: Record<string, { label: string; tone: StatusTone
   CLOSED: { label: "Closed", tone: "pass" },
   LOGIN: { label: "Login", tone: "neutral" },
   AREA_RELEASED: { label: "Area Released", tone: "pass" },
+  DRYING_STAGE_CHANGED: { label: "Stage Changed", tone: "accent" },
 };

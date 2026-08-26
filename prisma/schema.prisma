@@ -78,6 +78,9 @@ model User {
   qcLabTestsPerformed       QcLabTest[]
   qcAttachmentsUploaded     QcSampleAttachment[]
   formulationsCreated       Formulation[]
+  dryingBaysAssigned        DryingBay[]             @relation("DryingBayAssignedEmployee")
+  dryingBatchesAssigned     DryingBatch[]           @relation("DryingBatchAssignedEmployee")
+  dryingTrolleysAssigned    DryingTrolley[]         @relation("DryingTrolleyAssignedEmployee")
 
   @@index([role])
 }
@@ -829,6 +832,7 @@ enum AuditAction {
   QC_DISPOSED
   QC_ATTACHMENT_ADDED
   QC_ATTACHMENT_REMOVED
+  DRYING_STAGE_CHANGED
 }
 
 model AuditLog {
@@ -1515,4 +1519,139 @@ model Ingredient {
   updatedAt DateTime @updatedAt
 
   @@index([category])
+}
+
+// =========================================================================
+// PRODUCTION STAGING OPERATIONS ("Drying Room") — a live floor-status board
+// for physical staging bays (drying/curing/finishing) a batch physically
+// sits in, plus a catch-all misc-storage tracker for anything not in a bay.
+// Bay status is deliberately NOT its own stored field -- it's derived from
+// whichever active batch's stage is most urgent (see lib/drying-room-defaults.ts's
+// computeBayStatus), falling back to the bay's manually-set `purpose` only
+// when it holds nothing active.
+// =========================================================================
+
+/// The bay's manually-set status when nothing active is in it. Trimmed from
+/// the reference implementation's ~19 values down to just this floor's real
+/// station types -- no polishing/coating/sorting stations here.
+enum DryingBayPurpose {
+  EMPTY
+  DRYING
+  WAITING_QC
+  READY_FOR_POUCHING
+  READY_FOR_PRODUCTION
+  CLEANING_REQUIRED
+  RND
+  STORAGE
+  SERVICE
+  QUARANTINE
+}
+
+/// A batch's progress through the fixed staging pipeline. QC_HOLD loops back
+/// to QC_SAMPLING (a failed QC sends it back for resampling, not backward
+/// through the whole pipeline) -- see NEXT_STAGE / STAGE_ACTIONS.
+enum DryingStage {
+  RECEIVING
+  DRYING
+  ROTATION_REQUIRED
+  CONTINUE_DRYING
+  QC_SAMPLING
+  QC_PENDING
+  QC_APPROVED
+  QC_HOLD
+  WRAPPING
+  READY_FOR_POUCHING
+  POUCHING
+  COMPLETE
+}
+
+enum TrolleyQcStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
+model DryingBay {
+  id                 String           @id @default(cuid())
+  bayNumber          Int              @unique
+  purpose            DryingBayPurpose @default(EMPTY)
+  assignedEmployeeId String?
+  assignedEmployee   User?            @relation("DryingBayAssignedEmployee", fields: [assignedEmployeeId], references: [id])
+  department         String?
+  comments           String?
+  expectedFinishTime DateTime?
+  updatedByName      String?
+  updatedAt          DateTime         @updatedAt
+
+  batches DryingBatch[]
+}
+
+/// bayId is nullable -- unassigned batches exist. baseBatchSize/etc. are not
+/// used here; this is a physical staging record, not a recipe.
+model DryingBatch {
+  id                    String      @id @default(cuid())
+  bayId                 String?
+  bay                   DryingBay?  @relation(fields: [bayId], references: [id])
+  productName           String
+  batchNumber           String
+  batchSize             Float
+  batchSizeUnit         String      @default("kg")
+  numberOfTrolleys      Int
+  trayCount             Int
+  dateEnteredDryingRoom DateTime
+  dryingStartTime       DateTime?
+  currentStage          DryingStage @default(RECEIVING)
+  /// Bumped on every stage change -- this is what the alert timers (rotation
+  /// overdue, waiting too long) key off, not createdAt/updatedAt.
+  stageUpdatedAt        DateTime    @default(now())
+  assignedEmployeeId    String?
+  assignedEmployee      User?       @relation("DryingBatchAssignedEmployee", fields: [assignedEmployeeId], references: [id])
+  /// 1/2/3 = gold/silver/bronze priority badge. Null = no priority set.
+  priorityRank          Int?
+  remarks               String?
+  /// Null until done -- "active batches" everywhere is `where: { completedAt: null }`.
+  completedAt           DateTime?
+  updatedByName         String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  trolleys DryingTrolley[]
+
+  @@index([bayId])
+}
+
+/// The physical unit that actually gets rotated/wrapped/QC'd. Auto-created
+/// in bulk (one row per numberOfTrolleys) when a batch is created.
+model DryingTrolley {
+  id                 String          @id @default(cuid())
+  batchId            String
+  batch              DryingBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  trolleyNumber      Int
+  quantity           Float?
+  trayCount          Int?
+  wrapped            Boolean         @default(false)
+  rotationCompleted  Boolean         @default(false)
+  qcStatus           TrolleyQcStatus @default(PENDING)
+  assignedEmployeeId String?
+  assignedEmployee   User?           @relation("DryingTrolleyAssignedEmployee", fields: [assignedEmployeeId], references: [id])
+  remarks            String?
+
+  @@index([batchId])
+}
+
+/// A much looser freeform record than DryingBatch -- stuff being tracked
+/// that isn't physically in a bay. No workflow, no enum, just a flat list.
+model MiscStorageItem {
+  id             String   @id @default(cuid())
+  product        String
+  batchNumber    String?
+  quantityLabel  String
+  storageType    String?
+  status         String?
+  requiredAction String?
+  location       String?
+  remarks        String?
+  updatedByName  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

@@ -24,6 +24,7 @@ import {
   FlaskConical,
   TestTube,
   Beaker,
+  Fan,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Line Clearance", href: "/line-clearance", icon: ClipboardX },
       { label: "Post-Op Cleaning", href: "/post-op", icon: SprayCan },
       { label: "5S Audits", href: "/five-s", icon: LayoutGrid },
+      { label: "Production Staging", href: "/drying-room", icon: Fan },
     ],
   },
   {

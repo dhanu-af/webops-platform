@@ -43,6 +43,7 @@ const AUDIT_ACTIONS: AuditAction[] = [
   "CLOSED",
   "LOGIN",
   "AREA_RELEASED",
+  "DRYING_STAGE_CHANGED",
 ];
 
 export default async function AuditPage({
