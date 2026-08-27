@@ -78,6 +78,55 @@ export async function createCalculation(data: {
   return calc.id;
 }
 
+export async function updateCalculation(
+  id: string,
+  data: {
+    direction: CalculationDirection;
+    label?: string | null;
+    productName?: string | null;
+    batchNumber?: string | null;
+    capsulesPerBottle: number;
+    avgWeightMg: number;
+    inputValue: number;
+  }
+) {
+  const actor = await requireCalculationAccess();
+  if (!data.capsulesPerBottle || data.capsulesPerBottle <= 0) throw new Error("Capsules per bottle must be greater than 0.");
+  if (!data.avgWeightMg || data.avgWeightMg <= 0) throw new Error("Weight must be greater than 0.");
+  if (!data.inputValue || data.inputValue <= 0) throw new Error("Enter a value greater than 0.");
+
+  const existing = await db.capsuleCalculation.findUniqueOrThrow({ where: { id } });
+  const result = computeCalculation(data.direction, data.inputValue, data.capsulesPerBottle, data.avgWeightMg);
+
+  await db.capsuleCalculation.update({
+    where: { id },
+    data: {
+      direction: data.direction,
+      label: data.label?.trim() || null,
+      productName: data.productName?.trim() || null,
+      batchNumber: data.batchNumber?.trim() || null,
+      capsulesPerBottle: data.capsulesPerBottle,
+      avgWeightMg: data.avgWeightMg,
+      inputValue: data.inputValue,
+      resultKg: result.resultKg,
+      resultCapsules: result.resultCapsules,
+      resultBottles: result.resultBottles,
+    },
+  });
+
+  await logAudit({
+    entityType: "CapsuleCalculation",
+    entityId: id,
+    action: "EDITED",
+    userId: actor.id,
+    oldValue: { direction: existing.direction, label: existing.label, productName: existing.productName, batchNumber: existing.batchNumber, inputValue: existing.inputValue },
+    newValue: { direction: data.direction, label: data.label ?? null, productName: data.productName ?? null, batchNumber: data.batchNumber ?? null, inputValue: data.inputValue },
+    reason: `Edited a "${DIRECTION_LABEL[data.direction]}" calculation${data.label ? ` ("${data.label}")` : ""}`,
+  });
+
+  revalidatePath(BASE_PATH);
+}
+
 export async function deleteCalculation(id: string) {
   const actor = await requireCalculationAccess();
   const calc = await db.capsuleCalculation.delete({ where: { id } });

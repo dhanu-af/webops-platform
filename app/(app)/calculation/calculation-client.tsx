@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { createCalculation, deleteCalculation } from "@/lib/actions/capsule-calculations";
+import { createCalculation, updateCalculation, deleteCalculation } from "@/lib/actions/capsule-calculations";
 import {
   CALCULATION_DIRECTIONS,
   DIRECTION_LABEL,
@@ -90,11 +90,41 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
   const [avgWeightDisplay, setAvgWeightDisplay] = useState(DEFAULT_AVG_WEIGHT_DISPLAY.BOTTLES_TO_KG);
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
+  // Set while editing an existing logged row instead of creating a new one
+  // -- the same form above doubles as the edit form; "Calculate & Save"
+  // becomes "Save Changes" and a "Cancel" button appears (see save()/
+  // startEdit()/cancelEdit() below).
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   function selectDirection(d: CalculationDirection) {
     setDirection(d);
     setCapsulesPerBottle(DEFAULT_PER_CONTAINER[d]);
     setAvgWeightDisplay(DEFAULT_AVG_WEIGHT_DISPLAY[d]);
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setDirection("BOTTLES_TO_KG");
+    setLabel("");
+    setProductName("");
+    setBatchNumber("");
+    setCapsulesPerBottle(DEFAULT_PER_CONTAINER.BOTTLES_TO_KG);
+    setAvgWeightDisplay(DEFAULT_AVG_WEIGHT_DISPLAY.BOTTLES_TO_KG);
+    setInputValue("");
+    setError("");
+  }
+
+  function startEdit(c: CalculationRow) {
+    setEditingId(c.id);
+    setDirection(c.direction);
+    setLabel(c.label ?? "");
+    setProductName(c.productName ?? "");
+    setBatchNumber(c.batchNumber ?? "");
+    setCapsulesPerBottle(c.capsulesPerBottle.toString());
+    setAvgWeightDisplay(fromAvgWeightMg(c.direction, c.avgWeightMg).toString());
+    setInputValue(c.inputValue.toString());
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const capsulesPerBottleNum = Number(capsulesPerBottle);
@@ -115,21 +145,28 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
     if (!avgWeightMgNum || avgWeightMgNum <= 0) return setError(`${WEIGHT_FIELD_LABEL[direction]} must be greater than 0.`);
     if (!inputValueNum || inputValueNum <= 0) return setError(`Enter a value for "${QUANTITY_FIELD_LABEL[direction]}".`);
 
+    const payload = {
+      direction,
+      label: label || null,
+      productName: productName || null,
+      batchNumber: batchNumber || null,
+      capsulesPerBottle: capsulesPerBottleNum,
+      avgWeightMg: avgWeightMgNum,
+      inputValue: inputValueNum,
+    };
+
     startTransition(async () => {
       try {
-        await createCalculation({
-          direction,
-          label: label || null,
-          productName: productName || null,
-          batchNumber: batchNumber || null,
-          capsulesPerBottle: capsulesPerBottleNum,
-          avgWeightMg: avgWeightMgNum,
-          inputValue: inputValueNum,
-        });
-        setLabel("");
-        setProductName("");
-        setBatchNumber("");
-        setInputValue("");
+        if (editingId) {
+          await updateCalculation(editingId, payload);
+          resetForm();
+        } else {
+          await createCalculation(payload);
+          setLabel("");
+          setProductName("");
+          setBatchNumber("");
+          setInputValue("");
+        }
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Couldn't save calculation.");
@@ -142,6 +179,7 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
     startTransition(async () => {
       try {
         await deleteCalculation(id);
+        if (id === editingId) resetForm();
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Couldn't delete.");
@@ -161,6 +199,14 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
 
       <Card>
         <CardContent className="space-y-4">
+          {editingId && (
+            <div className="flex items-center justify-between rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent-strong">
+              <span>Editing a logged calculation — changes replace the original entry.</span>
+              <button type="button" onClick={resetForm} className="text-xs font-medium underline hover:opacity-80">
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {CALCULATION_DIRECTIONS.map((d) => (
               <button
@@ -235,9 +281,14 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
 
           {error && <p className="rounded-lg bg-status-critical-soft px-3 py-2 text-sm text-status-critical">{error}</p>}
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {editingId && (
+              <Button size="sm" variant="secondary" onClick={resetForm} disabled={pending}>
+                Cancel
+              </Button>
+            )}
             <Button size="sm" onClick={save} disabled={pending}>
-              {pending ? "Saving…" : "Calculate & Save"}
+              {pending ? "Saving…" : editingId ? "Save Changes" : "Calculate & Save"}
             </Button>
           </div>
         </CardContent>
@@ -312,9 +363,14 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                         {c.createdAtLabel}
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => remove(c.id)} disabled={pending} className="text-xs font-medium text-status-critical hover:opacity-80">
-                          Delete
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => startEdit(c)} disabled={pending} className="text-xs font-medium text-accent hover:opacity-80">
+                            Edit
+                          </button>
+                          <button onClick={() => remove(c.id)} disabled={pending} className="text-xs font-medium text-status-critical hover:opacity-80">
+                            Delete
+                          </button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
