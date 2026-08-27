@@ -3,7 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { createCalculation, updateCalculation, deleteCalculation } from "@/lib/actions/capsule-calculations";
+import {
+  createCalculation,
+  updateCalculation,
+  deleteCalculation,
+  createCalculationFolder,
+  deleteCalculationFolder,
+  moveCalculationToFolder,
+} from "@/lib/actions/capsule-calculations";
 import {
   CALCULATION_DIRECTIONS,
   DIRECTION_LABEL,
@@ -44,9 +51,12 @@ export type CalculationRow = {
   resultKg: number;
   resultCapsules: number;
   resultBottles: number;
+  folderId: string | null;
   createdByName: string;
   createdAtLabel: string;
 };
+
+export type FolderRow = { id: string; name: string };
 
 const DIRECTION_TONE: Record<CalculationDirection, StatusTone> = {
   BOTTLES_TO_KG: "accent",
@@ -70,9 +80,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const INPUT_CLASS = "w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
-export function CalculationClient({ calculations }: { calculations: CalculationRow[] }) {
+export function CalculationClient({ calculations, folders }: { calculations: CalculationRow[]; folders: FolderRow[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // "all" | "none" (uncategorized) | a folder id -- which slice of the log
+  // is shown below. Folders are a pure display filter, not a separate data
+  // fetch -- the full log is already loaded, so switching folders is
+  // instant with no extra round trip.
+  const [activeFolder, setActiveFolder] = useState<string>("all");
   const [direction, setDirection] = useState<CalculationDirection>("BOTTLES_TO_KG");
   const [label, setLabel] = useState("");
   const [productName, setProductName] = useState("");
@@ -187,6 +202,50 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
     });
   }
 
+  function moveToFolder(id: string, folderId: string | null) {
+    startTransition(async () => {
+      try {
+        await moveCalculationToFolder(id, folderId);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't move calculation.");
+      }
+    });
+  }
+
+  function newFolder() {
+    const name = window.prompt("New folder name (e.g. \"Capsules\", \"August 2026\"):");
+    if (!name || !name.trim()) return;
+    startTransition(async () => {
+      try {
+        const id = await createCalculationFolder(name);
+        setActiveFolder(id);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't create folder.");
+      }
+    });
+  }
+
+  function removeFolder(id: string, name: string) {
+    if (!confirm(`Delete the "${name}" folder? Its calculations stay in the log, just uncategorized.`)) return;
+    startTransition(async () => {
+      try {
+        await deleteCalculationFolder(id);
+        if (activeFolder === id) setActiveFolder("all");
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't delete folder.");
+      }
+    });
+  }
+
+  const visibleCalculations = calculations.filter((c) => {
+    if (activeFolder === "all") return true;
+    if (activeFolder === "none") return !c.folderId;
+    return c.folderId === activeFolder;
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -298,12 +357,69 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
         <CardHeader>
           <div>
             <CardTitle>Calculation Log</CardTitle>
-            <CardDescription>{calculations.length} run{calculations.length === 1 ? "" : "s"}, most recent first</CardDescription>
+            <CardDescription>
+              {visibleCalculations.length} of {calculations.length} run{calculations.length === 1 ? "" : "s"}, most recent first
+            </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="space-y-4 p-0">
+          <div className="flex flex-wrap items-center gap-2 px-6 pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveFolder("all")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                activeFolder === "all" ? "border-accent/40 bg-accent-soft text-accent-strong" : "border-border-strong text-muted-strong hover:bg-surface-sunken"
+              )}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFolder("none")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                activeFolder === "none" ? "border-accent/40 bg-accent-soft text-accent-strong" : "border-border-strong text-muted-strong hover:bg-surface-sunken"
+              )}
+            >
+              Uncategorized
+            </button>
+            {folders.map((f) => (
+              <div
+                key={f.id}
+                className={cn(
+                  "flex items-center gap-1 rounded-full border pl-3 pr-1 py-1 text-xs font-medium transition-colors",
+                  activeFolder === f.id ? "border-accent/40 bg-accent-soft text-accent-strong" : "border-border-strong text-muted-strong hover:bg-surface-sunken"
+                )}
+              >
+                <button type="button" onClick={() => setActiveFolder(f.id)}>
+                  📁 {f.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeFolder(f.id, f.name)}
+                  disabled={pending}
+                  className="rounded-full px-1.5 text-muted hover:bg-status-critical-soft hover:text-status-critical"
+                  aria-label={`Delete folder ${f.name}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={newFolder}
+              disabled={pending}
+              className="rounded-full border border-dashed border-border-strong px-3 py-1 text-xs font-medium text-muted-strong hover:bg-surface-sunken"
+            >
+              + New Folder
+            </button>
+          </div>
+
           {calculations.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted">No calculations yet — run your first one above.</p>
+          ) : visibleCalculations.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted">Nothing in this folder yet — move a calculation here from another folder.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-[900px]">
@@ -320,7 +436,7 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {calculations.map((c) => (
+                  {visibleCalculations.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="text-foreground">
                         {c.productName ?? "—"}
@@ -363,13 +479,28 @@ export function CalculationClient({ calculations }: { calculations: CalculationR
                         {c.createdAtLabel}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => startEdit(c)} disabled={pending} className="text-xs font-medium text-accent hover:opacity-80">
-                            Edit
-                          </button>
-                          <button onClick={() => remove(c.id)} disabled={pending} className="text-xs font-medium text-status-critical hover:opacity-80">
-                            Delete
-                          </button>
+                        <div className="space-y-1.5">
+                          <select
+                            value={c.folderId ?? ""}
+                            onChange={(e) => moveToFolder(c.id, e.target.value || null)}
+                            disabled={pending || folders.length === 0}
+                            className="w-full rounded-md border border-border-strong bg-surface px-1.5 py-1 text-xs text-foreground outline-none focus:border-accent disabled:opacity-50"
+                          >
+                            <option value="">No folder</option>
+                            {folders.map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.name}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => startEdit(c)} disabled={pending} className="text-xs font-medium text-accent hover:opacity-80">
+                              Edit
+                            </button>
+                            <button onClick={() => remove(c.id)} disabled={pending} className="text-xs font-medium text-status-critical hover:opacity-80">
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>

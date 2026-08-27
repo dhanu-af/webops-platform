@@ -71,6 +71,7 @@ model User {
   respondedItems            InspectionResponse[]
   calibrationsRecorded      EquipmentCalibration[]
   capsuleCalculations       CapsuleCalculation[]
+  calculationFolders        CalculationFolder[]
   mfgBatches                MfgBatch[]
   qcSamplesCollected        QcSample[]              @relation("QcSampleCollectedBy")
   qcSamplesReceived         QcSample[]              @relation("QcSampleReceivedBy")
@@ -297,9 +298,31 @@ model CapsuleCalculation {
   resultCapsules    Float
   resultBottles     Float
 
+  // Optional user-created grouping (e.g. "Capsules", "August 2026") -- a
+  // calculation with no folder is just uncategorized, not an error state.
+  folderId String?
+  folder   CalculationFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([folderId])
+}
+
+// Freeform folders for organizing the Calculation Log -- not tied to any
+// fixed taxonomy (product type, date, etc.), since different facilities
+// group runs differently. Deleting a folder un-groups its calculations
+// (onDelete: SetNull above) rather than deleting the calculations themselves.
+model CalculationFolder {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  calculations CapsuleCalculation[]
 
   @@index([createdAt])
 }

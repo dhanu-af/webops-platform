@@ -28,6 +28,61 @@ export async function listCalculations() {
   });
 }
 
+export async function listCalculationFolders() {
+  return db.calculationFolder.findMany({ orderBy: { name: "asc" } });
+}
+
+export async function createCalculationFolder(name: string) {
+  const actor = await requireCalculationAccess();
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Folder name can't be empty.");
+
+  const folder = await db.calculationFolder.create({ data: { name: trimmed, createdById: actor.id } });
+
+  await logAudit({
+    entityType: "CalculationFolder",
+    entityId: folder.id,
+    action: "CREATED",
+    userId: actor.id,
+    newValue: { name: trimmed },
+  });
+
+  revalidatePath(BASE_PATH);
+  return folder.id;
+}
+
+export async function deleteCalculationFolder(id: string) {
+  const actor = await requireCalculationAccess();
+  const folder = await db.calculationFolder.delete({ where: { id } });
+
+  await logAudit({
+    entityType: "CalculationFolder",
+    entityId: id,
+    action: "DELETED",
+    userId: actor.id,
+    oldValue: { name: folder.name },
+    reason: `Deleted the "${folder.name}" calculation folder — its calculations are now uncategorized, not deleted.`,
+  });
+
+  revalidatePath(BASE_PATH);
+}
+
+export async function moveCalculationToFolder(id: string, folderId: string | null) {
+  const actor = await requireCalculationAccess();
+  await db.capsuleCalculation.update({ where: { id }, data: { folderId } });
+
+  await logAudit({
+    entityType: "CapsuleCalculation",
+    entityId: id,
+    action: "EDITED",
+    userId: actor.id,
+    newValue: { folderId },
+    reason: folderId ? "Moved a calculation into a folder" : "Moved a calculation out of its folder",
+  });
+
+  revalidatePath(BASE_PATH);
+}
+
 export async function createCalculation(data: {
   direction: CalculationDirection;
   label?: string | null;

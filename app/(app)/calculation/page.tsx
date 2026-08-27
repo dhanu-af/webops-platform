@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getFacilityTimezone, formatDateTimeInTimeZone } from "@/lib/timezone";
-import { listCalculations } from "@/lib/actions/capsule-calculations";
+import { listCalculations, listCalculationFolders } from "@/lib/actions/capsule-calculations";
 import { CalculationClient } from "./calculation-client";
 
 export default async function CalculationPage() {
   const session = await auth();
   if (!session?.user || !can(session.user.role, "reports.view")) notFound();
 
-  const [calculations, timeZone] = await Promise.all([listCalculations(), getFacilityTimezone()]);
+  const [calculations, folders, timeZone] = await Promise.all([listCalculations(), listCalculationFolders(), getFacilityTimezone()]);
 
   return (
     <CalculationClient
@@ -25,9 +25,11 @@ export default async function CalculationPage() {
         resultKg: c.resultKg,
         resultCapsules: c.resultCapsules,
         resultBottles: c.resultBottles,
+        folderId: c.folderId,
         createdByName: c.createdBy.name,
         createdAtLabel: formatDateTimeInTimeZone(c.createdAt, timeZone),
       }))}
+      folders={folders.map((f) => ({ id: f.id, name: f.name }))}
     />
   );
 }
