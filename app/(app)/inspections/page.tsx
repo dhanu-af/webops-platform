@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { INSPECTION_STATUS_META } from "@/lib/status";
+import { recordStatus, RECORD_STATUS_TONE } from "@/lib/record-status";
 import { getFacilityTimezone, formatDayInTimeZone } from "@/lib/timezone";
 import type { InspectionStatus } from "@/app/generated/prisma/client";
 
@@ -37,16 +38,21 @@ export default async function InspectionsHistoryPage({
 }: {
   searchParams: Promise<{
     status?: string;
+    recordStatus?: string;
     areaId?: string;
     sectionId?: string;
     q?: string;
+    from?: string;
+    to?: string;
+    operatorId?: string;
+    product?: string;
   }>;
 }) {
   const session = await auth();
   const scope = getUserScope(session!.user);
   const filters = await searchParams;
 
-  const [inspections, timeZone, areas] = await Promise.all([
+  const [inspections, timeZone, areas, operators] = await Promise.all([
     listInspections(filters, scope),
     getFacilityTimezone(),
     // Full-visibility users get a real section/area picker; a scoped user's
@@ -62,10 +68,11 @@ export default async function InspectionsHistoryPage({
             { sortOrder: "asc" },
           ],
         }),
+    db.user.findMany({ where: { role: { in: ["OPERATOR", "TEAM_LEADER"] } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const hasExtraFilters = Boolean(
-    filters.status || filters.areaId || filters.sectionId || filters.q,
+    filters.status || filters.recordStatus || filters.areaId || filters.sectionId || filters.q || filters.from || filters.to || filters.operatorId || filters.product,
   );
 
   return (
@@ -113,6 +120,54 @@ export default async function InspectionsHistoryPage({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="text-xs font-medium text-muted-strong">Record status</label>
+              <select
+                name="recordStatus"
+                defaultValue={filters.recordStatus ?? ""}
+                className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+              >
+                <option value="">Any</option>
+                {["Draft", "Submitted", "Verified", "Rejected"].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-strong">From</label>
+              <input type="date" name="from" defaultValue={filters.from ?? ""} className="mt-1.5 block rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-strong">To</label>
+              <input type="date" name="to" defaultValue={filters.to ?? ""} className="mt-1.5 block rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-strong">Product / batch</label>
+              <input
+                type="text"
+                name="product"
+                defaultValue={filters.product ?? ""}
+                placeholder="e.g. Creatine or 247"
+                className="mt-1.5 block rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-strong">User (operator)</label>
+              <select
+                name="operatorId"
+                defaultValue={filters.operatorId ?? ""}
+                className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+              >
+                <option value="">Anyone</option>
+                {operators.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             {!scope.scoped && (
               <div>
                 <label className="text-xs font-medium text-muted-strong">
@@ -151,7 +206,7 @@ export default async function InspectionsHistoryPage({
         <CardHeader>
           <CardTitle>
             Records ({inspections.length}
-            {inspections.length === 100 ? "+ — showing latest 100" : ""})
+            {inspections.length === 200 ? "+ — showing latest 200, narrow the filters to see more" : ""})
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
@@ -164,6 +219,7 @@ export default async function InspectionsHistoryPage({
                 <TableHeaderCell>Score</TableHeaderCell>
                 <TableHeaderCell>Status</TableHeaderCell>
                 <TableHeaderCell>Date</TableHeaderCell>
+                <TableHeaderCell>Record</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -195,10 +251,18 @@ export default async function InspectionsHistoryPage({
                       {insp.score !== null ? `${insp.score}%` : "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge tone={meta.tone}>{meta.label}</Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge tone={RECORD_STATUS_TONE[recordStatus(insp.status)]}>{recordStatus(insp.status)}</Badge>
+                        <span className="text-[11px] text-muted">{meta.label}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono-tabular text-xs text-muted">
                       {formatDayInTimeZone(insp.createdAt, timeZone)}
+                    </TableCell>
+                    <TableCell>
+                      <a href={`/api/inspections/${insp.id}/pdf`} className="text-xs font-medium text-accent hover:underline">
+                        PDF
+                      </a>
                     </TableCell>
                   </TableRow>
                 );

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import { scopeWhere, type UserScope } from "@/lib/scope";
 import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
+import { statusesForRecordStatus } from "@/lib/record-status";
 
 export async function getTodaySchedules(scope: UserScope) {
   const now = new Date();
@@ -27,23 +28,48 @@ export async function getTodaySchedules(scope: UserScope) {
   return schedules.filter((s) => scheduleAppliesOnDay(s, today));
 }
 
-export async function listInspections(
-  filters: {
-    status?: string;
-    sectionId?: string;
-    areaId?: string;
-    frequency?: string;
-    q?: string;
-  } = {},
-  scope: UserScope = { scoped: false }
-) {
+// Search filters for the record register (URS-14): date range, line/area,
+// product or batch (previous or next), operator, and status.
+export type InspectionFilters = {
+  status?: string;
+  recordStatus?: string; // Draft | Submitted | Verified | Rejected
+  sectionId?: string;
+  areaId?: string;
+  frequency?: string;
+  q?: string; // checklist name
+  from?: string; // YYYY-MM-DD, facility-local
+  to?: string; // YYYY-MM-DD, facility-local
+  operatorId?: string;
+  product?: string; // matches product or batch, previous or next
+};
+
+export async function listInspections(filters: InspectionFilters = {}, scope: UserScope = { scoped: false }) {
+  const timeZone = await getFacilityTimezone();
+  // Day boundaries are the facility's, not UTC's (Vercel runs in UTC).
+  const dayStart = filters.from ? startOfDayInTimeZone(timeZone, new Date(`${filters.from}T12:00:00Z`)) : undefined;
+  const dayEnd = filters.to ? endOfDayInTimeZone(timeZone, new Date(`${filters.to}T12:00:00Z`)) : undefined;
+  const recordStatuses = filters.recordStatus ? statusesForRecordStatus(filters.recordStatus) : undefined;
+  const product = filters.product?.trim();
+
   return db.inspection.findMany({
     where: {
-      status: filters.status ? (filters.status as never) : undefined,
+      status: filters.status ? (filters.status as never) : recordStatuses ? { in: recordStatuses } : undefined,
       sectionId: filters.sectionId || undefined,
       areaId: filters.areaId || undefined,
       frequency: filters.frequency ? (filters.frequency as never) : undefined,
+      operatorId: filters.operatorId || undefined,
+      createdAt: dayStart || dayEnd ? { gte: dayStart, lte: dayEnd } : undefined,
       checklistVersion: filters.q ? { checklist: { name: { contains: filters.q, mode: "insensitive" } } } : undefined,
+      ...(product
+        ? {
+            OR: [
+              { product: { contains: product, mode: "insensitive" } },
+              { batchNumber: { contains: product, mode: "insensitive" } },
+              { previousProduct: { contains: product, mode: "insensitive" } },
+              { previousBatchNumber: { contains: product, mode: "insensitive" } },
+            ],
+          }
+        : {}),
       ...scopeWhere(scope),
     },
     include: {
@@ -56,7 +82,7 @@ export async function listInspections(
       findings: true,
     },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 200,
   });
 }
 

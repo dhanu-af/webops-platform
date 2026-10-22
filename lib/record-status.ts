@@ -29,3 +29,19 @@ export const RECORD_STATUS_TONE: Record<RecordStatus, StatusTone> = {
   Verified: "pass",
   Rejected: "critical",
 };
+
+/** Workflow statuses that make up one record status, for filtering lists (URS-14). */
+export function statusesForRecordStatus(rs: string): InspectionStatus[] | undefined {
+  switch (rs) {
+    case "Draft":
+      return ["NOT_STARTED", "IN_PROGRESS", "OVERDUE", "RETURNED"];
+    case "Submitted":
+      return ["SUBMITTED", "AWAITING_SUPERVISOR", "SUPERVISOR_APPROVED", "AWAITING_QA"];
+    case "Verified":
+      return ["QA_APPROVED", "CLOSED"];
+    case "Rejected":
+      return ["REJECTED"];
+    default:
+      return undefined;
+  }
+}

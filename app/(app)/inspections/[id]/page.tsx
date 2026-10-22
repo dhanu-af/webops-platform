@@ -82,6 +82,15 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           {inspection.operator ? ` · ${inspection.operator.name}` : ""}
           {inspection.equipment ? ` · ${inspection.equipment.name}` : ""}
         </p>
+        <p className="flex flex-wrap gap-x-4 text-xs">
+          <a href={`/api/inspections/${inspection.id}/pdf`} className="font-medium text-accent hover:underline">
+            Download record (PDF with audit trail &amp; signatures)
+          </a>
+          <a href={`/forms/${inspection.checklistVersion.checklistId}`} className="font-medium text-accent hover:underline">
+            Blank paper form
+          </a>
+          {inspection.appVersion && <span className="text-muted">Release {inspection.appVersion}</span>}
+        </p>
         {inspection.returnedReason && inspection.status === "RETURNED" && (
           <div className="rounded-lg bg-status-critical-soft px-3 py-2 text-sm text-status-critical">
             Returned: {inspection.returnedReason}
