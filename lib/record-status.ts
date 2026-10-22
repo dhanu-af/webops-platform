@@ -1,0 +1,31 @@
+import type { InspectionStatus } from "@/app/generated/prisma/client";
+import type { StatusTone } from "@/lib/status";
+
+// The four record states the SQF validation documents use (URS-10), derived
+// from the finer-grained workflow status so nothing in the workflow changes.
+export type RecordStatus = "Draft" | "Submitted" | "Verified" | "Rejected";
+
+export function recordStatus(status: InspectionStatus): RecordStatus {
+  switch (status) {
+    case "SUBMITTED":
+    case "AWAITING_SUPERVISOR":
+    case "SUPERVISOR_APPROVED":
+    case "AWAITING_QA":
+      return "Submitted";
+    case "QA_APPROVED":
+    case "CLOSED":
+      return "Verified";
+    case "REJECTED":
+      return "Rejected";
+    default:
+      // NOT_STARTED, IN_PROGRESS, OVERDUE, and RETURNED (back with the operator to correct).
+      return "Draft";
+  }
+}
+
+export const RECORD_STATUS_TONE: Record<RecordStatus, StatusTone> = {
+  Draft: "neutral",
+  Submitted: "accent",
+  Verified: "pass",
+  Rejected: "critical",
+};

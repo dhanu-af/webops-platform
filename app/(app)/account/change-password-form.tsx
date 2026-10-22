@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { changePassword } from "@/lib/actions/users";
+import { validatePassword } from "@/lib/password-policy";
 
 export function ChangePasswordForm() {
   const [pending, startTransition] = useTransition();
@@ -20,7 +21,7 @@ export function ChangePasswordForm() {
         setError(null);
         setSuccess(false);
         if (!currentPassword) return setError("Enter your current password.");
-        if (newPassword.length < 8) return setError("New password must be at least 8 characters.");
+        { const problems = validatePassword(newPassword); if (problems.length) return setError(problems.join(" ")); }
         if (newPassword !== confirmPassword) return setError("New passwords do not match.");
         startTransition(async () => {
           try {

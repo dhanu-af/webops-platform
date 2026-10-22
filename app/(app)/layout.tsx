@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/nav/sidebar";
 import { Topbar } from "@/components/nav/topbar";
 import { MobileNavProvider } from "@/components/nav/mobile-nav-context";
+import { IdleLogout } from "@/components/auth/idle-logout";
+import { signOut } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 export default async function AppLayout({
   children,
@@ -12,8 +15,21 @@ export default async function AppLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  // A deactivated user's token stays valid until it expires; refuse it here so
+  // deactivation takes effect on the very next page load (URS-03).
+  const account = await db.user.findUnique({ where: { id: session.user.id }, select: { active: true } });
+  if (!account?.active) {
+    await signOut({ redirectTo: "/login" });
+  }
+
   return (
     <MobileNavProvider>
+      <IdleLogout
+        signOutAction={async () => {
+          "use server";
+          await signOut({ redirectTo: "/login" });
+        }}
+      />
       <div className="flex min-h-screen">
         <Sidebar role={session.user.role} />
         <div className="flex min-w-0 flex-1 flex-col">

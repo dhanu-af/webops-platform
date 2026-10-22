@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
+import { assertPasswordPolicy } from "@/lib/password-policy";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/app/generated/prisma/client";
@@ -31,6 +32,7 @@ export async function createUser(input: {
   const existing = await db.user.findUnique({ where: { email: input.email.toLowerCase() } });
   if (existing) throw new Error(`A user with email "${input.email}" already exists.`);
 
+  assertPasswordPolicy(input.password, { email: input.email, name: input.name });
   const passwordHash = await bcrypt.hash(input.password, 10);
   const user = await db.user.create({
     data: {
@@ -73,6 +75,8 @@ export async function changePassword(input: { currentPassword: string; newPasswo
   const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
   if (!valid) throw new Error("Current password is incorrect.");
 
+  if (input.newPassword === input.currentPassword) throw new Error("Choose a password you haven't used just now.");
+  assertPasswordPolicy(input.newPassword, { email: user.email, name: user.name });
   const passwordHash = await bcrypt.hash(input.newPassword, 10);
   await db.user.update({ where: { id: user.id }, data: { passwordHash } });
   await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: user.id, reason: "Password changed" });
@@ -142,7 +146,8 @@ export async function setUserActive(userId: string, active: boolean) {
 export async function adminResetPassword(userId: string, newPassword: string) {
   const actor = await requireUserManager();
 
-  if (newPassword.length < 8) throw new Error("Password must be at least 8 characters.");
+  const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, name: true } });
+  assertPasswordPolicy(newPassword, target);
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await db.user.update({ where: { id: userId }, data: { passwordHash } });

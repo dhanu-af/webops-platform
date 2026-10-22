@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { createUser } from "@/lib/actions/users";
 import type { UserRole } from "@/app/generated/prisma/client";
+import { validatePassword } from "@/lib/password-policy";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -46,7 +47,7 @@ export function NewUserForm({
         setError(null);
         if (!name.trim()) return setError("Name is required.");
         if (!email.trim()) return setError("Email is required.");
-        if (password.length < 8) return setError("Password must be at least 8 characters.");
+        { const problems = validatePassword(password); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
             await createUser({

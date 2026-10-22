@@ -26,19 +26,25 @@ export function SubmitBar({ inspectionId, answered, total }: { inspectionId: str
           onClick={() =>
             startTransition(async () => {
               setError(null);
+              let result: Awaited<ReturnType<typeof submitInspection>>;
               try {
-                await submitInspection(inspectionId);
+                result = await submitInspection(inspectionId);
               } catch {
                 // Transient connection hiccups against the database show up here as an
                 // opaque, redacted RSC error digest rather than a real error message —
                 // nothing has been written yet at this point, so a single silent retry
-                // is safe and resolves it without bothering the operator.
+                // is safe and resolves it without bothering the operator. (Validation
+                // problems don't land here: they come back as { ok: false, error }.)
                 try {
-                  await submitInspection(inspectionId);
+                  result = await submitInspection(inspectionId);
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "Could not submit.");
                   return;
                 }
+              }
+              if (!result.ok) {
+                setError(result.error);
+                return;
               }
               router.refresh();
             })

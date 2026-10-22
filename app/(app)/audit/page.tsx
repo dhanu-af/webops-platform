@@ -31,6 +31,7 @@ const AUDIT_ACTIONS: AuditAction[] = [
   "CREATED",
   "STARTED",
   "EDITED",
+  "SIGNATURE_FAILED",
   "SUBMITTED",
   "ITEM_FAILED",
   "PHOTO_UPLOADED",

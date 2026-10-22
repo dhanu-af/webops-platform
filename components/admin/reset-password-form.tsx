@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { adminResetPassword } from "@/lib/actions/users";
+import { validatePassword } from "@/lib/password-policy";
 
 export function ResetPasswordForm({ userId }: { userId: string }) {
   const [pending, startTransition] = useTransition();
@@ -17,7 +18,7 @@ export function ResetPasswordForm({ userId }: { userId: string }) {
         e.preventDefault();
         setError(null);
         setDone(false);
-        if (newPassword.length < 8) return setError("Password must be at least 8 characters.");
+        { const problems = validatePassword(newPassword); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
             await adminResetPassword(userId, newPassword);

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { saveResponse, createFindingDetail } from "@/lib/actions/inspections";
+import { saveResponse, createFindingDetail, createCorrectiveAction } from "@/lib/actions/inspections";
 import { PhotoUpload } from "./photo-upload";
 import { formatAttribution } from "@/lib/format-attribution";
 import type { ResponseValue, Severity } from "@/app/generated/prisma/client";
@@ -40,7 +41,13 @@ type ItemResponse = {
   updatedAt: Date;
   respondedBy: { name: string } | null;
   photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }>;
-  finding: { id: string; severity: Severity; reason: string | null; photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }> } | null;
+  finding: {
+    id: string;
+    severity: Severity;
+    reason: string | null;
+    photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }>;
+    correctiveAction: { id: string; status: string; correctiveAction: string } | null;
+  } | null;
 } | null;
 
 export function ChecklistItemCard({
@@ -263,6 +270,7 @@ export function ChecklistItemCard({
           severity={response?.finding?.severity ?? "MINOR"}
           reason={response?.finding?.reason ?? ""}
           editable={editable}
+          correctiveAction={response?.finding?.correctiveAction ?? null}
         />
       )}
 
@@ -358,11 +366,13 @@ function FindingDetail({
   severity,
   reason,
   editable,
+  correctiveAction,
 }: {
   findingId?: string;
   severity: Severity;
   reason: string;
   editable: boolean;
+  correctiveAction: { id: string; status: string; correctiveAction: string } | null;
 }) {
   const [, startTransition] = useTransition();
   const [localSeverity, setLocalSeverity] = useState(severity);
@@ -413,6 +423,71 @@ function FindingDetail({
         placeholder="Reason / immediate correction taken…"
         className="w-full rounded-lg border border-border bg-surface-sunken px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
       />
+      <CorrectiveActionEntry findingId={findingId} editable={editable} existing={correctiveAction} />
+    </div>
+  );
+}
+
+// Every failed item needs a corrective action before the record can be
+// submitted (URS-07); a Supervisor/QA then signs it off before the line is released.
+function CorrectiveActionEntry({
+  findingId,
+  editable,
+  existing,
+}: {
+  findingId: string;
+  editable: boolean;
+  existing: { id: string; status: string; correctiveAction: string } | null;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [text, setText] = useState("");
+  const [rootCause, setRootCause] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  if (existing) {
+    return (
+      <div className="rounded-lg border border-border bg-surface-sunken px-3 py-2 text-xs">
+        <p className="font-medium text-foreground">Corrective action recorded</p>
+        <p className="mt-0.5 text-muted-strong">{existing.correctiveAction}</p>
+        <p className="mt-1 text-muted">{existing.status === "CLOSED" ? "Signed off by Supervisor/QA." : "Awaiting Supervisor/QA sign-off."}</p>
+      </div>
+    );
+  }
+  if (!editable) return <p className="text-xs font-medium text-status-critical">No corrective action was recorded for this failure.</p>;
+
+  return (
+    <div className="space-y-2 rounded-lg border border-dashed border-status-critical/40 p-2.5">
+      <p className="text-xs font-semibold text-status-critical">Corrective action required</p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={2}
+        placeholder="What was done / will be done to fix this?"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs outline-none focus:border-accent"
+      />
+      <input
+        value={rootCause}
+        onChange={(e) => setRootCause(e.target.value)}
+        placeholder="Root cause (optional)"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs outline-none focus:border-accent"
+      />
+      {error && <p className="text-xs text-status-critical">{error}</p>}
+      <button
+        type="button"
+        disabled={pending || !text.trim()}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null);
+            const result = await createCorrectiveAction({ findingId, correctiveAction: text, rootCause: rootCause || undefined });
+            if (!result.ok) return setError(result.error);
+            router.refresh();
+          })
+        }
+        className="rounded-lg bg-status-critical px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+      >
+        {pending ? "Saving…" : "Record corrective action"}
+      </button>
     </div>
   );
 }

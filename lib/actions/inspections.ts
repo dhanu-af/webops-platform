@@ -1,19 +1,37 @@
 "use server";
 
 import { db, withDbRetry } from "@/lib/db";
-import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { notify, notifyUsers } from "@/lib/notifications";
 import { storePhoto, getMaxPhotoBytes, isAllowedPhotoFile } from "@/lib/storage";
-import { canVerifyOwnWork } from "@/lib/permissions";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
+import { requireActiveUser, requireUserWithPermission } from "@/lib/session-user";
+import { verifySignaturePassword } from "@/lib/signature";
+import { APP_VERSION_STAMP } from "@/lib/app-version";
+import {
+  changedFields,
+  failuresMissingCorrectiveAction,
+  missingHeaderFields,
+  numericVerdict,
+  signatureMeaning,
+  unansweredRequiredItems,
+  unsignedCorrectiveActionCount,
+  verifierConflict,
+} from "@/lib/inspection-rules";
+import { UserFacingError, runAction, type ActionResult } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
-import type { ResponseValue, Severity, VerificationAction, WorkflowRole } from "@/app/generated/prisma/client";
+import type { InspectionStatus, ResponseValue, Severity, VerificationAction, WorkflowRole } from "@/app/generated/prisma/client";
 
-async function requireUser() {
-  const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
-  return session.user;
+// Statuses in which the operator may still change answers. Anything else is a
+// submitted/verified/closed record and is read-only (URS-11).
+const EDITABLE_STATUSES: InspectionStatus[] = ["NOT_STARTED", "IN_PROGRESS", "RETURNED"];
+
+function assertEditable(inspection: { status: InspectionStatus }) {
+  if (!EDITABLE_STATUSES.includes(inspection.status)) throw new UserFacingError("This inspection is not open for editing.");
+}
+
+function assertOwnRecord(inspection: { operatorId: string | null }, userId: string) {
+  if (inspection.operatorId && inspection.operatorId !== userId) throw new UserFacingError("This record belongs to another operator.");
 }
 
 // Lazy instantiation: Today's Ops "Start" turns a due ChecklistSchedule into
@@ -22,7 +40,7 @@ async function requireUser() {
 // HANDOVER.md — a Vercel Cron generator is the documented next step for
 // true unattended recurrence).
 export async function getOrCreateInspectionForSchedule(scheduleId: string) {
-  const user = await requireUser();
+  const user = await requireUserWithPermission("inspection.create");
   const schedule = await db.checklistSchedule.findUniqueOrThrow({
     where: { id: scheduleId },
     include: { checklist: { include: { versions: { where: { isCurrent: true } } } } },
@@ -56,6 +74,7 @@ export async function getOrCreateInspectionForSchedule(scheduleId: string) {
       status: "NOT_STARTED",
       dueAt: new Date(),
       operatorId: user.role === "OPERATOR" || user.role === "TEAM_LEADER" ? user.id : null,
+      appVersion: APP_VERSION_STAMP,
     },
   });
   await logAudit({ entityType: "Inspection", entityId: inspection.id, inspectionId: inspection.id, action: "CREATED", userId: user.id });
@@ -82,6 +101,51 @@ export async function getInspection(inspectionId: string) {
   });
 }
 
+// Product / batch context for the record (URS-04). For line clearance and
+// allergen changeover this is previous AND next product; for other checklists
+// only the optional product/batch.
+async function saveInspectionHeaderImpl(input: {
+  inspectionId: string;
+  product?: string;
+  batchNumber?: string;
+  previousProduct?: string;
+  previousBatchNumber?: string;
+}) {
+  const user = await requireUserWithPermission("inspection.submit");
+  const inspection = await db.inspection.findUniqueOrThrow({ where: { id: input.inspectionId } });
+  assertEditable(inspection);
+  assertOwnRecord(inspection, user.id);
+
+  const next = {
+    product: input.product?.trim() || null,
+    batchNumber: input.batchNumber?.trim() || null,
+    previousProduct: input.previousProduct?.trim() || null,
+    previousBatchNumber: input.previousBatchNumber?.trim() || null,
+  };
+  await db.inspection.update({
+    where: { id: inspection.id },
+    data: { ...next, operatorId: inspection.operatorId ?? user.id },
+  });
+
+  // Changes after the record was first submitted are logged field by field with the reopen reason.
+  if (inspection.submittedAt) {
+    for (const c of changedFields(inspection, next)) {
+      await logAudit({
+        entityType: "Inspection",
+        entityId: inspection.id,
+        inspectionId: inspection.id,
+        action: "EDITED",
+        userId: user.id,
+        fieldName: c.field,
+        oldValue: { value: c.oldValue as string | null },
+        newValue: { value: c.newValue as string | null },
+        reason: inspection.reopenReason ?? "Edited after submission",
+      });
+    }
+  }
+  revalidatePath(`/inspections/${inspection.id}`);
+}
+
 export async function saveResponse(input: {
   inspectionId: string;
   checklistItemId: string;
@@ -91,20 +155,30 @@ export async function saveResponse(input: {
   choiceValue?: string;
   comment?: string;
 }) {
-  const user = await requireUser();
+  // Who and when are never taken from the caller: the user comes from the
+  // session and every timestamp is written by the server/database (URS-06).
+  const user = await requireUserWithPermission("inspection.submit");
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: input.inspectionId } });
-  if (inspection.status !== "NOT_STARTED" && inspection.status !== "IN_PROGRESS" && inspection.status !== "RETURNED") {
-    throw new Error("This inspection is not open for editing.");
-  }
+  assertEditable(inspection);
+  assertOwnRecord(inspection, user.id);
 
   const item = await db.checklistItem.findUniqueOrThrow({ where: { id: input.checklistItemId } });
 
-  await db.inspectionResponse.upsert({
-    where: { inspectionId_checklistItemId: { inspectionId: input.inspectionId, checklistItemId: input.checklistItemId } },
+  // A measured value outside the item's acceptable range is recorded as a FAIL
+  // by the server, whatever the browser sent (URS-08). In range clears any
+  // earlier FAIL so correcting a mistyped reading un-flags it.
+  let passFail: ResponseValue | null | undefined = input.passFail;
+  if (item.type === "NUMERIC" && input.numericValue !== undefined) passFail = numericVerdict(item, input.numericValue);
+
+  const where = { inspectionId_checklistItemId: { inspectionId: input.inspectionId, checklistItemId: input.checklistItemId } };
+  const before = await db.inspectionResponse.findUnique({ where });
+
+  const response = await db.inspectionResponse.upsert({
+    where,
     create: {
       inspectionId: input.inspectionId,
       checklistItemId: input.checklistItemId,
-      passFail: input.passFail,
+      passFail,
       numericValue: input.numericValue,
       textValue: input.textValue,
       choiceValue: input.choiceValue,
@@ -112,7 +186,7 @@ export async function saveResponse(input: {
       respondedById: user.id,
     },
     update: {
-      passFail: input.passFail,
+      passFail,
       numericValue: input.numericValue,
       textValue: input.textValue,
       choiceValue: input.choiceValue,
@@ -121,12 +195,37 @@ export async function saveResponse(input: {
     },
   });
 
-  if (inspection.status === "NOT_STARTED") {
-    await db.inspection.update({ where: { id: inspection.id }, data: { status: "IN_PROGRESS", startedAt: new Date() } });
-    await logAudit({ entityType: "Inspection", entityId: inspection.id, inspectionId: inspection.id, action: "STARTED", userId: user.id });
+  // Edits to an already-submitted record (reopened after a return): keep the
+  // original value and record who changed what, from what, to what, and why
+  // (URS-11, URS-12). The original survives in the append-only audit trail.
+  if (inspection.submittedAt) {
+    for (const c of changedFields(before, { passFail, numericValue: input.numericValue, textValue: input.textValue, choiceValue: input.choiceValue, comment: input.comment })) {
+      await logAudit({
+        entityType: "InspectionResponse",
+        entityId: response.id,
+        inspectionId: inspection.id,
+        action: "EDITED",
+        userId: user.id,
+        fieldName: c.field,
+        oldValue: { item: item.prompt, value: c.oldValue as string | number | null },
+        newValue: { item: item.prompt, value: c.newValue as string | number | null },
+        reason: inspection.reopenReason ?? "Edited after submission",
+      });
+    }
   }
 
-  if (input.passFail === "FAIL") {
+  if (inspection.status === "NOT_STARTED") {
+    await db.inspection.update({
+      where: { id: inspection.id },
+      data: { status: "IN_PROGRESS", startedAt: new Date(), operatorId: inspection.operatorId ?? user.id },
+    });
+    await logAudit({ entityType: "Inspection", entityId: inspection.id, inspectionId: inspection.id, action: "STARTED", userId: user.id });
+  } else if (!inspection.operatorId) {
+    // Whoever enters the first answer is the operator of record.
+    await db.inspection.update({ where: { id: inspection.id }, data: { operatorId: user.id } });
+  }
+
+  if (passFail === "FAIL") {
     await logAudit({
       entityType: "Inspection",
       entityId: inspection.id,
@@ -135,15 +234,10 @@ export async function saveResponse(input: {
       userId: user.id,
       newValue: { checklistItemId: input.checklistItemId, prompt: item.prompt },
     });
-  }
 
-  // A FAIL on a required item opens a Finding automatically (spec §15) —
-  // severity defaults from the item's criticalFailure flag and can be
-  // refined later via createFinding when the operator adds detail.
-  if (input.passFail === "FAIL" && item.required) {
-    const response = await db.inspectionResponse.findUniqueOrThrow({
-      where: { inspectionId_checklistItemId: { inspectionId: input.inspectionId, checklistItemId: input.checklistItemId } },
-    });
+    // Any FAIL opens a Finding automatically (spec §15, URS-07) -- severity
+    // defaults from the item's criticalFailure flag and can be refined later.
+    // The operator must then record a corrective action before submitting.
     const existingFinding = await db.finding.findUnique({ where: { responseId: response.id } });
     if (!existingFinding) {
       const finding = await db.finding.create({
@@ -160,17 +254,18 @@ export async function saveResponse(input: {
       });
       await logAudit({ entityType: "Finding", entityId: finding.id, inspectionId: inspection.id, action: "FINDING_CREATED", userId: user.id });
     }
-  } else if (input.passFail !== "FAIL") {
-    // Value corrected back to PASS/NA before submission — drop the finding
+  } else if (passFail !== undefined && !inspection.submittedAt) {
+    // Value corrected away from FAIL while still a draft -- drop the finding
     // only if it's still a bare, untouched record: no corrective action and
     // no evidence photo attached. Once either exists it's real audit history,
-    // not a misclick, so it must never be silently deleted.
-    const response = await db.inspectionResponse.findUnique({
-      where: { inspectionId_checklistItemId: { inspectionId: input.inspectionId, checklistItemId: input.checklistItemId } },
+    // not a misclick, so it must never be silently deleted. After the record
+    // has been submitted nothing is ever deleted (URS-11).
+    const current = await db.inspectionResponse.findUnique({
+      where,
       include: { finding: { include: { correctiveAction: true, photoEvidence: true } } },
     });
-    if (response?.finding && !response.finding.correctiveAction && response.finding.photoEvidence.length === 0) {
-      await db.finding.delete({ where: { id: response.finding.id } });
+    if (current?.finding && !current.finding.correctiveAction && current.finding.photoEvidence.length === 0) {
+      await db.finding.delete({ where: { id: current.finding.id } });
     }
   }
 
@@ -178,7 +273,7 @@ export async function saveResponse(input: {
 }
 
 export async function attachPhoto(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireUserWithPermission("inspection.submit");
   const inspectionId = formData.get("inspectionId") as string;
   const responseId = (formData.get("responseId") as string) || undefined;
   const findingId = (formData.get("findingId") as string) || undefined;
@@ -186,12 +281,14 @@ export async function attachPhoto(formData: FormData) {
   const caption = (formData.get("caption") as string) || undefined;
   const file = formData.get("file") as File;
 
-  if (!file || file.size === 0) throw new Error("No file provided.");
+  if (!file || file.size === 0) throw new UserFacingError("No file provided.");
   const maxPhotoBytes = await getMaxPhotoBytes();
-  if (file.size > maxPhotoBytes) throw new Error(`Photo exceeds ${Math.round(maxPhotoBytes / (1024 * 1024))}MB limit.`);
-  if (!isAllowedPhotoFile(file)) throw new Error("Unsupported file type.");
+  if (file.size > maxPhotoBytes) throw new UserFacingError(`Photo exceeds ${Math.round(maxPhotoBytes / (1024 * 1024))}MB limit.`);
+  if (!isAllowedPhotoFile(file)) throw new UserFacingError("Unsupported file type.");
 
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: inspectionId } });
+  assertEditable(inspection);
+  assertOwnRecord(inspection, user.id);
   const { url, sizeBytes } = await storePhoto(file);
 
   const photo = await db.photoEvidence.create({
@@ -222,62 +319,105 @@ export async function createFindingDetail(input: {
   severity: Severity;
   immediateCorrection?: string;
 }) {
-  const user = await requireUser();
+  const user = await requireUserWithPermission("inspection.submit");
+  const finding = await db.finding.findUniqueOrThrow({ where: { id: input.findingId }, include: { inspection: true } });
+  assertEditable(finding.inspection);
+  assertOwnRecord(finding.inspection, user.id);
   await db.finding.update({
     where: { id: input.findingId },
     data: { reason: input.reason, severity: input.severity, immediateCorrection: input.immediateCorrection },
   });
   revalidatePath("/inspections");
-  void user;
 }
 
-export async function createCorrectiveAction(input: {
+// Statuses in which a corrective action may still be recorded: any time before
+// the record is finally verified, by the operator or by a verifier who spots
+// an unaddressed failure.
+const CORRECTIVE_ACTION_STATUSES: InspectionStatus[] = [...EDITABLE_STATUSES, "SUBMITTED", "AWAITING_SUPERVISOR", "SUPERVISOR_APPROVED", "AWAITING_QA"];
+
+async function createCorrectiveActionImpl(input: {
   findingId: string;
   rootCause?: string;
   correctiveAction: string;
   preventiveAction?: string;
-  responsibleUserId: string;
-  dueDate: string;
+  responsibleUserId?: string;
+  dueDate?: string;
 }) {
-  const user = await requireUser();
-  const finding = await db.finding.findUniqueOrThrow({ where: { id: input.findingId } });
+  const user = await requireUserWithPermission("inspection.submit", "inspection.verify.supervisor", "inspection.verify.qa");
+  if (!input.correctiveAction?.trim()) throw new UserFacingError("Describe the corrective action taken or planned.");
 
+  const finding = await db.finding.findUniqueOrThrow({ where: { id: input.findingId }, include: { inspection: true, correctiveAction: true } });
+  if (!CORRECTIVE_ACTION_STATUSES.includes(finding.inspection.status)) throw new UserFacingError("This record is closed; corrective actions can no longer be added.");
+  if (finding.correctiveAction) throw new UserFacingError("A corrective action already exists for this failure.");
+
+  const responsibleUserId = input.responsibleUserId ?? user.id;
   const ca = await db.correctiveAction.create({
     data: {
       findingId: input.findingId,
       areaId: finding.areaId,
       equipmentId: finding.equipmentId,
-      rootCause: input.rootCause,
-      correctiveAction: input.correctiveAction,
-      preventiveAction: input.preventiveAction,
-      responsibleUserId: input.responsibleUserId,
-      dueDate: new Date(input.dueDate),
+      rootCause: input.rootCause?.trim() || undefined,
+      correctiveAction: input.correctiveAction.trim(),
+      preventiveAction: input.preventiveAction?.trim() || undefined,
+      responsibleUserId,
+      dueDate: input.dueDate ? new Date(input.dueDate) : new Date(),
     },
   });
   await db.finding.update({ where: { id: input.findingId }, data: { status: "CORRECTIVE_ACTION_CREATED" } });
-  await logAudit({ entityType: "CorrectiveAction", entityId: ca.id, inspectionId: finding.inspectionId, action: "CORRECTIVE_ACTION_CREATED", userId: user.id });
-  await notify(input.responsibleUserId, "CORRECTIVE_ACTION_DUE", "Corrective action assigned", input.correctiveAction, "/corrective-actions");
+  await logAudit({ entityType: "CorrectiveAction", entityId: ca.id, inspectionId: finding.inspectionId, action: "CORRECTIVE_ACTION_CREATED", userId: user.id, newValue: { correctiveAction: ca.correctiveAction } });
+  if (responsibleUserId !== user.id) {
+    await notify(responsibleUserId, "CORRECTIVE_ACTION_DUE", "Corrective action assigned", ca.correctiveAction, "/corrective-actions");
+  }
   revalidatePath("/corrective-actions");
   revalidatePath(`/inspections/${finding.inspectionId}`);
 }
 
-export async function closeCorrectiveAction(id: string) {
-  const user = await requireUser();
+// Sign-off of a corrective action by a Supervisor/QA (URS-07, URS-09). Until
+// every corrective action on a record is signed off, that record cannot be
+// approved and the line is not released.
+async function closeCorrectiveActionImpl(id: string, password?: string) {
+  const user = await requireActiveUser();
+  if (!["SUPERVISOR", "TEAM_LEADER", "QA", "SUPER_ADMIN"].includes(user.role)) {
+    throw new UserFacingError("Only a Supervisor or QA can sign off a corrective action.");
+  }
+
+  const existing = await db.correctiveAction.findUniqueOrThrow({
+    where: { id },
+    include: { finding: { include: { inspection: { include: { responses: { select: { respondedById: true } } } } } } },
+  });
+  const inspection = existing.finding.inspection;
+  const conflict = verifierConflict({
+    actorId: user.id,
+    operatorId: inspection.operatorId,
+    responderIds: inspection.responses.map((r) => r.respondedById).filter((x): x is string => !!x),
+  });
+  if (conflict) throw new UserFacingError(conflict);
+
+  await verifySignaturePassword(user.id, password, "corrective action sign-off");
+
   const ca = await db.correctiveAction.update({
     where: { id },
     data: { status: "CLOSED", closedById: user.id, closedAt: new Date(), verifiedById: user.id, verifiedAt: new Date() },
     include: { finding: true },
   });
   await db.finding.update({ where: { id: ca.findingId }, data: { status: "CLOSED" } });
-  await logAudit({ entityType: "CorrectiveAction", entityId: ca.id, inspectionId: ca.finding.inspectionId, action: "CLOSED", userId: user.id });
+  await logAudit({
+    entityType: "CorrectiveAction",
+    entityId: ca.id,
+    inspectionId: ca.finding.inspectionId,
+    action: "CLOSED",
+    userId: user.id,
+    reason: `Signed off as Verified by ${user.name} (${user.role})`,
+  });
   revalidatePath("/corrective-actions");
+  revalidatePath(`/inspections/${ca.finding.inspectionId}`);
 }
 
 // Required items must be answered before submission; a required-photo item
 // that failed must carry at least one photo before the operator can hand
 // off to the next verification step (spec §15).
-export async function submitInspection(inspectionId: string) {
-  const user = await requireUser();
+async function submitInspectionImpl(inspectionId: string) {
+  const user = await requireUserWithPermission("inspection.submit");
   // Deliberately narrower than getInspection() (used for page rendering) — this
   // only needs items/responses for validation and a couple of display fields
   // for the notify() message, not the full page's supervisor/qa/verification/
@@ -286,41 +426,68 @@ export async function submitInspection(inspectionId: string) {
     db.inspection.findUniqueOrThrow({
       where: { id: inspectionId },
       select: {
+        status: true,
         operatorId: true,
+        areaId: true,
+        product: true,
+        batchNumber: true,
+        previousProduct: true,
+        previousBatchNumber: true,
         area: { select: { name: true } },
         checklistVersion: {
           select: {
             items: { orderBy: { sortOrder: "asc" } },
-            checklist: { select: { name: true, workflow: { select: { steps: true } } } },
+            checklist: { select: { name: true, category: true, workflow: { select: { steps: true } } } },
           },
         },
-        responses: { select: { checklistItemId: true, passFail: true, choiceValue: true, id: true, finding: { select: { photoEvidence: { select: { id: true } } } } } },
+        responses: {
+          select: {
+            checklistItemId: true,
+            passFail: true,
+            numericValue: true,
+            textValue: true,
+            choiceValue: true,
+            id: true,
+            finding: { select: { photoEvidence: { select: { id: true } }, correctiveAction: { select: { status: true } } } },
+          },
+        },
         photoEvidence: { select: { responseId: true } },
       },
     })
   );
 
+  assertEditable(inspection);
   if (inspection.operatorId && inspection.operatorId !== user.id) {
-    throw new Error("Only the assigned operator can submit this inspection.");
+    throw new UserFacingError("Only the assigned operator can submit this inspection.");
   }
+
+  // Record header: area/line, and previous + next product/batch where the
+  // checklist type needs them. Blank required header fields block submission.
+  const missingHeader = missingHeaderFields(inspection.checklistVersion.checklist.category, inspection);
+  if (missingHeader.length) throw new UserFacingError(`Complete the record details before submitting: ${missingHeader.join(", ")}.`);
 
   const items = inspection.checklistVersion.items;
   const responseByItem = new Map(inspection.responses.map((r) => [r.checklistItemId, r]));
+  const promptByItem = new Map(items.map((i) => [i.id, i.prompt]));
+
+  // Required fields cannot be blank -- a saved but empty answer doesn't count (URS-05).
+  const unanswered = unansweredRequiredItems(items, responseByItem);
+  if (unanswered.length) throw new UserFacingError(`"${unanswered[0].prompt}" is required.${unanswered.length > 1 ? ` (${unanswered.length} required items are unanswered.)` : ""}`);
 
   for (const item of items) {
     const response = responseByItem.get(item.id);
-    if (item.required && !response) {
-      throw new Error(`"${item.prompt}" is required.`);
-    }
-    // An ACKNOWLEDGEMENT item has no PASS/FAIL state — it's answered once
-    // marked "DONE" or "NA" (see checklist-item-card.tsx / equipment-task-row.tsx).
-    if (item.required && item.type === "ACKNOWLEDGEMENT" && response?.choiceValue !== "DONE" && response?.choiceValue !== "NA") {
-      throw new Error(`"${item.prompt}" is required.`);
-    }
     if (response?.passFail === "FAIL" && (item.requiresPhotoOnFail || item.criticalFailure)) {
       const hasPhoto = inspection.photoEvidence.some((p) => p.responseId === response.id) || response.finding?.photoEvidence?.length;
-      if (!hasPhoto) throw new Error(`Photo evidence is required for the failed item "${item.prompt}".`);
+      if (!hasPhoto) throw new UserFacingError(`Photo evidence is required for the failed item "${item.prompt}".`);
     }
+  }
+
+  // Every failed item needs a corrective action entry before the record can leave the operator (URS-07).
+  const noCorrectiveAction = failuresMissingCorrectiveAction(
+    inspection.responses.map((r) => ({ passFail: r.passFail, prompt: promptByItem.get(r.checklistItemId) ?? "A failed item", finding: r.finding }))
+  );
+  if (noCorrectiveAction.length) {
+    throw new UserFacingError(`A corrective action is required for the failed item "${noCorrectiveAction[0]}"${noCorrectiveAction.length > 1 ? ` and ${noCorrectiveAction.length - 1} more` : ""}.`);
   }
 
   const total = items.filter((i) => i.type === "PASS_FAIL" || i.type === "YES_NO").length;
@@ -340,10 +507,19 @@ export async function submitInspection(inspectionId: string) {
   // if a sibling promise rejects first, Promise.all's own wrapper settles
   // before this one necessarily has, which is a real risk to rule out even
   // though it wasn't confirmed as the cause here (see HANDOVER.md).
+  // submittedAt is the server's clock, never the device's (URS-06).
   await withDbRetry(() =>
     db.inspection.update({
       where: { id: inspectionId },
-      data: { status: nextStatus, submittedAt: new Date(), score, operatorId: inspection.operatorId ?? user.id, returnedReason: null },
+      data: {
+        status: nextStatus,
+        submittedAt: new Date(),
+        score,
+        operatorId: inspection.operatorId ?? user.id,
+        returnedReason: null,
+        reopenReason: null,
+        appVersion: APP_VERSION_STAMP,
+      },
     })
   );
 
@@ -378,31 +554,66 @@ export async function submitInspection(inspectionId: string) {
   revalidatePath("/dashboard");
 }
 
-export async function verifyInspection(input: { inspectionId: string; action: VerificationAction; comment?: string }) {
-  const user = await requireUser();
+async function verifyInspectionImpl(input: { inspectionId: string; action: VerificationAction; comment?: string; password?: string }) {
+  // Live role from the database, not the JWT: a demoted or deactivated
+  // verifier can't keep signing for the rest of their session.
+  const user = await requireActiveUser();
   const inspection = await getInspection(input.inspectionId);
 
   const isSupervisorStep = inspection.status === "AWAITING_SUPERVISOR";
   const isQaStep = inspection.status === "AWAITING_QA";
-  if (!isSupervisorStep && !isQaStep) throw new Error("This inspection is not awaiting verification.");
+  if (!isSupervisorStep && !isQaStep) throw new UserFacingError("This inspection is not awaiting verification.");
 
   const requiredRole = isSupervisorStep ? "SUPERVISOR" : "QA";
   if (requiredRole === "SUPERVISOR" && !["SUPERVISOR", "TEAM_LEADER", "SUPER_ADMIN"].includes(user.role)) {
-    throw new Error("Only a Supervisor/Team Leader can perform this verification.");
+    throw new UserFacingError("Only a Supervisor/Team Leader can perform this verification.");
   }
   if (requiredRole === "QA" && !["QA", "SUPER_ADMIN"].includes(user.role)) {
-    throw new Error("Only QA can perform this verification.");
-  }
-  if (!canVerifyOwnWork(user.id, inspection.operatorId)) {
-    throw new Error("You cannot verify an inspection you performed yourself.");
+    throw new UserFacingError("Only QA can perform this verification.");
   }
 
+  // Segregation of duties: not the operator, and not anyone who entered an answer (URS-02).
+  const responderIds = inspection.responses.map((r) => r.respondedById).filter((x): x is string => !!x);
+  const conflict = verifierConflict({ actorId: user.id, operatorId: inspection.operatorId, responderIds });
+  if (conflict) throw new UserFacingError(conflict);
+
+  if ((input.action === "RETURN" || input.action === "REJECT") && !input.comment) {
+    throw new UserFacingError("A reason is required to return or reject an inspection.");
+  }
+
+  const steps = (inspection.checklistVersion.checklist.workflow?.steps ?? []).sort((a, b) => a.order - b.order);
+  const hasQaStep = steps.some((s) => s.role === "QA");
+  const isFinalStep = requiredRole === "QA" || !hasQaStep;
+
+  // The line is not released while any failure's corrective action is still
+  // awaiting Supervisor/QA sign-off (URS-07). Returning or rejecting is always allowed.
+  if (input.action === "APPROVE") {
+    const findings = await db.finding.findMany({ where: { inspectionId: inspection.id }, select: { correctiveAction: { select: { status: true, verifiedById: true } } } });
+    const unsigned = unsignedCorrectiveActionCount(findings);
+    if (unsigned > 0) {
+      throw new UserFacingError(`${unsigned} corrective action${unsigned === 1 ? " is" : "s are"} not signed off yet. Sign off every corrective action before approving.`);
+    }
+  }
+
+  // Electronic signature: re-enter the password at the moment of signing (URS-09).
+  await verifySignaturePassword(user.id, input.password, `${input.action.toLowerCase()} of inspection ${inspection.id}`);
+
   await db.verificationRecord.create({
-    data: { inspectionId: inspection.id, stepRole: requiredRole, actorId: user.id, action: input.action, comment: input.comment },
+    data: {
+      inspectionId: inspection.id,
+      stepRole: requiredRole,
+      actorId: user.id,
+      action: input.action,
+      comment: input.comment,
+      signerName: user.name,
+      signerRole: user.role,
+      meaning: signatureMeaning(input.action, isFinalStep),
+      passwordReverified: true,
+      appVersion: APP_VERSION_STAMP,
+    },
   });
 
   if (input.action === "RETURN" || input.action === "REJECT") {
-    if (!input.comment) throw new Error("A reason is required to return or reject an inspection.");
     await db.inspection.update({
       where: { id: inspection.id },
       data: {
@@ -413,7 +624,7 @@ export async function verifyInspection(input: { inspectionId: string; action: Ve
     });
     await logAudit({ entityType: "Inspection", entityId: inspection.id, inspectionId: inspection.id, action: input.action === "RETURN" ? "RETURNED" : "REJECTED", userId: user.id, reason: input.comment });
     if (inspection.operatorId) {
-      await notify(inspection.operatorId, input.action === "RETURN" ? "RETURNED" : "REJECTED", `${inspection.checklistVersion.checklist.name} ${input.action === "RETURN" ? "returned" : "rejected"}`, input.comment, `/inspections/${inspection.id}`);
+      await notify(inspection.operatorId, input.action === "RETURN" ? "RETURNED" : "REJECTED", `${inspection.checklistVersion.checklist.name} ${input.action === "RETURN" ? "returned" : "rejected"}`, input.comment!, `/inspections/${inspection.id}`);
     }
     revalidatePath("/inspections");
     revalidatePath(`/inspections/${inspection.id}`);
@@ -422,8 +633,6 @@ export async function verifyInspection(input: { inspectionId: string; action: Ve
 
   // APPROVE
   if (requiredRole === "SUPERVISOR") {
-    const steps = (inspection.checklistVersion.checklist.workflow?.steps ?? []).sort((a, b) => a.order - b.order);
-    const hasQaStep = steps.some((s) => s.role === "QA");
     const nextStatus = hasQaStep ? "AWAITING_QA" : "CLOSED";
 
     await db.inspection.update({ where: { id: inspection.id }, data: { status: nextStatus, supervisorId: user.id } });
@@ -475,9 +684,67 @@ export async function verifyInspection(input: { inspectionId: string; action: Ve
   revalidatePath("/dashboard");
 }
 
-export async function resubmitReturnedInspection(inspectionId: string) {
-  const user = await requireUser();
-  await db.inspection.update({ where: { id: inspectionId }, data: { status: "IN_PROGRESS" } });
-  await logAudit({ entityType: "Inspection", entityId: inspectionId, inspectionId, action: "EDITED", userId: user.id, reason: "Reopened after return for correction" });
+// A returned record goes back to its operator for correction. Reopening needs
+// a reason (URS-11); every answer changed while it's open is then audited with
+// its old value, new value and that reason (URS-12).
+async function resubmitReturnedInspectionImpl(inspectionId: string, reason?: string) {
+  const user = await requireUserWithPermission("inspection.submit");
+  if (!reason || reason.trim().length < 5) throw new UserFacingError("Give a reason for reopening this record (at least 5 characters).");
+
+  const inspection = await db.inspection.findUniqueOrThrow({ where: { id: inspectionId } });
+  if (inspection.status !== "RETURNED") throw new UserFacingError("Only a returned record can be reopened for correction.");
+  assertOwnRecord(inspection, user.id);
+
+  await db.inspection.update({ where: { id: inspectionId }, data: { status: "IN_PROGRESS", reopenReason: reason.trim() } });
+  await logAudit({
+    entityType: "Inspection",
+    entityId: inspectionId,
+    inspectionId,
+    action: "EDITED",
+    userId: user.id,
+    fieldName: "status",
+    oldValue: { value: "RETURNED" },
+    newValue: { value: "IN_PROGRESS" },
+    reason: reason.trim(),
+  });
   revalidatePath(`/inspections/${inspectionId}`);
+}
+
+// Exported entry points: validation failures come back as { ok: false, error }
+// so the message survives production error redaction (see lib/user-error.ts).
+export async function saveInspectionHeader(input: {
+  inspectionId: string;
+  product?: string;
+  batchNumber?: string;
+  previousProduct?: string;
+  previousBatchNumber?: string;
+}): Promise<ActionResult> {
+  return runAction(() => saveInspectionHeaderImpl(input));
+}
+
+export async function createCorrectiveAction(input: {
+  findingId: string;
+  rootCause?: string;
+  correctiveAction: string;
+  preventiveAction?: string;
+  responsibleUserId?: string;
+  dueDate?: string;
+}): Promise<ActionResult> {
+  return runAction(() => createCorrectiveActionImpl(input));
+}
+
+export async function closeCorrectiveAction(id: string, password?: string): Promise<ActionResult> {
+  return runAction(() => closeCorrectiveActionImpl(id, password));
+}
+
+export async function submitInspection(inspectionId: string): Promise<ActionResult> {
+  return runAction(() => submitInspectionImpl(inspectionId));
+}
+
+export async function verifyInspection(input: { inspectionId: string; action: VerificationAction; comment?: string; password?: string }): Promise<ActionResult> {
+  return runAction(() => verifyInspectionImpl(input));
+}
+
+export async function resubmitReturnedInspection(inspectionId: string, reason?: string): Promise<ActionResult> {
+  return runAction(() => resubmitReturnedInspectionImpl(inspectionId, reason));
 }

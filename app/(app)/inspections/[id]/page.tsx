@@ -9,7 +9,10 @@ import { EquipmentTaskRow } from "@/components/inspection/equipment-task-row";
 import { SubmitBar } from "@/components/inspection/submit-bar";
 import { VerificationActions, ResubmitButton } from "@/components/inspection/verification-actions";
 import { VerificationTimeline } from "@/components/inspection/verification-timeline";
-import { canVerifyOwnWork } from "@/lib/permissions";
+import { can, canVerifyOwnWork } from "@/lib/permissions";
+import { RecordDetailsForm } from "@/components/inspection/record-details-form";
+import { recordStatus, RECORD_STATUS_TONE } from "@/lib/record-status";
+import { needsProductChangeover } from "@/lib/inspection-rules";
 import { buildChecklistRenderRows } from "@/lib/checklist-render";
 
 // Headroom for submitInspection's several sequential DB round-trips against
@@ -29,7 +32,9 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const meta = INSPECTION_STATUS_META[inspection.status];
   const editable =
     (inspection.status === "NOT_STARTED" || inspection.status === "IN_PROGRESS" || inspection.status === "RETURNED") &&
+    can(session.user.role, "inspection.submit") &&
     (!inspection.operatorId || inspection.operatorId === session.user.id);
+  const status = recordStatus(inspection.status);
 
   const responseByItem = new Map(inspection.responses.map((r) => [r.checklistItemId, r]));
   const items = inspection.checklistVersion.items;
@@ -47,15 +52,13 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const total = renderRows.length;
   const answered = renderRows.filter((row) => (row.kind === "equipment-triplet" ? row.items.some(isItemAnswered) : isItemAnswered(row.item))).length;
 
-  const canActSupervisor =
-    inspection.status === "AWAITING_SUPERVISOR" &&
-    ["SUPERVISOR", "TEAM_LEADER", "SUPER_ADMIN"].includes(session.user.role) &&
-    canVerifyOwnWork(session.user.id, inspection.operatorId);
+  const noConflict =
+    canVerifyOwnWork(session.user.id, inspection.operatorId) && !inspection.responses.some((r) => r.respondedById === session.user.id);
 
-  const canActQa =
-    inspection.status === "AWAITING_QA" &&
-    ["QA", "SUPER_ADMIN"].includes(session.user.role) &&
-    canVerifyOwnWork(session.user.id, inspection.operatorId);
+  const canActSupervisor =
+    inspection.status === "AWAITING_SUPERVISOR" && ["SUPERVISOR", "TEAM_LEADER", "SUPER_ADMIN"].includes(session.user.role) && noConflict;
+
+  const canActQa = inspection.status === "AWAITING_QA" && ["QA", "SUPER_ADMIN"].includes(session.user.role) && noConflict;
 
   const groups = new Map<string, typeof items>();
   for (const item of items) {
@@ -68,12 +71,16 @@ export default async function InspectionDetailPage({ params }: { params: Promise
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">{inspection.checklistVersion.checklist.name}</h1>
-          <Badge tone={meta.tone}>{meta.label}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge tone={RECORD_STATUS_TONE[status]}>{status}</Badge>
+            <Badge tone={meta.tone}>{meta.label}</Badge>
+          </div>
         </div>
         <p className="text-sm text-muted">
           {inspection.area?.name ?? inspection.section?.name ?? inspection.facility.name} · v{inspection.checklistVersion.versionNumber} ·{" "}
           {inspection.frequency.replace(/_/g, " ")}
           {inspection.operator ? ` · ${inspection.operator.name}` : ""}
+          {inspection.equipment ? ` · ${inspection.equipment.name}` : ""}
         </p>
         {inspection.returnedReason && inspection.status === "RETURNED" && (
           <div className="rounded-lg bg-status-critical-soft px-3 py-2 text-sm text-status-critical">
@@ -82,9 +89,19 @@ export default async function InspectionDetailPage({ params }: { params: Promise
         )}
       </div>
 
-      {inspection.status === "RETURNED" && (
-        <ResubmitButton inspectionId={inspection.id} />
-      )}
+      {inspection.status === "RETURNED" && can(session.user.role, "inspection.submit") && <ResubmitButton inspectionId={inspection.id} />}
+
+      <RecordDetailsForm
+        inspectionId={inspection.id}
+        editable={editable}
+        changeover={needsProductChangeover(inspection.checklistVersion.checklist.category)}
+        initial={{
+          product: inspection.product ?? "",
+          batchNumber: inspection.batchNumber ?? "",
+          previousProduct: inspection.previousProduct ?? "",
+          previousBatchNumber: inspection.previousBatchNumber ?? "",
+        }}
+      />
 
       <div className="space-y-6">
         {Array.from(groups.entries()).map(([groupLabel, groupItems]) => (
@@ -128,7 +145,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
         ))}
       </div>
 
-      {(canActSupervisor || canActQa) && <VerificationActions inspectionId={inspection.id} stage={canActSupervisor ? "SUPERVISOR" : "QA"} />}
+      {(canActSupervisor || canActQa) && <VerificationActions inspectionId={inspection.id} stage={canActSupervisor ? "SUPERVISOR" : "QA"} signerName={session.user.name ?? "You"} />}
 
       {inspection.verificationRecords.length > 0 || inspection.submittedAt ? (
         <div className="rounded-[var(--radius)] border border-border bg-surface p-4">

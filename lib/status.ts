@@ -91,6 +91,7 @@ export const AUDIT_ACTION_META: Record<string, { label: string; tone: StatusTone
   CREATED: { label: "Created", tone: "accent" },
   STARTED: { label: "Started", tone: "accent" },
   EDITED: { label: "Edited", tone: "neutral" },
+  SIGNATURE_FAILED: { label: "Signature Failed", tone: "critical" },
   SUBMITTED: { label: "Submitted", tone: "accent" },
   ITEM_FAILED: { label: "Item Failed", tone: "critical" },
   PHOTO_UPLOADED: { label: "Photo Uploaded", tone: "neutral" },
