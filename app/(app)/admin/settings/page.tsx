@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TimezoneForm } from "@/components/admin/timezone-form";
 import { BrandingForm } from "@/components/admin/branding-form";
 import { PhotoLimitForm } from "@/components/admin/photo-limit-form";
+import { RetentionForm } from "@/components/admin/retention-form";
 import { NotificationToggle } from "@/components/admin/notification-toggle";
 import { NotificationRecipients } from "@/components/admin/notification-recipients";
 import { NOTIFICATION_TYPE_LABELS } from "@/lib/status";
@@ -75,6 +76,19 @@ export default async function SettingsAdminPage() {
         </CardHeader>
         <CardContent className="pt-2">
           <BrandingForm organizationName={settings?.organizationName ?? ""} logoUrl={settings?.logoUrl ?? null} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Record Retention</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-2">
+          <p className="text-sm text-muted">
+            Inspection records, signatures and the audit trail are never deleted by the system. This is the minimum period the organisation commits to keeping them (SQF
+            requires at least 3 years); it is shown in the footer and on every printed record.
+          </p>
+          <RetentionForm years={settings?.retentionYears ?? 3} />
         </CardContent>
       </Card>
 

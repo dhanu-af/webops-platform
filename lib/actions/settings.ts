@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
+import { validateRetentionYears } from "@/lib/retention";
 import { revalidatePath } from "next/cache";
 import { storePhoto, isAllowedPhotoFile } from "@/lib/storage";
 import type { NotificationType } from "@/app/generated/prisma/client";
@@ -104,4 +105,27 @@ export async function removeNotificationRecipient(type: NotificationType, userId
   await logAudit({ entityType: "NotificationSetting", entityId: type, action: "EDITED", userId: actor.id, newValue: { removedRecipient: user.name } });
 
   revalidatePath("/admin/settings");
+}
+
+// Minimum record retention (URS-16). Raising it is always fine; it can never go
+// below the 3-year floor, and the change is audited with the old value.
+export async function updateRetentionYears(years: number): Promise<{ ok: true } | { ok: false; error: string }> {
+  const actor = await requireSettingsManager();
+  const problem = validateRetentionYears(years);
+  if (problem) return { ok: false, error: problem };
+
+  const existing = await getOrCreateSettings();
+  await db.systemSettings.update({ where: { id: existing.id }, data: { retentionYears: years } });
+  await logAudit({
+    entityType: "SystemSettings",
+    entityId: existing.id,
+    action: "EDITED",
+    userId: actor.id,
+    fieldName: "retentionYears",
+    oldValue: { value: existing.retentionYears },
+    newValue: { value: years },
+    reason: "Record retention period changed",
+  });
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
