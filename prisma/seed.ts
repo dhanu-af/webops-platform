@@ -13,7 +13,10 @@ async function main() {
   console.log("Seeding WEB OPS demo data…");
 
   // ---- Wipe (dev only) ----------------------------------------------------
+  // Record-integrity triggers (migration urs_immutability_triggers) block deletes
+  // unless this transaction-local flag is set -- only this dev seed sets it.
   await db.$transaction([
+    db.$executeRawUnsafe("SET LOCAL webops.allow_record_delete = 'on'"),
     db.auditLog.deleteMany(),
     db.notification.deleteMany(),
     db.areaRelease.deleteMany(),

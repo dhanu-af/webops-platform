@@ -374,6 +374,9 @@ enum ChecklistCategory {
   FACILITY_INSPECTION
   WAREHOUSE_INSPECTION
   PER_SHIFT
+  // Allergen changeover clean & verification (URS-04c) -- needs the same
+  // previous/next product capture as LINE_CLEARANCE, see lib/inspection-rules.ts.
+  ALLERGEN_CHANGEOVER
   CUSTOM
 }
 
@@ -542,8 +545,18 @@ model Inspection {
   frequency   Frequency
   priority    Priority  @default(NORMAL)
   shift       String?
+  // For LINE_CLEARANCE / ALLERGEN_CHANGEOVER these are the NEXT run's product
+  // and batch; previous* below hold what was just run on the line (URS-04).
   product     String?
   batchNumber String?
+  previousProduct     String?
+  previousBatchNumber String?
+  // Application release that created / last signed this record, so a record
+  // can always be linked back to the validated release (URS-19).
+  appVersion String?
+  // Why a submitted record was reopened for correction -- required, and
+  // repeated on every audit entry for edits made while it is open (URS-11).
+  reopenReason String?
 
   status InspectionStatus @default(NOT_STARTED)
   score  Float? // % pass rate at close
@@ -771,7 +784,15 @@ model VerificationRecord {
   actor        User               @relation(fields: [actorId], references: [id])
   action       VerificationAction
   comment      String?
-  createdAt    DateTime           @default(now())
+  // Electronic signature manifest (URS-09): a snapshot of who signed, in what
+  // role, and what the signature means, so it stays correct even if the user
+  // is later renamed or has their role changed.
+  signerName         String?
+  signerRole         UserRole?
+  meaning            String? // "Verified" | "Approved" | "Returned" | "Rejected"
+  passwordReverified Boolean   @default(false)
+  appVersion         String?
+  createdAt          DateTime  @default(now())
 
   @@index([inspectionId])
 }
@@ -885,9 +906,13 @@ model AuditLog {
   action       AuditAction
   userId       String
   user         User        @relation(fields: [userId], references: [id])
+  // Which field changed, for field-level edits (URS-12); null for whole-record
+  // events like SUBMITTED or LOGIN.
+  fieldName    String?
   oldValue     Json?
   newValue     Json?
   reason       String?
+  appVersion   String?
   createdAt    DateTime    @default(now())
 
   @@index([entityType, entityId])
@@ -904,6 +929,9 @@ model SystemSettings {
   id               String   @id @default(cuid())
   organizationName String?
   logoUrl          String? // Vercel Blob URL, same storage as PhotoEvidence
+  // Minimum record retention in years (URS-16). The application never purges
+  // records; this is the policy figure shown to auditors, floored at 3.
+  retentionYears   Int      @default(3)
   maxPhotoSizeMb   Int      @default(10) // mirrors lib/storage.ts's current hardcoded MAX_PHOTO_BYTES
   updatedAt        DateTime @updatedAt
 }
