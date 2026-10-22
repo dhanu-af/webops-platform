@@ -1,3 +1,23 @@
+# URS / SQF Edition 10 compliance work (2026-10-23) — read this first
+
+URS-01…20 are implemented (local commits, NOT pushed). Full table: `docs/validation/URS-traceability.md`. Backup/restore: `docs/backup-restore.md`. Retention: `docs/retention-policy.md`.
+
+Behaviour changes to know about
+- Only roles with `inspection.submit/create` may enter records; Supervisors/QA verify only, and nobody verifies a record they entered answers on.
+- Verification/CA sign-off needs password re-entry (e-signature); failed attempts audited as `SIGNATURE_FAILED`.
+- Session is a 15-minute idle timeout; passwords follow `lib/password-policy.ts`.
+- Records/responses/signatures/CAs cannot be DELETEd and AuditLog cannot be UPDATEd/DELETEd (DB triggers). Only `prisma/seed.ts` bypasses via `webops.allow_record_delete`.
+- Any FAIL (including non-required items) opens a finding that must have a corrective action signed off before the line is released.
+- Dependencies are pinned exact (`.npmrc save-exact=true`); security headers (HSTS etc.) in `next.config.ts`.
+
+To do by a person after pushing
+1. `git push`; Vercel runs `prisma migrate deploy` (4 hand-written URS migrations, additive).
+2. On prod: `npm run seed:allergen-changeover`, QA confirms the placeholder ranges, then add a schedule.
+3. Add GitHub secret `BACKUP_DATABASE_URL`, run the backup workflow once, do a restore drill.
+4. Review 5S supervisor-assigned schedules (may be affected by the entry-role rule).
+
+---
+
 # Handover — 2026-08-27 16:50
 
 ## Goal
