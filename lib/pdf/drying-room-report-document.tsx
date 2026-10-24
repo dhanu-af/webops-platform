@@ -38,12 +38,12 @@ type ReportBatch = { productName: string; batchNumber: string; numberOfTrolleys:
 type ReportBay = { bayNumber: number; purpose: DryingBayPurpose; batches: ReportBatch[] };
 type ReportMiscItem = { product: string; quantityLabel: string; status: string | null };
 
-export function DryingRoomReportDocument({ bays, misc, generatedAt }: { bays: ReportBay[]; misc: ReportMiscItem[]; generatedAt: Date }) {
+export function DryingRoomReportDocument({ bays, misc, generatedAt }: { bays: ReportBay[]; misc: ReportMiscItem[]; generatedAt: string }) {
   return (
     <Document title="Production Staging Status Report">
       <Page size="A4" style={styles.page}>
         <Text style={styles.titleText}>PRODUCTION STAGING STATUS REPORT</Text>
-        <Text style={styles.subtitleText}>Generated {generatedAt.toLocaleString("en-AU")}</Text>
+        <Text style={styles.subtitleText}>Generated {generatedAt}</Text>
 
         {bays.map((bay) => {
           const tone = bay.purpose === "CLEANING_REQUIRED" ? "warning" : "neutral";

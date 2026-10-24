@@ -404,19 +404,25 @@ function TrolleyRow({ trolley, employees, canUpdate, onSaved }: { trolley: Troll
   const [qcStatus, setQcStatus] = useState<TrolleyQcStatus>(trolley.qcStatus);
   const [assignedEmployeeId, setAssignedEmployeeId] = useState(trolley.assignedEmployeeId ?? "");
   const [remarks, setRemarks] = useState(trolley.remarks ?? "");
+  const [error, setError] = useState("");
 
   function save() {
+    setError("");
     startTransition(async () => {
-      await updateTrolley(trolley.id, {
-        quantity: quantity === "" ? null : Number(quantity),
-        trayCount: trayCount === "" ? null : Number(trayCount),
-        wrapped,
-        rotationCompleted,
-        qcStatus,
-        assignedEmployeeId: assignedEmployeeId || null,
-        remarks: remarks || null,
-      });
-      onSaved();
+      try {
+        await updateTrolley(trolley.id, {
+          quantity: quantity === "" ? null : Number(quantity),
+          trayCount: trayCount === "" ? null : Number(trayCount),
+          wrapped,
+          rotationCompleted,
+          qcStatus,
+          assignedEmployeeId: assignedEmployeeId || null,
+          remarks: remarks || null,
+        });
+        onSaved();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't save the trolley.");
+      }
     });
   }
 
@@ -479,6 +485,7 @@ function TrolleyRow({ trolley, employees, canUpdate, onSaved }: { trolley: Troll
           className={`${MFG_INPUT_CLASS} min-w-[120px] flex-1 py-1 text-[11px]`}
         />
       </div>
+      {error && <p role="alert" className="mt-1 text-[11px] text-status-critical">{error}</p>}
     </div>
   );
 }
