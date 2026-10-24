@@ -33,7 +33,8 @@ jobs:
           # Never restore on top of existing data.
           EXISTING=$($PGBIN/psql "$NEW_URL" -At -c "select count(*) from information_schema.tables where table_schema='public'")
           test "$EXISTING" = "0" || { echo "Target database is not empty ($EXISTING tables) - refusing to continue"; exit 1; }
-          $PGBIN/pg_dump --format=custom --no-owner --no-privileges --file=copy.dump "$OLD_URL"
+          # Only the app's own schema: Neon manages its own neon_auth schema in each project.
+          $PGBIN/pg_dump --format=custom --schema=public --no-owner --no-privileges --file=copy.dump "$OLD_URL"
           ls -l copy.dump
           $PGBIN/pg_restore --no-owner --no-privileges --exit-on-error --dbname="$NEW_URL" copy.dump
           echo "restore finished"
