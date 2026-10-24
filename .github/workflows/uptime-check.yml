@@ -1,0 +1,40 @@
+# Uptime monitor. A failed run makes GitHub email the repository owner, which is
+# the alert that the app (or, on the hourly deep check, its database) is down.
+# Every 15 minutes: is the site up. Once an hour during floor hours: does the
+# database answer (not around the clock, so the Neon database can still sleep).
+name: Uptime check
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE: https://webops-platform-three.vercel.app
+    steps:
+      - name: Site is up
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$BASE/api/health") && [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "Health check failed (last HTTP status: $code)"; exit 1
+
+      - name: Database answers (hourly, floor hours)
+        run: |
+          hour=$(date -u +%H); minute=$(date -u +%M)
+          # Floor hours are roughly 05:00-19:00 Australia/Brisbane = 19:00-09:00 UTC.
+          if [ "$minute" -ge 15 ]; then exit 0; fi
+          if [ "$hour" -ge 9 ] && [ "$hour" -lt 19 ]; then exit 0; fi
+          for i in 1 2 3; do
+            body=$(curl -s --max-time 30 "$BASE/api/health?deep=1")
+            echo "$body" | grep -q '"database":"ok"' && exit 0
+            sleep 15
+          done
+          echo "Database check failed: $body"; exit 1
