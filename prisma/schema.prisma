@@ -31,8 +31,12 @@ enum UserRole {
 model User {
   id            String   @id @default(cuid())
   name          String
-  email         String   @unique
+  // Sign-in name (lower case, no email needed). Email is optional contact info.
+  loginId       String   @unique
+  email         String?  @unique
   passwordHash  String
+  // Set when an admin issues a temporary password; cleared once the user picks their own.
+  mustChangePassword Boolean @default(false)
   employeeId    String?  @unique
   role          UserRole
   jobTitle      String?

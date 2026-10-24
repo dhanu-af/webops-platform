@@ -25,11 +25,12 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Edit User</h1>
-        <p className="text-sm text-muted">{user.name} · {user.email}</p>
+        <p className="text-sm text-muted">{user.name} · {user.loginId}</p>
       </div>
       <EditUserForm
         userId={user.id}
         isSelf={user.id === session.user.id}
+        initialLoginId={user.loginId}
         initialRole={user.role}
         initialEmployeeId={user.employeeId ?? ""}
         initialSectionId={user.sectionId ?? ""}

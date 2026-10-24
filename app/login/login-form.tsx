@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
 
@@ -14,20 +14,23 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
     <form action={formAction} className="mt-7 space-y-4">
       <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/dashboard"} />
       <div>
-        <label htmlFor="email" className="text-xs font-medium text-muted-strong">
-          Email
+        <label htmlFor="loginId" className="text-xs font-medium text-muted-strong">
+          User ID
         </label>
         <div className="relative mt-1.5">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" strokeWidth={2} />
+          <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" strokeWidth={2} />
           <input
-            id="email"
-            name="email"
-            type="email"
+            id="loginId"
+            name="loginId"
+            type="text"
             required
             autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             autoComplete="username"
             className="w-full rounded-lg border border-border-strong bg-surface py-2.5 pl-9 pr-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
-            placeholder="you@company.com"
+            placeholder="Your User ID"
           />
         </div>
       </div>

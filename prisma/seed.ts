@@ -53,7 +53,7 @@ async function main() {
         { name: "Avery Kim", email: "avery.qa@webops.demo", role: "QA" as const, jobTitle: "QA Officer" },
         { name: "Taylor OBrien", email: "taylor.management@webops.demo", role: "MANAGEMENT" as const, jobTitle: "Operations Manager" },
         { name: "Sam Ibarra", email: "sam.viewer@webops.demo", role: "VIEWER" as const, jobTitle: "External Auditor" },
-      ].map((u) => db.user.create({ data: { ...u, passwordHash, employeeId: "EMP-" + Math.random().toString(36).slice(2, 7).toUpperCase() } }))
+      ].map((u) => db.user.create({ data: { ...u, loginId: u.email.split("@")[0], passwordHash, employeeId: "EMP-" + Math.random().toString(36).slice(2, 7).toUpperCase() } }))
     );
 
   // ---- Facility hierarchy ----------------------------------------------------

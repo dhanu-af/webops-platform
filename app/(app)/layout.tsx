@@ -19,12 +19,14 @@ export default async function AppLayout({
   // A deactivated user's token stays valid until it expires; refuse it here so
   // deactivation takes effect on the very next page load (URS-03).
   const [account, settings] = await Promise.all([
-    db.user.findUnique({ where: { id: session.user.id }, select: { active: true } }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { active: true, mustChangePassword: true } }),
     db.systemSettings.findFirst({ select: { retentionYears: true } }),
   ]);
   if (!account?.active) {
     await signOut({ redirectTo: "/login" });
   }
+  // An admin-issued temporary password has to be replaced before anything else.
+  if (account?.mustChangePassword) redirect("/change-password");
 
   return (
     <MobileNavProvider>

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { createUser } from "@/lib/actions/users";
 import type { UserRole } from "@/app/generated/prisma/client";
 import { validatePassword } from "@/lib/password-policy";
+import { generateTemporaryPassword } from "@/lib/temp-password";
+import { LOGIN_ID_HINT, normalizeLoginId, validateLoginId } from "@/lib/login-id";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -27,8 +29,11 @@ export function NewUserForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [temporary, setTemporary] = useState(true);
   const [employeeId, setEmployeeId] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [role, setRole] = useState<UserRole>("OPERATOR");
@@ -46,14 +51,16 @@ export function NewUserForm({
         e.preventDefault();
         setError(null);
         if (!name.trim()) return setError("Name is required.");
-        if (!email.trim()) return setError("Email is required.");
-        { const problems = validatePassword(password); if (problems.length) return setError(problems.join(" ")); }
+        { const idProblem = validateLoginId(normalizeLoginId(loginId)); if (idProblem) return setError(idProblem); }
+        { const problems = validatePassword(password, { loginId: normalizeLoginId(loginId), name }); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
             await createUser({
               name: name.trim(),
-              email: email.trim(),
+              loginId,
+              email: email.trim() || undefined,
               password,
+              temporaryPassword: temporary,
               role,
               employeeId: employeeId.trim() || undefined,
               sectionId: sectionId || undefined,
@@ -76,7 +83,19 @@ export function NewUserForm({
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-muted-strong">Email</label>
+        <label className="text-xs font-medium text-muted-strong">User ID (used to sign in)</label>
+        <input
+          value={loginId}
+          onChange={(e) => setLoginId(e.target.value)}
+          autoCapitalize="none"
+          autoComplete="off"
+          className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
+          placeholder="e.g. dhanu or emp-00123"
+        />
+        <p className="mt-1 text-xs text-muted">{LOGIN_ID_HINT}</p>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-strong">Email (optional)</label>
         <input
           type="email"
           value={email}
@@ -86,17 +105,40 @@ export function NewUserForm({
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-muted-strong">Initial password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
-          placeholder="At least 8 characters"
-        />
+        <label className="text-xs font-medium text-muted-strong">{temporary ? "Temporary password" : "Initial password"}</label>
+        <div className="mt-1.5 flex gap-2">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2.5 font-mono text-sm outline-none focus:border-accent"
+            placeholder="At least 10 characters"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setPassword(generateTemporaryPassword());
+              setShowPassword(true);
+            }}
+          >
+            Generate
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setShowPassword((v) => !v)}>
+            {showPassword ? "Hide" : "Show"}
+          </Button>
+        </div>
+        <label className="mt-2 flex items-start gap-2 text-sm text-foreground">
+          <input type="checkbox" className="mt-0.5" checked={temporary} onChange={(e) => setTemporary(e.target.checked)} />
+          <span>
+            Temporary password — the user must choose their own password the first time they sign in.
+            <span className="block text-xs text-muted">Give them the User ID and this password in person; it is not shown again after you save.</span>
+          </span>
+        </label>
       </div>
       <div>
-        <label className="text-xs font-medium text-muted-strong">User ID / employee ID (optional)</label>
+        <label className="text-xs font-medium text-muted-strong">Employee number (optional)</label>
         <input
           value={employeeId}
           onChange={(e) => setEmployeeId(e.target.value)}

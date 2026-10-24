@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
 import { assertPasswordPolicy } from "@/lib/password-policy";
+import { normalizeLoginId, validateLoginId } from "@/lib/login-id";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/app/generated/prisma/client";
@@ -19,8 +20,11 @@ async function requireUserManager() {
 
 export async function createUser(input: {
   name: string;
-  email: string;
+  loginId: string;
+  email?: string;
   password: string;
+  /** Admin-issued password the user must replace at first sign-in. */
+  temporaryPassword?: boolean;
   role: UserRole;
   employeeId?: string;
   sectionId?: string;
@@ -29,16 +33,22 @@ export async function createUser(input: {
 }) {
   const actor = await requireUserManager();
 
-  const existing = await db.user.findUnique({ where: { email: input.email.toLowerCase() } });
-  if (existing) throw new Error(`A user with email "${input.email}" already exists.`);
+  const loginId = normalizeLoginId(input.loginId);
+  const idProblem = validateLoginId(loginId);
+  if (idProblem) throw new Error(idProblem);
+  if (await db.user.findUnique({ where: { loginId } })) throw new Error(`User ID "${loginId}" is already taken.`);
+  const email = input.email?.trim().toLowerCase() || null;
+  if (email && (await db.user.findUnique({ where: { email } }))) throw new Error(`A user with email "${email}" already exists.`);
 
-  assertPasswordPolicy(input.password, { email: input.email, name: input.name });
+  assertPasswordPolicy(input.password, { loginId, email, name: input.name });
   const passwordHash = await bcrypt.hash(input.password, 10);
   const user = await db.user.create({
     data: {
       name: input.name,
-      email: input.email.toLowerCase(),
+      loginId,
+      email,
       passwordHash,
+      mustChangePassword: !!input.temporaryPassword,
       role: input.role,
       employeeId: input.employeeId || undefined,
       sectionId: input.sectionId || undefined,
@@ -47,7 +57,7 @@ export async function createUser(input: {
     },
   });
 
-  await logAudit({ entityType: "User", entityId: user.id, action: "CREATED", userId: actor.id, newValue: { name: user.name, email: user.email, role: user.role } });
+  await logAudit({ entityType: "User", entityId: user.id, action: "CREATED", userId: actor.id, newValue: { name: user.name, loginId: user.loginId, email: user.email, role: user.role, temporaryPassword: !!input.temporaryPassword } });
 
   revalidatePath("/admin/users");
   redirect("/admin/users");
@@ -76,15 +86,21 @@ export async function changePassword(input: { currentPassword: string; newPasswo
   if (!valid) throw new Error("Current password is incorrect.");
 
   if (input.newPassword === input.currentPassword) throw new Error("Choose a password you haven't used just now.");
-  assertPasswordPolicy(input.newPassword, { email: user.email, name: user.name });
+  assertPasswordPolicy(input.newPassword, { loginId: user.loginId, email: user.email, name: user.name });
   const passwordHash = await bcrypt.hash(input.newPassword, 10);
-  await db.user.update({ where: { id: user.id }, data: { passwordHash } });
-  await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: user.id, reason: "Password changed" });
+  await db.user.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false } });
+  await logAudit({
+    entityType: "User",
+    entityId: user.id,
+    action: "EDITED",
+    userId: user.id,
+    reason: user.mustChangePassword ? "Temporary password replaced by user" : "Password changed",
+  });
 }
 
 export async function updateUser(
   userId: string,
-  input: { role: UserRole; employeeId?: string; sectionId?: string; areaIds?: string[]; jobTitle?: string }
+  input: { loginId?: string; role: UserRole; employeeId?: string; sectionId?: string; areaIds?: string[]; jobTitle?: string }
 ) {
   const actor = await requireUserManager();
 
@@ -96,9 +112,17 @@ export async function updateUser(
   if (userId === actor.id && input.role !== before.role) {
     throw new Error("You can't change your own role. Ask another admin to do it.");
   }
+  let loginId: string | undefined;
+  if (input.loginId !== undefined && normalizeLoginId(input.loginId) !== before.loginId) {
+    loginId = normalizeLoginId(input.loginId);
+    const idProblem = validateLoginId(loginId);
+    if (idProblem) throw new Error(idProblem);
+    if (await db.user.findUnique({ where: { loginId } })) throw new Error(`User ID "${loginId}" is already taken.`);
+  }
   await db.user.update({
     where: { id: userId },
     data: {
+      loginId,
       role: input.role,
       employeeId: input.employeeId || null,
       sectionId: input.sectionId || null,
@@ -112,7 +136,7 @@ export async function updateUser(
     entityId: userId,
     action: "EDITED",
     userId: actor.id,
-    oldValue: { role: before.role, employeeId: before.employeeId, sectionId: before.sectionId, areaIds: before.assignedAreas.map((a) => a.id), jobTitle: before.jobTitle },
+    oldValue: { loginId: before.loginId, role: before.role, employeeId: before.employeeId, sectionId: before.sectionId, areaIds: before.assignedAreas.map((a) => a.id), jobTitle: before.jobTitle },
     newValue: input,
   });
 
@@ -143,15 +167,21 @@ export async function setUserActive(userId: string, active: boolean) {
 // For a user who's forgotten their password entirely (self-service change
 // requires knowing the *current* password, so it can't help here) — an admin
 // sets a new one directly, no email/reset-token infra needed.
-export async function adminResetPassword(userId: string, newPassword: string) {
+export async function adminResetPassword(userId: string, newPassword: string, temporary = true) {
   const actor = await requireUserManager();
 
-  const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, name: true } });
+  const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { loginId: true, email: true, name: true } });
   assertPasswordPolicy(newPassword, target);
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await db.user.update({ where: { id: userId }, data: { passwordHash } });
-  await logAudit({ entityType: "User", entityId: userId, action: "EDITED", userId: actor.id, reason: "Password reset by admin" });
+  await db.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: temporary } });
+  await logAudit({
+    entityType: "User",
+    entityId: userId,
+    action: "EDITED",
+    userId: actor.id,
+    reason: temporary ? "Password reset by admin (temporary - user must change it at next sign-in)" : "Password reset by admin",
+  });
 
   revalidatePath("/admin/users");
 }

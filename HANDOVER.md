@@ -8,6 +8,8 @@ Behaviour changes to know about
 - Session is a 15-minute idle timeout; passwords follow `lib/password-policy.ts`.
 - Records/responses/signatures/CAs cannot be DELETEd and AuditLog cannot be UPDATEd/DELETEd (DB triggers). Only `prisma/seed.ts` bypasses via `webops.allow_record_delete`.
 - Any FAIL (including non-required items) opens a finding that must have a corrective action signed off before the line is released.
+- Sign-in is by **User ID** (`User.loginId`, lower case); email is optional (an entry containing @ still matches the email so old logins work). Migration `20261024100000_user_login_id` backfills loginId from employeeId, else the email name; admins can edit it in Admin -> Users -> Edit.
+- Admin-created/reset passwords can be **temporary** (`User.mustChangePassword`): the user is sent to `/change-password` before anything else; `requireActiveUser` also refuses until changed.
 - Dependencies are pinned exact (`.npmrc save-exact=true`); security headers (HSTS etc.) in `next.config.ts`.
 
 To do by a person after pushing

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { changePassword } from "@/lib/actions/users";
 import { validatePassword } from "@/lib/password-policy";
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -30,6 +30,7 @@ export function ChangePasswordForm() {
             setNewPassword("");
             setConfirmPassword("");
             setSuccess(true);
+            onSuccess?.();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Could not change password.");
           }
@@ -52,7 +53,7 @@ export function ChangePasswordForm() {
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
-          placeholder="At least 8 characters"
+          placeholder="At least 10 characters"
         />
       </div>
       <div>

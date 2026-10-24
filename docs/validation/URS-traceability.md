@@ -4,7 +4,7 @@ Release 0.2.0. "Test" = how to verify by hand; automated tests run with `npm tes
 
 | URS | Implemented | Where in code | How to test it |
 |---|---|---|---|
-| URS-01 Individual accounts, password rules, 15-min timeout | Y | `lib/password-policy.ts`, `lib/actions/users.ts`, `lib/auth.config.ts`, `lib/session-config.ts`, `components/auth/idle-logout.tsx` | Admin -> Users: create user with weak password (refused). Log in, stay idle 15 min (signed out). |
+| URS-01 Individual accounts, password rules, 15-min timeout | Y | `lib/login-id.ts` (sign in with User ID, no email), `lib/password-policy.ts`, `lib/temp-password.ts`, `lib/actions/users.ts`, `app/change-password/`, `lib/auth.config.ts`, `components/auth/idle-logout.tsx` | Admin -> Users: create user (User ID, Generate temporary password); sign in as them -> forced to choose their own password. Weak password refused. Idle 15 min = signed out. |
 | URS-02 Role-based access, no self-verification | Y | `lib/permissions.ts`, `lib/session-user.ts`, `lib/actions/inspections.ts` (`verifyInspection`), `lib/inspection-rules.ts` | `npm test` -> `access-control.test.ts`, `inspections.test.ts`. Manually: operator who entered answers cannot verify the same record. |
 | URS-03 Deactivate, never delete users | Y | `lib/actions/users.ts`, `requireActiveUser` in `lib/session-user.ts` | Admin -> Users -> Deactivate; user's next request is refused; no delete control exists. |
 | URS-04 Three checklists + required context | Y | `prisma/seed.ts`, `prisma/seed-allergen-changeover.ts`, `app/(app)/allergen-changeover/page.tsx`, `components/inspection/record-details-form.tsx` | Open Pre-start/Post-op, Line Clearance, Allergen Changeover; header shows area, equipment, product/batch (previous + next), operator, server time. |

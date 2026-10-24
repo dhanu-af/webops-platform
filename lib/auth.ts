@@ -4,19 +4,24 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import authConfig from "@/lib/auth.config";
+import { normalizeLoginId } from "@/lib/login-id";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { loginId: {}, password: {} },
       authorize: async (credentials) => {
-        const email = credentials?.email as string | undefined;
+        const loginId = credentials?.loginId as string | undefined;
         const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
+        if (!loginId || !password) return null;
+
+        // Staff sign in with their User ID. An entry containing "@" still matches the
+        // email on file so accounts that pre-date User IDs keep working.
+        const entered = normalizeLoginId(loginId);
 
         const user = await db.user.findUnique({
-          where: { email: email.toLowerCase() },
+          where: entered.includes("@") ? { email: entered } : { loginId: entered },
           include: { assignedAreas: { select: { id: true, sectionId: true, section: { select: { facilityId: true } } } } },
         });
         if (!user || !user.active) return null;

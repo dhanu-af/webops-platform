@@ -26,9 +26,10 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent className="space-y-1.5 pt-2 text-sm">
           <p><span className="text-muted">Name</span> · <span className="text-foreground">{user.name}</span></p>
-          <p><span className="text-muted">Email</span> · <span className="text-foreground">{user.email}</span></p>
+          <p><span className="text-muted">User ID</span> · <span className="text-foreground">{user.loginId}</span></p>
+          {user.email && <p><span className="text-muted">Email</span> · <span className="text-foreground">{user.email}</span></p>}
           <p><span className="text-muted">Role</span> · <span className="text-foreground">{user.role.replace(/_/g, " ")}</span></p>
-          {user.employeeId && <p><span className="text-muted">User ID</span> · <span className="text-foreground">{user.employeeId}</span></p>}
+          {user.employeeId && <p><span className="text-muted">Employee number</span> · <span className="text-foreground">{user.employeeId}</span></p>}
           {user.section && (
             <p><span className="text-muted">Department / Section</span> · <span className="text-foreground">{user.section.facility.name} / {user.section.name}</span></p>
           )}

@@ -15,9 +15,10 @@ export async function requireActiveUser() {
   const session = await auth();
   if (!session?.user) throw new UserFacingError("Not authenticated");
   const user = await withDbRetry(() =>
-    db.user.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, email: true, role: true, active: true } })
+    db.user.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, email: true, role: true, active: true, mustChangePassword: true } })
   );
   if (!user || !user.active) throw new UserFacingError("This account is deactivated. Contact an administrator.");
+  if (user.mustChangePassword) throw new UserFacingError("Change your temporary password before continuing.");
   return user;
 }
 

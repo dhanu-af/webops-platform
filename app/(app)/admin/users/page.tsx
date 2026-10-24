@@ -44,14 +44,15 @@ export default async function UsersAdminPage() {
                 <div>
                   <p className="text-sm font-medium text-foreground">{u.name}</p>
                   <p className="text-xs text-muted">
-                    {u.email}
-                    {u.employeeId ? ` · ${u.employeeId}` : ""}
+                    {u.loginId}
+                    {u.employeeId ? ` · Emp ${u.employeeId}` : ""}
                     {u.jobTitle ? ` · ${u.jobTitle}` : ""}
                     {u.section ? ` · ${u.section.facility.name} / ${u.section.name}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge tone={u.active ? "pass" : "neutral"}>{u.active ? "Active" : "Inactive"}</Badge>
+                  {u.mustChangePassword && <Badge tone="warn">Temp password</Badge>}
                   {u.assignedAreas.length > 0 && (
                     <Badge tone="neutral">{u.assignedAreas.map((a) => a.name).join(", ")} only</Badge>
                   )}

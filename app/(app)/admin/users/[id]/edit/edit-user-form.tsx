@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { updateUser } from "@/lib/actions/users";
 import type { UserRole } from "@/app/generated/prisma/client";
+import { LOGIN_ID_HINT } from "@/lib/login-id";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -19,6 +20,7 @@ const ROLES: { value: UserRole; label: string }[] = [
 export function EditUserForm({
   userId,
   isSelf,
+  initialLoginId,
   initialRole,
   initialEmployeeId,
   initialSectionId,
@@ -29,6 +31,7 @@ export function EditUserForm({
 }: {
   userId: string;
   isSelf: boolean;
+  initialLoginId: string;
   initialRole: UserRole;
   initialEmployeeId: string;
   initialSectionId: string;
@@ -39,6 +42,7 @@ export function EditUserForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [loginId, setLoginId] = useState(initialLoginId);
   const [role, setRole] = useState<UserRole>(initialRole);
   const [employeeId, setEmployeeId] = useState(initialEmployeeId);
   const [sectionId, setSectionId] = useState(initialSectionId);
@@ -58,6 +62,7 @@ export function EditUserForm({
         startTransition(async () => {
           try {
             await updateUser(userId, {
+              loginId,
               role,
               employeeId: employeeId.trim() || undefined,
               sectionId: sectionId || undefined,
@@ -71,7 +76,18 @@ export function EditUserForm({
       }}
     >
       <div>
-        <label className="text-xs font-medium text-muted-strong">User ID / employee ID (optional)</label>
+        <label className="text-xs font-medium text-muted-strong">User ID (used to sign in)</label>
+        <input
+          value={loginId}
+          onChange={(e) => setLoginId(e.target.value)}
+          autoCapitalize="none"
+          autoComplete="off"
+          className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
+        />
+        <p className="mt-1 text-xs text-muted">{LOGIN_ID_HINT}</p>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-strong">Employee number (optional)</label>
         <input
           value={employeeId}
           onChange={(e) => setEmployeeId(e.target.value)}
