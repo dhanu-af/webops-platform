@@ -11,6 +11,7 @@ import { NotificationToggle } from "@/components/admin/notification-toggle";
 import { NotificationRecipients } from "@/components/admin/notification-recipients";
 import { NOTIFICATION_TYPE_LABELS } from "@/lib/status";
 import type { NotificationType } from "@/app/generated/prisma/client";
+import { SAFE_USER } from "@/lib/safe-user";
 
 const NOTIFICATION_TYPES: NotificationType[] = [
   "CHECK_DUE",
@@ -32,7 +33,7 @@ export default async function SettingsAdminPage() {
     db.facility.findMany({ where: { archived: false }, orderBy: { name: "asc" } }),
     db.systemSettings.findFirst(),
     db.notificationSetting.findMany(),
-    db.notificationRecipient.findMany({ include: { user: true }, orderBy: { user: { name: "asc" } } }),
+    db.notificationRecipient.findMany({ include: { user: { select: SAFE_USER } }, orderBy: { user: { name: "asc" } } }),
     db.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const timezones = Intl.supportedValuesOf("timeZone");

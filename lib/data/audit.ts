@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { subDays } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 import type { AuditAction } from "@/app/generated/prisma/client";
+import { SAFE_USER } from "@/lib/safe-user";
 
 export type AuditFilters = {
   from?: string;
@@ -35,7 +36,7 @@ export async function getAuditLog(filters: AuditFilters = {}, limit = 200) {
       entityType: filters.entityType || undefined,
       action: filters.action ? (filters.action as AuditAction) : undefined,
     },
-    include: { user: true },
+    include: { user: { select: SAFE_USER } },
     orderBy: { createdAt: "desc" },
     take: limit,
   });

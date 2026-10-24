@@ -8,16 +8,18 @@ const m = vi.hoisted(() => ({
   session: { current: null as null | { user: { id: string } } },
   db: {
     user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn() },
-    inspection: { findUniqueOrThrow: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
+    inspection: { findUniqueOrThrow: vi.fn(), findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     checklistItem: { findUniqueOrThrow: vi.fn() },
     inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     photoEvidence: { findUnique: vi.fn(), delete: vi.fn() },
     checklistSchedule: { findUniqueOrThrow: vi.fn() },
     finding: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn(), delete: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
-    correctiveAction: { create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    correctiveAction: { create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     verificationRecord: { create: vi.fn() },
     areaRelease: { upsert: vi.fn() },
-    auditLog: { create: vi.fn() },
+    auditLog: { create: vi.fn(), findMany: vi.fn() },
+    $transaction: vi.fn(),
+    $executeRaw: vi.fn(),
     checklist: { findUnique: vi.fn() },
     area: { findUnique: vi.fn() },
     facility: { findFirst: vi.fn() },
@@ -94,6 +96,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(FIXED_NOW);
+  m.db.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(m.db));
+  m.db.inspection.updateMany.mockResolvedValue({ count: 1 });
+  m.db.correctiveAction.updateMany.mockResolvedValue({ count: 1 });
+  m.db.auditLog.findMany.mockResolvedValue([]);
   m.db.inspectionResponse.upsert.mockResolvedValue({ id: "resp1" });
   m.db.inspectionResponse.findUnique.mockResolvedValue(null);
   m.db.finding.findUnique.mockResolvedValue(null);
@@ -228,6 +234,7 @@ describe("URS-07 failures require corrective action and block release", () => {
     ...openInspection({ status: "AWAITING_SUPERVISOR" }),
     checklistVersion: { checklist: { name: "Daily", workflow: workflow() }, items: [] },
     responses: [{ respondedById: "op1" }],
+    verificationRecords: [] as Array<{ stepRole: string; action: string; actorId: string }>,
     area: { name: "Line 1" },
   });
 
@@ -250,6 +257,7 @@ describe("URS-09 electronic signature", () => {
     ...openInspection({ status }),
     checklistVersion: { checklist: { name: "Daily", workflow: workflow() }, items: [] },
     responses: [{ respondedById: "op1" }],
+    verificationRecords: [] as Array<{ stepRole: string; action: string; actorId: string }>,
     area: { name: "Line 1" },
   });
 
@@ -297,11 +305,41 @@ describe("URS-09 electronic signature", () => {
   });
 });
 
+describe("measured values are judged by the server", () => {
+  it("keeps an out-of-range stored value a FAIL even if the browser sends PASS without a number", async () => {
+    signIn("OPERATOR", "op1");
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(openInspection());
+    m.db.checklistItem.findUniqueOrThrow.mockResolvedValue(checklistItem({ type: "NUMERIC", minValue: 0, maxValue: 5 }));
+    m.db.inspectionResponse.findUnique.mockResolvedValue({ id: "resp1", numericValue: 9, passFail: "FAIL", respondedById: "op1" });
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" });
+    expect(m.db.inspectionResponse.upsert.mock.calls[0][0].update.passFail).toBe("FAIL");
+  });
+
+  it("records no pass/fail for a measured item that has no number", async () => {
+    signIn("OPERATOR", "op1");
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(openInspection());
+    m.db.checklistItem.findUniqueOrThrow.mockResolvedValue(checklistItem({ type: "NUMERIC", minValue: 0, maxValue: 5 }));
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" });
+    expect(m.db.inspectionResponse.upsert.mock.calls[0][0].create.passFail).toBeNull();
+  });
+
+  it("audits a change to an answer made before submission, with old and new value", async () => {
+    signIn("OPERATOR", "op1");
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(openInspection());
+    m.db.checklistItem.findUniqueOrThrow.mockResolvedValue(checklistItem({ type: "NUMERIC", minValue: 0, maxValue: 5 }));
+    m.db.inspectionResponse.findUnique.mockResolvedValue({ id: "resp1", numericValue: 9, passFail: "FAIL", respondedById: "op1" });
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", numericValue: 4 });
+    const edits = m.db.auditLog.create.mock.calls.map((c) => c[0].data).filter((d) => d.action === "EDITED");
+    expect(edits).toEqual(expect.arrayContaining([expect.objectContaining({ fieldName: "numericValue", oldValue: { item: "Floor clean", value: 9 }, newValue: { item: "Floor clean", value: 4 } })]));
+  });
+});
+
 describe("URS-02 nobody verifies their own work, and roles are enforced on the server", () => {
   const awaiting = (responses: Array<{ respondedById: string }>) => ({
     ...openInspection({ status: "AWAITING_SUPERVISOR" }),
     checklistVersion: { checklist: { name: "Daily", workflow: workflow() }, items: [] },
     responses,
+    verificationRecords: [],
     area: { name: "Line 1" },
   });
 
@@ -335,9 +373,68 @@ describe("URS-02 nobody verifies their own work, and roles are enforced on the s
     signIn("SUPERVISOR", "op1");
     m.db.correctiveAction.findUniqueOrThrow.mockResolvedValue({
       id: "ca1",
-      finding: { inspection: { operatorId: "op1", responses: [{ respondedById: "op1" }] } },
+      status: "OPEN",
+      createdById: "other",
+      responsibleUserId: "other",
+      finding: { inspection: { id: "insp1", status: "IN_PROGRESS", operatorId: "op1", responses: [{ respondedById: "op1" }] } },
     });
     expect(await closeCorrectiveAction("ca1", "x")).toMatchObject({ ok: false, error: expect.stringContaining("performed yourself") });
+  });
+
+  const openCa = (over: Record<string, unknown> = {}) => ({
+    id: "ca1",
+    status: "OPEN",
+    createdById: "sup9",
+    responsibleUserId: "sup9",
+    finding: { inspection: { id: "insp1", status: "AWAITING_SUPERVISOR", operatorId: "op1", responses: [{ respondedById: "op1" }] } },
+    ...over,
+  });
+
+  it("blocks the person who recorded a corrective action from signing it off", async () => {
+    signIn("SUPERVISOR", "sup1");
+    m.db.correctiveAction.findUniqueOrThrow.mockResolvedValue(openCa({ createdById: "sup1" }));
+    expect(await closeCorrectiveAction("ca1", "x")).toMatchObject({ ok: false, error: expect.stringContaining("recorded this corrective action") });
+  });
+
+  it("blocks the person responsible for a corrective action from signing it off", async () => {
+    signIn("SUPERVISOR", "sup1");
+    m.db.correctiveAction.findUniqueOrThrow.mockResolvedValue(openCa({ responsibleUserId: "sup1" }));
+    expect(await closeCorrectiveAction("ca1", "x")).toMatchObject({ ok: false, error: expect.stringContaining("responsible for this corrective action") });
+  });
+
+  it("will not sign off a corrective action that is already closed", async () => {
+    signIn("SUPERVISOR", "sup1");
+    m.db.correctiveAction.findUniqueOrThrow.mockResolvedValue(openCa({ status: "CLOSED" }));
+    expect(await closeCorrectiveAction("ca1", "x")).toMatchObject({ ok: false, error: expect.stringContaining("already been signed off") });
+    expect(m.db.correctiveAction.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("treats someone whose answer was taken over by another user as a participant", async () => {
+    signIn("SUPERVISOR", "sup1");
+    // sup1 answered an item first; op1 later re-saved it, so respondedById is op1 but the audit trail remembers sup1
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(awaiting([{ respondedById: "op1" }]));
+    m.db.auditLog.findMany.mockResolvedValue([{ userId: "op1", oldValue: { item: "Floor clean", respondedById: "sup1" } }]);
+    expect(await verifyInspection({ inspectionId: "insp1", action: "APPROVE", password: "x" })).toMatchObject({ ok: false, error: expect.stringContaining("entered answers") });
+  });
+
+  it("will not let the Supervisor-step approver also give the QA approval", async () => {
+    signIn("SUPER_ADMIN", "boss");
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue({
+      ...awaiting([{ respondedById: "op1" }]),
+      status: "AWAITING_QA",
+      verificationRecords: [{ stepRole: "SUPERVISOR", action: "APPROVE", actorId: "boss" }],
+    });
+    expect(await verifyInspection({ inspectionId: "insp1", action: "APPROVE", password: "x" })).toMatchObject({ ok: false, error: expect.stringContaining("different person must give the QA approval") });
+  });
+
+  it("refuses a second verification of a step someone else just completed", async () => {
+    signIn("QA", "qa1");
+    m.db.user.findUniqueOrThrow.mockResolvedValue({ id: "qa1", passwordHash: bcrypt.hashSync("Correct-horse-9", 4), name: "Quinn", role: "QA" });
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue({ ...awaiting([{ respondedById: "op1" }]), status: "AWAITING_QA" });
+    m.db.finding.findMany.mockResolvedValue([]);
+    m.db.inspection.updateMany.mockResolvedValue({ count: 0 });
+    expect(await verifyInspection({ inspectionId: "insp1", action: "APPROVE", password: "Correct-horse-9" })).toMatchObject({ ok: false, error: expect.stringContaining("Refresh the page") });
+    expect(m.db.verificationRecord.create).not.toHaveBeenCalled();
   });
 
   it("rejects a deactivated account even while its session token is still valid (URS-03)", async () => {

@@ -66,6 +66,7 @@ model User {
   photoUploads              PhotoEvidence[]
   findingsCreated           Finding[]               @relation("FindingCreatedBy")
   correctiveActionsOwned    CorrectiveAction[]      @relation("CorrectiveActionResponsible")
+  correctiveActionsCreated  CorrectiveAction[]      @relation("CorrectiveActionCreatedBy")
   correctiveActionsClosed   CorrectiveAction[]      @relation("CorrectiveActionClosedBy")
   correctiveActionsVerified CorrectiveAction[]      @relation("CorrectiveActionVerifiedBy")
   verificationRecords       VerificationRecord[]
@@ -772,6 +773,9 @@ model CorrectiveAction {
 
   responsibleUserId String
   responsibleUser   User                   @relation("CorrectiveActionResponsible", fields: [responsibleUserId], references: [id])
+  // Who recorded the action; they cannot also sign it off.
+  createdById       String?
+  createdBy         User?                  @relation("CorrectiveActionCreatedBy", fields: [createdById], references: [id])
   dueDate           DateTime
   status            CorrectiveActionStatus @default(OPEN)
 

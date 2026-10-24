@@ -3,6 +3,7 @@ import { subDays } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 import { scopeWhere, type UserScope } from "@/lib/scope";
 import type { Frequency, InspectionStatus } from "@/app/generated/prisma/client";
+import { SAFE_USER } from "@/lib/safe-user";
 
 export type ReportFilters = {
   from?: string;
@@ -52,9 +53,9 @@ export async function getReportInspections(filters: ReportFilters = {}, scope: U
       section: true,
       area: true,
       equipment: true,
-      operator: true,
-      supervisor: true,
-      qa: true,
+      operator: { select: SAFE_USER },
+      supervisor: { select: SAFE_USER },
+      qa: { select: SAFE_USER },
       findings: true,
     },
     orderBy: { createdAt: "desc" },

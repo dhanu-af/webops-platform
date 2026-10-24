@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleUserActiveButton } from "@/components/admin/toggle-user-active-button";
 import { Plus } from "lucide-react";
+import { SAFE_USER } from "@/lib/safe-user";
 
 export default async function UsersAdminPage() {
   const session = await auth();
@@ -17,7 +18,7 @@ export default async function UsersAdminPage() {
 
   const [users, recentLogins, timeZone] = await Promise.all([
     db.user.findMany({ include: { section: { include: { facility: true } }, assignedAreas: true }, orderBy: { name: "asc" } }),
-    db.auditLog.findMany({ where: { action: "LOGIN" }, include: { user: true }, orderBy: { createdAt: "desc" }, take: 20 }),
+    db.auditLog.findMany({ where: { action: "LOGIN" }, include: { user: { select: SAFE_USER } }, orderBy: { createdAt: "desc" }, take: 20 }),
     getFacilityTimezone(),
   ]);
 

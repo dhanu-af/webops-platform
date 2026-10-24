@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { SAFE_USER } from "@/lib/safe-user";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getUserScope } from "@/lib/scope";
@@ -16,7 +17,7 @@ export default async function EvidenceGalleryPage() {
   const [photos, timeZone] = await Promise.all([
     db.photoEvidence.findMany({
       where: scope.scoped ? { areaId: { in: scope.areaIds } } : undefined,
-      include: { area: true, inspection: { include: { checklistVersion: { include: { checklist: true } } } }, uploadedBy: true, finding: true },
+      include: { area: true, inspection: { include: { checklistVersion: { include: { checklist: true } } } }, uploadedBy: { select: SAFE_USER }, finding: true },
       orderBy: { createdAt: "desc" },
       take: 60,
     }),

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { NotificationType } from "@/app/generated/prisma/client";
+import { SAFE_USER } from "@/lib/safe-user";
 
 export async function notify(userId: string, type: NotificationType, title: string, message: string, link?: string) {
   return notifyUsers([userId], type, title, message, link);
@@ -16,7 +17,7 @@ export async function notifyUsers(userIds: string[], type: NotificationType, tit
   const setting = await db.notificationSetting.findUnique({ where: { type } });
   if (setting?.enabled === false) return;
 
-  const extras = await db.notificationRecipient.findMany({ where: { type }, include: { user: true } });
+  const extras = await db.notificationRecipient.findMany({ where: { type }, include: { user: { select: SAFE_USER } } });
   const recipientIds = new Set(userIds);
   for (const extra of extras) if (extra.user.active) recipientIds.add(extra.userId);
   if (recipientIds.size === 0) return;

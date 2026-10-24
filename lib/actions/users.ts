@@ -11,6 +11,7 @@ import { runAction, UserFacingError, type ActionResult } from "@/lib/user-error"
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/app/generated/prisma/client";
+import { SAFE_USER } from "@/lib/safe-user";
 
 // Every action here that a person can get "wrong" (taken User ID, weak
 // password, wrong current password) returns an ActionResult instead of
@@ -231,7 +232,7 @@ export async function getRecentLogins(take = 20) {
   await requireUserManager();
   return db.auditLog.findMany({
     where: { action: "LOGIN" },
-    include: { user: true },
+    include: { user: { select: SAFE_USER } },
     orderBy: { createdAt: "desc" },
     take,
   });

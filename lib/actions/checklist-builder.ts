@@ -1,6 +1,7 @@
 "use server";
 
 import { UserFacingError, guard } from "@/lib/user-error";
+import { SAFE_USER } from "@/lib/safe-user";
 import { db } from "@/lib/db";
 import { requireLiveUser } from "@/lib/session-user";
 import { revalidatePath } from "next/cache";
@@ -30,7 +31,7 @@ export async function getChecklistForEdit(id: string) {
     include: {
       versions: { orderBy: { publishedAt: "desc" }, include: { items: { orderBy: { sortOrder: "asc" } } } },
       workflow: true,
-      schedules: { include: { area: true, section: true, facility: true, assignedUser: true } },
+      schedules: { include: { area: true, section: true, facility: true, assignedUser: { select: SAFE_USER } } },
     },
   });
 }

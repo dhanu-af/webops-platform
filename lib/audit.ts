@@ -12,7 +12,8 @@ import type { AuditAction, Prisma } from "@/app/generated/prisma/client";
 // Each entry answers: who (userId), what (entityType/entityId/action, plus
 // fieldName for a field-level change), old and new value, when (createdAt, set
 // by the database), and why (reason). appVersion links it to the release.
-export async function logAudit(params: {
+export async function logAudit(
+  params: {
   entityType: string;
   entityId: string;
   inspectionId?: string;
@@ -22,8 +23,11 @@ export async function logAudit(params: {
   oldValue?: Prisma.InputJsonValue;
   newValue?: Prisma.InputJsonValue;
   reason?: string;
-}) {
-  await db.auditLog.create({
+  },
+  // Pass the transaction client so the audit row commits or fails together with the change it records.
+  client: Pick<typeof db, "auditLog"> = db
+) {
+  await client.auditLog.create({
     data: {
       entityType: params.entityType,
       entityId: params.entityId,

@@ -3,6 +3,7 @@ import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLab
 import { scopeWhere, type UserScope } from "@/lib/scope";
 import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
 import { statusesForRecordStatus } from "@/lib/record-status";
+import { SAFE_USER } from "@/lib/safe-user";
 
 export async function getTodaySchedules(scope: UserScope) {
   const now = new Date();
@@ -76,9 +77,9 @@ export async function listInspections(filters: InspectionFilters = {}, scope: Us
       checklistVersion: { include: { checklist: true } },
       area: true,
       section: true,
-      operator: true,
-      supervisor: true,
-      qa: true,
+      operator: { select: SAFE_USER },
+      supervisor: { select: SAFE_USER },
+      qa: { select: SAFE_USER },
       findings: true,
     },
     orderBy: { createdAt: "desc" },
@@ -98,7 +99,7 @@ export async function listCorrectiveActions(filters: { status?: string; areaId?:
       finding: { include: { inspection: { include: { checklistVersion: { include: { checklist: true } } } } } },
       area: true,
       equipment: true,
-      responsibleUser: true,
+      responsibleUser: { select: SAFE_USER },
     },
     orderBy: { dueDate: "asc" },
     take: 200,

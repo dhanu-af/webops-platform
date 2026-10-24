@@ -3,6 +3,7 @@ import { isPast } from "date-fns";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, startOfMonthInTimeZone } from "@/lib/timezone";
 import { scopeWhere, type UserScope } from "@/lib/scope";
 import { getCalibrationStatus } from "@/lib/calibration";
+import { SAFE_USER } from "@/lib/safe-user";
 
 export async function getDashboardKpis(scope: UserScope = { scoped: false }) {
   const now = new Date();
@@ -79,7 +80,7 @@ export async function getFacilityStatusMap(scope: UserScope = { scoped: false })
       inspections: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        include: { operator: true, supervisor: true, qa: true },
+        include: { operator: { select: SAFE_USER }, supervisor: { select: SAFE_USER }, qa: { select: SAFE_USER } },
       },
     },
   });
