@@ -1,0 +1,2090 @@
+{
+ "source": "C-FORM-002 — Facility Cleaning Schedule",
+ "document": {
+  "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Facility Cleaning Schedule",
+  "fields": [
+   {
+    "label": "Document Number",
+    "value": "C-FORM-002"
+   },
+   {
+    "label": "Document Title",
+    "value": "Facility Cleaning Schedule"
+   },
+   {
+    "label": "Document Type",
+    "value": "Controlled Form / Schedule"
+   },
+   {
+    "label": "Series",
+    "value": "C — Plant, Premises & Grounds"
+   },
+   {
+    "label": "Referenced SOP",
+    "value": "C.101 — Facility Cleaning & Sanitation Program"
+   },
+   {
+    "label": "Related Documents",
+    "value": "C-REG-001 (Approved Chemicals); C.103 + C-FORM-008 (ATP verification); per-zone checklists C-FORM-002A1/A2/A3 (Blending) and C-FORM-002B1/B2/B3 (Capsule)"
+   },
+   {
+    "label": "Effective Date",
+    "value": "[DD/MM/YYYY]"
+   },
+   {
+    "label": "Revision",
+    "value": "V1 — Draft"
+   },
+   {
+    "label": "Review Frequency",
+    "value": "Annual + on PRP / chemical / equipment change"
+   },
+   {
+    "label": "Tabs",
+    "value": "Tab 1 (this) Doc Control | Tab 2 Blending Room | Tab 3 Capsule Room | Tab 4 Gummy Line | Tab 5 Lab General | Tab 6 Washroom | Tab 7 Warehouse | Tab 8 Staff Amenity | Tab 9 Bottling Line | Contract Cleaner sign-off via C-FORM-002I"
+   },
+   {
+    "label": "Owner",
+    "value": "QA Manager"
+   },
+   {
+    "label": "Source — restyled from",
+    "value": "Health Icons legacy team-lead cleaning schedules (2025/2026)"
+   },
+   {
+    "label": "Regulatory Lane",
+    "value": "FSANZ Standard 3.2.2 / SQF Code Edition 9 / Codex CXC 1-1969 § 6"
+   }
+  ]
+ },
+ "zones": [
+  {
+   "key": "blending-room",
+   "name": "Blending Room",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Blending Room Cleaning Schedule",
+   "zoneLine": "Zone: Blending Room (per C.101 § 9.1 zone colour-coding)",
+   "schedule": [
+    {
+     "area": "Floors",
+     "daily": "Sweep and mop",
+     "weekly": "Corners and edges",
+     "monthly": "Under equipment",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Walls",
+     "daily": "Spot clean",
+     "weekly": "Full wipe down",
+     "monthly": "Full inspection and clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Doors & Handles",
+     "daily": "Wipe and sanitize",
+     "weekly": "—",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "V-Blenders",
+     "daily": "Clean after use / changeover & sanitize",
+     "weekly": "Inspect seals and guards",
+     "monthly": "Deep clean all accessible parts",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Capsule Feeding Machine",
+     "daily": "Wipe & sanitize",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Sieves / Screeners",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect mesh integrity",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Scoops & Utensils",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect damage",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Weighing Scales",
+     "daily": "Wipe down",
+     "weekly": "Clean underneath",
+     "monthly": "Calibration area clean (refer D.103)",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Benches & Tables",
+     "daily": "Clean and sanitize",
+     "weekly": "Move and clean underneath",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Used Buckets",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Deep clean (remove stickers/labels)",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Ladders",
+     "daily": "Wipe clean",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Product Containers",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect condition",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Electrical Panels (exterior only)",
+     "daily": "Wipe exterior",
+     "weekly": "Inspect cleanliness",
+     "monthly": "Deep clean exterior",
+     "role": "PROD-SUP / PROD-TL"
+    },
+    {
+     "area": "Cleaning Equipment (mops, brushes, buckets)",
+     "daily": "Clean and dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged items",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Vacuum Cleaner",
+     "daily": "Empty, clean exterior & change vacuum bags",
+     "weekly": "Inspect condition",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Waste Bin (outside big bin)",
+     "daily": "Empty & spot clean",
+     "weekly": "Deep clean",
+     "monthly": "—",
+     "role": "Production Operator"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors",
+     "agent": "Approved Neutral Detergent — refer C-REG-001 (CHM-# TBC by QA-MGR)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Walls",
+     "agent": "Approved Neutral Detergent — refer C-REG-001 (CHM-# TBC)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Doors & Handles",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": "IPA sanitisation per Rev 06 — primary for Mixing/Blending"
+    },
+    {
+     "area": "V-Blenders",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU (Pure IPA dilution TBC by DK)",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact: full clean → rinse → dry → sanitise sequence"
+    },
+    {
+     "area": "Capsule Feeding Machine",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Sieves / Screeners",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Scoops & Utensils",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Weighing Scales",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": "Avoid load-cell area; wipe-only"
+    },
+    {
+     "area": "Benches & Tables",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Used Buckets",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Ladders",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Product Containers",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Electrical Panels (exterior)",
+     "agent": "Damp wipe only — NO chemical spray near panels",
+     "dilution": "Damp wipe",
+     "contactTime": "N/A",
+     "notes": "Safety: electrical isolation per OPS-MGR"
+    },
+    {
+     "area": "Vacuum Cleaner",
+     "agent": "Approved Neutral Detergent (exterior only)",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Waste Bin",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    }
+   ],
+   "notes": [
+    "Zone: BLUE — Production / Mixing & Blending Room (per C.101 § 9.1 zone colour-coding)",
+    "All product-contact equipment (V-Blenders, Capsule Feeding Machine, Sieves/Screeners, Scoops & Utensils, Product Containers, Used Buckets) shall be cleaned using approved detergent, rinsed where required, dried, and sanitised with CHM-021 (Pure IPA) prior to use. Minimum sanitiser contact time: 5 minutes.",
+    "Pure IPA (CHM-021) is the primary sanitiser for Mixing/Blending Room per C-REG-001 Rev 06. Bastion IPA wipes (formerly CHM-002) have been REMOVED from the register (per Rev 06).",
+    "Cleaning verification: ATP swab per C.103 cadence on cleaning completion; record on C-FORM-008 (Daily ATP Log). Surfaces and thresholds per C-REG-004.",
+    "Cleaning tool colour: BLUE-coded mops, buckets, brushes per C.101 § 9.2. Tools dedicated to this zone — do not cross-use.",
+    "Per-shift execution records: C-FORM-002A1 (Daily), C-FORM-002A2 (Weekly), C-FORM-002A3 (Monthly Deep Clean).",
+    "Any deviation, OOS, or breakage → record on A-FORM-NCR-001 and escalate per A.006."
+   ]
+  },
+  {
+   "key": "capsule-room",
+   "name": "Capsule Room",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Capsule Room Cleaning Schedule",
+   "zoneLine": "Zone: Capsule Room (per C.101 § 9.1 zone colour-coding)",
+   "schedule": [
+    {
+     "area": "Floors",
+     "daily": "Sweep and mop",
+     "weekly": "Corners and edges",
+     "monthly": "Under equipment",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Walls",
+     "daily": "Spot clean",
+     "weekly": "Full wipe down",
+     "monthly": "Full inspection and clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Doors & Handles",
+     "daily": "Wipe and sanitize",
+     "weekly": "—",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Capsule Machine",
+     "daily": "At product changeover: remove product residue, spot clean product-contact areas and sanitise.\nEnd of each shift: clean machine internally and externally, including windows, guards, hoppers, contact surfaces and surrounding powder residue, then sanitise.",
+     "weekly": "Disassemble removable parts, thoroughly clean all machine components, inspect seals, guards and product-contact surfaces, then sanitise & dry.",
+     "monthly": "Complete deep clean of all accessible areas, framework, guards, hard-to-reach locations and machine exterior.",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Capsule Polisher",
+     "daily": "Remove capsules and powder, clean internal and external surfaces, sanitise product-contact parts",
+     "weekly": "Disassemble removable polisher components, brushes/screens, inspect seals, guards and product-contact surfaces, then sanitise",
+     "monthly": "Complete deep clean of all accessible areas, framework, guards, hard-to-reach locations and machine exterior",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Capsule Feeding Machine",
+     "daily": "Wipe & sanitize",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Powder Hopper Pipe",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Vacuum Pump & Filters",
+     "daily": "Clean exterior",
+     "weekly": "Inspect filters",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Vacuum Cleaner (Machine)",
+     "daily": "Empty, clean exterior",
+     "weekly": "Inspect hose/filter",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Sieves / Screeners",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect mesh integrity",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Scoops & Utensils",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect damage",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Weighing Scales",
+     "daily": "Wipe down",
+     "weekly": "Clean underneath",
+     "monthly": "Calibration area clean (refer D.103)",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Benches & Tables",
+     "daily": "Clean and sanitize",
+     "weekly": "Move and clean underneath",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Used Buckets",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Deep clean (remove stickers/labels)",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Ladders",
+     "daily": "Wipe clean",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Product Containers",
+     "daily": "Clean after use & sanitize",
+     "weekly": "Inspect condition",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Electrical Panels (exterior only)",
+     "daily": "Wipe exterior",
+     "weekly": "Inspect cleanliness",
+     "monthly": "Deep clean exterior",
+     "role": "PROD-SUP / PROD-TL"
+    },
+    {
+     "area": "Cleaning Equipment (mops, brushes, buckets)",
+     "daily": "Clean and dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged items",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Vacuum Cleaner",
+     "daily": "Empty, clean exterior & change vacuum bags",
+     "weekly": "Inspect condition",
+     "monthly": "—",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Air Vents / Exhaust",
+     "daily": "—",
+     "weekly": "Wipe exterior /Remove dust exhaust filter, wash, dry completely",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Scoops & Tools",
+     "daily": "Clean after use, sanitize and store correctly",
+     "weekly": "Inspect for damage/wear and replace if necessary",
+     "monthly": "Deep clean storage area",
+     "role": "Production Operator"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors",
+     "agent": "Approved Neutral Detergent — refer C-REG-001",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Walls",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Doors & Handles",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": "IPA primary for Capsule Room per Rev 06"
+    },
+    {
+     "area": "Capsule Machine & Parts",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU (Pure IPA dilution TBC by DK)",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact: full clean → rinse → dry → sanitise"
+    },
+    {
+     "area": "Capsule Polisher",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Capsule Feeding Machine",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Machine Vacuum Cleaner",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Sieves / Screeners",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Weighing Scales",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": "Avoid load-cell area; wipe-only"
+    },
+    {
+     "area": "Benches & Tables",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Used Buckets",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Scoops & Utensils",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Ladders",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Product Containers",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Electrical Panels (exterior)",
+     "agent": "Damp wipe only — NO chemical spray near panels",
+     "dilution": "Damp wipe",
+     "contactTime": "N/A",
+     "notes": "Safety: electrical isolation per OPS-MGR"
+    },
+    {
+     "area": "Vacuum Cleaner",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Air Vents / Exhaust",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    }
+   ],
+   "notes": [
+    "Zone: ORANGE — Capsule Room (per C.101 § 9.1 zone colour-coding)",
+    "All product-contact equipment (Capsule Machine, Capsule Polisher, Capsule Feeding Machine, Sieves/Screeners, Scoops & Utensils, Product Containers, Used Buckets) shall be cleaned using approved detergent, rinsed where required, dried, and sanitised with CHM-021 (Pure IPA) prior to use. Minimum sanitiser contact time: 5 minutes.",
+    "Pure IPA (CHM-021) is the primary sanitiser for Capsule Room per C-REG-001 Rev 06 — fast-evaporation, no-residue, selected for dry-application capsule equipment. Inox MX3FG (CHM-007) is the only approved food-grade lubricant for capsule equipment.",
+    "Cleaning verification: ATP swab per C.103 cadence on cleaning completion; record on C-FORM-008 (Daily ATP Log). Surfaces and thresholds per C-REG-004 (NJP-2500C dosing disc + tamping pins, capsule press die set, polishing bowl interior, bottle filler dispensing head are critical FCS).",
+    "Cleaning tool colour: ORANGE-coded mops, buckets, brushes per C.101 § 9.2. Tools dedicated to this zone — do not cross-use.",
+    "Per-shift execution records: C-FORM-002B1 (Daily), C-FORM-002B2 (Weekly), C-FORM-002B3 (Monthly Deep Clean).",
+    "Any deviation, OOS, or breakage → record on A-FORM-NCR-001 and escalate per A.006."
+   ]
+  },
+  {
+   "key": "gummy-line",
+   "name": "Gummy Line",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Gummy Line Cleaning Schedule",
+   "zoneLine": "Zone: Gummy Line (per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "Kettles 1 & 2 (interior)",
+     "daily": "Pre-Op visual check + Post-Prod clean",
+     "weekly": "Inspect for residue / burn",
+     "monthly": "Monthly CIP with CHM-022 Chemron Sledge (3% caustic) — see C-FORM-002C3",
+     "role": "Production Operator + PROD-SUP"
+    },
+    {
+     "area": "Gummy Depositor (nozzles + manifold)",
+     "daily": "Pre-Op visual + Post-Prod clean and sanitise",
+     "weekly": "Disassemble and inspect",
+     "monthly": "Deep clean with full disassembly",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Hoppers 1 & 2",
+     "daily": "Pre-Op visual + Post-Prod clean",
+     "weekly": "Inspect lower hopper area",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Molds",
+     "daily": "Pre-Op visual + Post-Prod clean",
+     "weekly": "Inspect for damage / residue",
+     "monthly": "Deep clean + replace damaged",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Conveyor + Demolding",
+     "daily": "Post-Prod clean",
+     "weekly": "Inspect for gummy residue / oil",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Oil Spray System (tank + nozzles)",
+     "daily": "Post-Prod clean — no MCT oil accumulation",
+     "weekly": "Inspect nozzles for blockage",
+     "monthly": "Deep clean tank exterior + replace nozzles if blocked",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Transfer Pipes",
+     "daily": "Post-Prod flush with hot potable water",
+     "weekly": "Inspect for residue",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Control Panels (Kettle / PLC / Depositor)",
+     "daily": "Damp wipe only — NO chemical spray",
+     "weekly": "Inspect condition",
+     "monthly": "Damp wipe + inspect",
+     "role": "PROD-SUP"
+    },
+    {
+     "area": "Around Machine + Floor",
+     "daily": "Post-Prod sweep + mop",
+     "weekly": "Deep clean floor",
+     "monthly": "Move equipment and deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Benches (Bench 1, 3, 4, 5, 7)",
+     "daily": "Post-Prod surface clean\nPre-Op sanitise",
+     "weekly": "Deep clean ( (all areas including wheels & stand)",
+     "monthly": "Deep clean + sanitise",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Scales (2 bulk + 1 bench)",
+     "daily": "Post-Prod clean",
+     "weekly": "Inspect underneath",
+     "monthly": "Calibration check (per D.103)",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Cleaning Tools (GREEN)",
+     "daily": "Daily clean + dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Discharge Waste Bin",
+     "daily": "Daily empty + clean liner",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Trolley (Gummy Line)",
+     "daily": "Daily clean + sanitise",
+     "weekly": "Deep clean ( (all areas including wheels)",
+     "monthly": "Replace damaged",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Sugar Coater (drum + sugar feed)",
+     "daily": "Pre-Op visual check.\n Post-Prod: empty residual sugar, dry-brush / vacuum drum, then clean + sanitise product-contact surfaces. Dry fully before next use.",
+     "weekly": "Inspect drum, baffles and seals for sugar build-up / damage",
+     "monthly": "Deep clean with removal of detachable parts; inspect guarding",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Material Elevator",
+     "daily": "Pre-Op visual.\n Post-Prod / end of campaign: remove residual gummies; clean + sanitise loading hopper, belt / buckets and discharge chute. No direct liquid on drive / electrics.",
+     "weekly": "Inspect contact surfaces for cracks, wear, loose fasteners; check belt / bucket tracking and return area",
+     "monthly": "Deep clean incl. return area; after any dismantling verify reassembly, tracking and chute alignment (HI-VAL-EQP-001 §12.4)",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Sorting Conveyor",
+     "daily": "Pre-Op visual.\n Post-Prod: remove gummies / sugar, clean + sanitise belt and product-contact surfaces",
+     "weekly": "Clean rollers, guides and underneath; inspect belt for damage",
+     "monthly": "Deep clean frame, rollers and hard-to-reach areas",
+     "role": "Production Operator"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors",
+     "agent": "Approved Neutral Detergent — refer C-REG-001 (CHM-# TBC)",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Walls",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Kettles 1 & 2 — Routine post-prod",
+     "agent": "Food-grade detergent + hot potable water flush",
+     "dilution": "Per supplier SOP",
+     "contactTime": "Per SOP",
+     "notes": "Sugar / gelatin / pectin / oil removal"
+    },
+    {
+     "area": "Kettles 1 & 2 — Monthly CIP",
+     "agent": "CHM-022 Chemron Sledge (caustic CIP)",
+     "dilution": "3% concentration per supplier label",
+     "contactTime": "30–60 min at elevated temp",
+     "notes": "⚠ HAZARDOUS — Class 8 Corrosive Sched 6 Poison. Trained operator + full PPE per SDS. Post-CIP pH-verified rinse mandatory."
+    },
+    {
+     "area": "Depositor + manifold (food contact)",
+     "agent": "Food-grade detergent + sanitiser (CHM-021 Pure IPA for dry application, otherwise per SOP)",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product contact"
+    },
+    {
+     "area": "Hoppers (food contact)",
+     "agent": "Food-grade detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product contact"
+    },
+    {
+     "area": "Molds",
+     "agent": "Food-grade detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product contact"
+    },
+    {
+     "area": "Conveyor + Demolding (surfaces)",
+     "agent": "Food-grade detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Oil Spray System (exterior)",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Transfer Pipes",
+     "agent": "Hot potable water flush + food-grade detergent + sanitiser",
+     "dilution": "Per SOP",
+     "contactTime": "Flush until clear + sanitise",
+     "notes": "Product contact"
+    },
+    {
+     "area": "Control Panels",
+     "agent": "Damp wipe only — NO chemical spray",
+     "dilution": "Damp wipe",
+     "contactTime": "N/A",
+     "notes": "Safety — electrical isolation per OPS-MGR"
+    },
+    {
+     "area": "Floors around machine",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Bench surfaces",
+     "agent": "Approved Neutral Detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    }
+   ],
+   "notes": [
+    "Zone: GREEN — Gummy Line (per C.101 § 9.1 zone colour-coding)",
+    "Gummy line cleaning operates on Pre-Op + Post-Prod cadence (per-batch), NOT Daily/Weekly/Monthly like Blending or Capsule. Execution forms: C-FORM-002C1 (Pre-Op), C-FORM-002C2 (Post-Prod), C-FORM-002C3 (Monthly Kettle CIP with CHM-022).",
+    "CHM-022 Chemron Sledge — heavy-duty caustic CIP detergent (Class 8 Corrosive, Schedule 6 Poison). Use ONLY for monthly kettle CIP per C-FORM-002C3. Full PPE per SDS mandatory. Locked Schedule 6 storage per Rev 06.",
+    "All product-contact equipment (depositor, hoppers, molds, conveyor, transfer pipes, kettle interior) shall be cleaned with food-grade detergent, rinsed with potable water, and sanitised before next run.",
+    "Cleaning verification: ATP swab per C.103 — kettle interior, depositor nozzles, hopper interior, mould surface, packaging contact are critical FCS (per C-REG-004). Per-run rotating swab + weekly full sweep + monthly extended.",
+    "Cleaning tool colour: GREEN-coded mops, buckets, brushes per C.101 § 9.2. Tools dedicated to gummy zone only.",
+    "Any deviation → A-FORM-NCR-001 + escalate per A.006."
+   ]
+  },
+  {
+   "key": "lab-general",
+   "name": "Lab General",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Lab General Cleaning Schedule",
+   "zoneLine": "Zone: Lab General (per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "Lab benches & work surfaces",
+     "daily": "Wipe and sanitise after each test session",
+     "weekly": "Full deep clean",
+     "monthly": "Move equipment + deep clean",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Sample storage area",
+     "daily": "Visual check",
+     "weekly": "Tidy + dispose expired samples",
+     "monthly": "Deep clean + audit retention samples",
+     "role": "QC-TECH / QA-MGR"
+    },
+    {
+     "area": "Glassware & reusable tools",
+     "daily": "Wash, rinse, dry after each use",
+     "weekly": "Inspect for damage",
+     "monthly": "Deep clean glassware cabinet",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Balance / analytical equipment area",
+     "daily": "Wipe down + calibration check",
+     "weekly": "Clean underneath",
+     "monthly": "Deep clean + verify calibration label",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Sinks & wash areas",
+     "daily": "Wipe down + clear drains",
+     "weekly": "Deep clean + flush drains",
+     "monthly": "Deep clean",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Eye-wash station",
+     "daily": "Visual check",
+     "weekly": "Test operation + flush",
+     "monthly": "Full inspection",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Floors",
+     "daily": "Sweep + mop",
+     "weekly": "Damp mop with detergent",
+     "monthly": "Deep clean (move equipment)",
+     "role": "QC-TECH / cleaner"
+    },
+    {
+     "area": "Walls & doors",
+     "daily": "Spot clean",
+     "weekly": "Full wipe down",
+     "monthly": "Deep clean",
+     "role": "QC-TECH / cleaner"
+    },
+    {
+     "area": "Waste bins",
+     "daily": "Empty + reline",
+     "weekly": "Clean exterior + interior",
+     "monthly": "Deep clean storage area",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Lab refrigerator (if any)",
+     "daily": "Temperature check",
+     "weekly": "Wipe interior",
+     "monthly": "Deep clean + defrost if required",
+     "role": "QC-TECH"
+    },
+    {
+     "area": "Cleaning Tools (BLUE)",
+     "daily": "Clean + dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged",
+     "role": "QC-TECH"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Walls / Doors",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) spot use",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Lab benches & work surfaces",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": "Sanitise after testing activity"
+    },
+    {
+     "area": "Glassware",
+     "agent": "Approved Neutral Detergent + potable water rinse",
+     "dilution": "Per SOP",
+     "contactTime": "Per SOP",
+     "notes": "Dry before storage"
+    },
+    {
+     "area": "Balance / analytical area",
+     "agent": "Damp wipe only — avoid load-cell",
+     "dilution": "Damp wipe",
+     "contactTime": "N/A",
+     "notes": "Don't disturb calibration"
+    },
+    {
+     "area": "Sinks",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Eye-wash station",
+     "agent": "Test water clarity weekly; full clean monthly",
+     "dilution": "N/A",
+     "contactTime": "N/A",
+     "notes": ""
+    },
+    {
+     "area": "Waste bins",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    }
+   ],
+   "notes": [
+    "Zone: BLUE — Lab / QC General (per C.101 § 9.1 zone colour-coding — sub-area of BLUE Production General)",
+    "Execution form: C-FORM-002E (combined Daily + Weekly).",
+    "Cleaning verification: visual inspection daily. Microbial / allergen-specific swabs only triggered by C.103 risk-based assessment.",
+    "Calibration of lab equipment per D.103 — calibration labels checked weekly.",
+    "BLUE-coded cleaning tools — dedicated to BLUE zone (Lab + Production General)."
+   ]
+  },
+  {
+   "key": "washroom",
+   "name": "Washroom",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Washroom Cleaning Schedule",
+   "zoneLine": "Zone: Washroom (per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "Toilet bowls / urinals",
+     "daily": "Clean with CHM-005 (toilet cleaner)",
+     "weekly": "Deep clean + scale check",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Washroom floors",
+     "daily": "Mop with CHM-004",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean grout / corners",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Washbasins & taps",
+     "daily": "Clean with CHM-004",
+     "weekly": "Deep clean + descale",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Mirrors",
+     "daily": "Clean",
+     "weekly": "—",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Hand dryer / paper towel dispenser",
+     "daily": "Wipe + restock",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Soap dispenser (CHM-012 refill)",
+     "daily": "Check level + refill",
+     "weekly": "Clean dispenser body",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner / WH-STAFF"
+    },
+    {
+     "area": "Waste bins",
+     "daily": "Empty + reline",
+     "weekly": "Clean exterior",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Walls / partitions / doors",
+     "daily": "Spot clean",
+     "weekly": "Full wipe",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Ventilation fans / vents",
+     "daily": "Visual check",
+     "weekly": "—",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Cleaning Tools (RED)",
+     "daily": "Clean + dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged",
+     "role": "Contract Cleaner"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Toilet bowls / urinals",
+     "agent": "CHM-005 Jantex Toilet Cleaner — CONTRACT CLEANERS ONLY",
+     "dilution": "Direct application",
+     "contactTime": "~5 min",
+     "notes": "ACID-BASED — gloves mandatory"
+    },
+    {
+     "area": "Floors / surfaces",
+     "agent": "CHM-004 Jantex Anti-Bacterial Spray & Wipe Concentrate — CONTRACT CLEANERS ONLY",
+     "dilution": "1:30 / 1:40",
+     "contactTime": "5–10 min",
+     "notes": "Gloves mandatory"
+    },
+    {
+     "area": "Hand wash basin (soap)",
+     "agent": "CHM-012 Soft Clean Antibacterial Foaming Hand Wash",
+     "dilution": "Ready-to-use",
+     "contactTime": "20–30 sec lather",
+     "notes": "Skin-safe; compliant WI-C-001"
+    },
+    {
+     "area": "Air freshener (bathrooms only)",
+     "agent": "CHM-019 Glen 20 All-in-One Spray Disinfectant",
+     "dilution": "Ready-to-use",
+     "contactTime": "~5 min",
+     "notes": "Scented — restricted to bathrooms only per Rev 06"
+    }
+   ],
+   "notes": [
+    "Zone: RED — Washroom / Toilets (per C.101 § 9.1)",
+    "Execution form: C-FORM-002F (Daily by contract cleaner + Weekly QA inspection).",
+    "CHM-004 and CHM-005 are CONTRACT CLEANERS USE ONLY per Rev 06 — not for staff use.",
+    "Cleaning verification: weekly QA Manager walk-through inspection; sign-off on C-FORM-002F.",
+    "RED-coded cleaning tools — dedicated to washrooms ONLY. Auditor focus point.",
+    "Contract cleaner attendance also logged on C-FORM-002I."
+   ]
+  },
+  {
+   "key": "warehouse",
+   "name": "Warehouse",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Warehouse Cleaning Schedule",
+   "zoneLine": "Zone: Warehouse (per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "Aisles / walkways",
+     "daily": "Sweep",
+     "weekly": "Damp mop",
+     "monthly": "Deep clean + flush drains",
+     "role": "WH-STAFF"
+    },
+    {
+     "area": "Under racking",
+     "daily": "Visual only",
+     "weekly": "Sweep accessible areas",
+     "monthly": "Move pallets + sweep + mop",
+     "role": "WH-STAFF / WH-MGR"
+    },
+    {
+     "area": "Pallet racking",
+     "daily": "Visual inspection",
+     "weekly": "Spot clean",
+     "monthly": "Full bottom-shelf wipe",
+     "role": "WH-STAFF"
+    },
+    {
+     "area": "Dispatch area",
+     "daily": "Sweep + clear debris",
+     "weekly": "Damp mop",
+     "monthly": "Deep clean",
+     "role": "WH-STAFF"
+    },
+    {
+     "area": "RM storage bays",
+     "daily": "Visual + FEFO check",
+     "weekly": "Tidy + spot clean",
+     "monthly": "Audit bay layout + clean",
+     "role": "WH-MGR"
+    },
+    {
+     "area": "FG storage bays",
+     "daily": "Visual + FEFO check",
+     "weekly": "Tidy + spot clean",
+     "monthly": "Audit bay layout + clean",
+     "role": "WH-MGR"
+    },
+    {
+     "area": "Quarantine area",
+     "daily": "Visual + label check",
+     "weekly": "Walk-through inspection",
+     "monthly": "Deep clean + audit",
+     "role": "QA-MGR / WH-MGR"
+    },
+    {
+     "area": "Despatch doors / loading dock",
+     "daily": "Visual + seal check",
+     "weekly": "Wipe + check pest",
+     "monthly": "Deep clean + reseal check",
+     "role": "WH-STAFF / OPS-MGR"
+    },
+    {
+     "area": "Drains (warehouse)",
+     "daily": "Visual",
+     "weekly": "Flush with CHM-015 (Glitz Vinegar)",
+     "monthly": "Deep clean + flush",
+     "role": "WH-STAFF"
+    },
+    {
+     "area": "Pallet jacks / forklifts",
+     "daily": "Daily visual + wipe",
+     "weekly": "Wash-down",
+     "monthly": "Service per C.104",
+     "role": "WH-STAFF / OPS-MGR"
+    },
+    {
+     "area": "Waste bins (warehouse)",
+     "daily": "Empty",
+     "weekly": "Clean exterior + interior",
+     "monthly": "Deep clean",
+     "role": "WH-STAFF"
+    },
+    {
+     "area": "Walls / doors / roller shutters",
+     "daily": "Spot clean",
+     "weekly": "Full wipe",
+     "monthly": "Deep clean",
+     "role": "WH-STAFF"
+    },
+    {
+     "area": "Storage condition monitors",
+     "daily": "Daily check (C-FORM-006)",
+     "weekly": "Calibration check",
+     "monthly": "Calibration per D.103",
+     "role": "WH-MGR / QA-MGR"
+    },
+    {
+     "area": "Cleaning Tools (YELLOW)",
+     "daily": "Clean + dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged",
+     "role": "WH-STAFF"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors / aisles",
+     "agent": "CHM-003 Septone Superclene Citrus Cleaner / Degreaser",
+     "dilution": "1:20 light / 1:10 heavy",
+     "contactTime": "5–10 min + rinse",
+     "notes": "NOT a sanitiser — degreaser only"
+    },
+    {
+     "area": "Drains",
+     "agent": "CHM-015 Glitz Cleaning Vinegar",
+     "dilution": "Direct application",
+     "contactTime": "Per task + rinse",
+     "notes": "Acetic acid-based — drain clearance only"
+    },
+    {
+     "area": "Pallet jacks / forklift exteriors",
+     "agent": "CHM-003 Septone or potable water + neutral detergent",
+     "dilution": "Per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Storage zones",
+     "agent": "Visual housekeeping only — no chemicals in stored product areas",
+     "dilution": "—",
+     "contactTime": "—",
+     "notes": "Spot-clean spills immediately"
+    }
+   ],
+   "notes": [
+    "Zone: YELLOW — Warehouse (per C.101 § 9.1)",
+    "Execution form: C-FORM-002G (Daily housekeeping + Weekly + Monthly Deep Clean).",
+    "Storage condition monitoring (temperature / humidity) separate from cleaning — record on C-FORM-006 per C.118.",
+    "Pest control inspection runs alongside per C.102 / C-FORM-003.",
+    "YELLOW-coded cleaning tools — dedicated to warehouse zone only.",
+    "Quarantine area inspection is QA-MGR responsibility — physically separated from approved stock."
+   ]
+  },
+  {
+   "key": "staff-amenity",
+   "name": "Staff Amenity",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Staff Amenity Cleaning Schedule",
+   "zoneLine": "Zone: Staff Amenity (per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "Lunchroom tables / chairs",
+     "daily": "Wipe after breaks",
+     "weekly": "Full clean",
+     "monthly": "Deep clean + move + sanitise",
+     "role": "Contract Cleaner / Staff"
+    },
+    {
+     "area": "Tea prep bench",
+     "daily": "Wipe + clear spills",
+     "weekly": "Full clean",
+     "monthly": "Deep clean",
+     "role": "Staff"
+    },
+    {
+     "area": "Sink + tap",
+     "daily": "Clean (CHM-006)",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean + descale tap",
+     "role": "Contract Cleaner / Staff"
+    },
+    {
+     "area": "Refrigerator (interior)",
+     "daily": "Visual",
+     "weekly": "Clean + dispose expired",
+     "monthly": "Deep clean",
+     "role": "Staff (rota)"
+    },
+    {
+     "area": "Refrigerator (exterior)",
+     "daily": "Wipe",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Microwave (int + ext)",
+     "daily": "Wipe after use",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean",
+     "role": "Staff"
+    },
+    {
+     "area": "Coffee machine / kettles",
+     "daily": "Wipe",
+     "weekly": "Descale (CHM-018) monthly",
+     "monthly": "Deep clean + descale",
+     "role": "Staff"
+    },
+    {
+     "area": "Dishwasher (if any)",
+     "daily": "Daily clean",
+     "weekly": "Filter check",
+     "monthly": "Deep clean + descale",
+     "role": "Staff"
+    },
+    {
+     "area": "Floor",
+     "daily": "Mop with CHM-006",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean grout",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Bins (general + recycling)",
+     "daily": "Empty + reline",
+     "weekly": "Clean exterior + interior",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Hand wash basin (amenity)",
+     "daily": "Clean + check CHM-012 soap",
+     "weekly": "Deep clean",
+     "monthly": "Deep clean",
+     "role": "Contract Cleaner"
+    },
+    {
+     "area": "Hand sanitiser at amenity exit (CHM-016)",
+     "daily": "Check level + refill",
+     "weekly": "Clean dispenser",
+     "monthly": "Deep clean",
+     "role": "Staff / QA-MGR"
+    },
+    {
+     "area": "Personal items / toiletries",
+     "daily": "Restricted to amenity (CHM-020 reference per Rev 06)",
+     "weekly": "—",
+     "monthly": "—",
+     "role": "Staff"
+    },
+    {
+     "area": "Cleaning Tools (BEIGE)",
+     "daily": "Clean + dry",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged",
+     "role": "Contract Cleaner"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Tables / benches / surfaces",
+     "agent": "CHM-006 Diggers Multi-Purpose Surface Cleaner (70% Ethanol)",
+     "dilution": "Ready-to-use",
+     "contactTime": "Air dry",
+     "notes": "FLAMMABLE — keep from heat"
+    },
+    {
+     "area": "Dishwashing",
+     "agent": "CHM-011 G1 Antibacterial Dishwashing Liquid",
+     "dilution": "Per product label",
+     "contactTime": "Per task",
+     "notes": ""
+    },
+    {
+     "area": "Bench wipes (non-production)",
+     "agent": "CHM-014 Blisma Antibacterial Wipes",
+     "dilution": "Ready-to-use",
+     "contactTime": "Air dry",
+     "notes": ""
+    },
+    {
+     "area": "Coffee machine / kettle descale",
+     "agent": "CHM-018 Coffee Machine / Kettle Descaler",
+     "dilution": "Per manufacturer",
+     "contactTime": "Per cycle",
+     "notes": "Food-grade"
+    },
+    {
+     "area": "Hand wash basin (soap)",
+     "agent": "CHM-012 Soft Clean Antibacterial Foaming Hand Wash",
+     "dilution": "Ready-to-use",
+     "contactTime": "20–30 sec lather",
+     "notes": "Compliant WI-C-001"
+    },
+    {
+     "area": "Hand sanitiser (amenity exit — MANDATORY)",
+     "agent": "CHM-016 Symbio Australia Hand Gel 70% Ethanol",
+     "dilution": "Ready-to-use",
+     "contactTime": "Air dry",
+     "notes": "MANDATORY use before re-entering production per B.004"
+    }
+   ],
+   "notes": [
+    "Zone: BEIGE — Staff Kitchen / Amenity (per C.101 § 9.1)",
+    "FS.005 Option B: this is the ONLY zone where allergen-containing personal food is permitted. No allergens beyond Beige zone.",
+    "Execution form: C-FORM-002H (Daily by contract cleaner + Weekly walk-through by QA / staff).",
+    "Mandatory hand sanitiser (CHM-016) use at amenity exit before returning to production per B.004 § 5.1.",
+    "BEIGE-coded cleaning tools — dedicated to amenity zone only.",
+    "Personal items / toiletries permitted in this zone only (CHM-020 register entry per Rev 06)."
+   ]
+  },
+  {
+   "key": "bottling-line",
+   "name": "Bottling Line",
+   "title": "EAGLE LABS AUSTRALIA  |  C-FORM-002 — Bottling Line Cleaning Schedule",
+   "zoneLine": "Zone: ORANGE — Bottling Line (working classification; downstream of Capsule Room; final zone TBC)",
+   "schedule": [
+    {
+     "area": "Bottling Line Floor Area",
+     "daily": "Sweep and mop",
+     "weekly": "Clean corners and edges",
+     "monthly": "Clean under equipment and conveyor",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Conveyor System",
+     "daily": "Remove dust, capsules, bottles and product residue. Wipe and sanitise contact surfaces",
+     "weekly": "Clean rollers, guides and underneath conveyor",
+     "monthly": "Complete deep clean of conveyor frame, rollers and hard-to-reach areas",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Bottle Feeder / Unscrambler",
+     "daily": "Remove bottles and debris, clean and sanitise contact surfaces",
+     "weekly": "Inspect guides and moving parts, clean thoroughly",
+     "monthly": "Complete deep clean and inspection",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Desiccant Inserter / Silica Gel Inserter",
+     "daily": "Clean hopper, contact surfaces and sanitise",
+     "weekly": "Inspect feed mechanism and sensors",
+     "monthly": "Complete deep clean and inspection",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Capsule Lifter / Product Feeding System",
+     "daily": "Remove product residue, clean and sanitise product-contact surfaces",
+     "weekly": "Inspect alignment and condition",
+     "monthly": "Complete deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Filling Machine",
+     "daily": "At product changeover: remove product residue and sanitise.\nEnd of shift: clean machine internally and externally including guards, hoppers and contact surfaces.",
+     "weekly": "Disassemble removable parts, clean thoroughly, inspect seals and guards",
+     "monthly": "Complete deep clean including all accessible areas, framework, guards and hard-to-reach locations",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Filling Hopper",
+     "daily": "Empty, clean and sanitise after use",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Filling Nozzles",
+     "daily": "Clean and sanitise after use",
+     "weekly": "Inspect for blockage, wear or damage",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Capping Machine",
+     "daily": "Clean cap chute, contact surfaces and exterior",
+     "weekly": "Inspect guides, chucks and moving parts",
+     "monthly": "Complete deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Cap Hopper / Chute",
+     "daily": "Empty, clean and sanitise",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Induction Sealer",
+     "daily": "Clean sealing head area and exterior surfaces",
+     "weekly": "Inspect sealing components",
+     "monthly": "Deep clean and inspection",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Metal Detector",
+     "daily": "Clean head area and exterior surfaces",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean and inspection",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Printing / Coding Machine",
+     "daily": "Clean print head, sensors and exterior",
+     "weekly": "Verify print quality and clean components",
+     "monthly": "Complete deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Pallet jack",
+     "daily": "Daily visual + wipe",
+     "weekly": "visual + wipe",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Packing Table",
+     "daily": "Clean and sanitise",
+     "weekly": "Move and clean underneath",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Product Containers",
+     "daily": "Clean after use and sanitise",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Crates / Totes",
+     "daily": "Clean after use and sanitise",
+     "weekly": "Remove labels and inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Rejected Product / Waste Bin",
+     "daily": "Empty and clean",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Weighing Scales",
+     "daily": "Wipe down and clean",
+     "weekly": "Clean underneath",
+     "monthly": "Calibration area clean (refer D.103 / D-REG-001)",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Ladders",
+     "daily": "Wipe clean",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Vacuum Cleaner",
+     "daily": "Empty and clean exterior",
+     "weekly": "Inspect hose and filter",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Cleaning Equipment (mops, brushes, buckets)",
+     "daily": "Clean and dry after use",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged items",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Electrical Panels (exterior only)",
+     "daily": "Wipe exterior",
+     "weekly": "Inspect cleanliness",
+     "monthly": "Deep clean exterior",
+     "role": "PROD-SUP / PROD-TL"
+    },
+    {
+     "area": "Bottling Line Surrounding Area",
+     "daily": "Remove waste, labels and packaging materials",
+     "weekly": "Clean underneath equipment",
+     "monthly": "Full area deep clean",
+     "role": "Production Operator"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Bottling Line Floor Area",
+     "agent": "Approved Neutral Detergent — refer C-REG-001 (CHM-# TBC)",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Conveyor System",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA) sanitisation",
+     "dilution": "As per SOP / RTU (Pure IPA dilution TBC by DK)",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Bottle Feeder / Unscrambler",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Desiccant Inserter",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Capsule Lifter",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Filling Machine & parts",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact: full clean → rinse → dry → sanitise"
+    },
+    {
+     "area": "Filling Hopper",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Filling Nozzles",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Capping Machine",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Cap Hopper",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Induction Sealer",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Printing / Coding Machine",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": "Damp wipe near print head; avoid solvent on sensors"
+    },
+    {
+     "area": "Packing Table",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Product Containers",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product-contact"
+    },
+    {
+     "area": "Crates / Totes",
+     "agent": "Approved Neutral Detergent + CHM-021 (Pure IPA)",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": ""
+    },
+    {
+     "area": "Weighing Scales",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": "Avoid load-cell area; wipe-only"
+    },
+    {
+     "area": "Vacuum Cleaner",
+     "agent": "Approved Neutral Detergent (exterior only)",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Cleaning Equipment",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Electrical Panels (exterior)",
+     "agent": "CHM-021 Pure IPA wipe only — NO chemical spray near panels",
+     "dilution": "RTU",
+     "contactTime": "5 min",
+     "notes": "Safety: electrical isolation per OPS-MGR"
+    }
+   ],
+   "notes": [
+    "Zone classification: WORKING as ORANGE — Bottling Line (downstream of Capsule Room). Final zone classification pending team confirmation (was parked from previous session — see PRP-Cleaning workstream notes). Update C.101 § 9.1 and C-REG-001 Rev 07 once confirmed.",
+    "All product-contact equipment (Conveyor, Bottle Feeder, Desiccant Inserter, Capsule Lifter, Filling Machine + parts, Hoppers, Nozzles, Capping Machine, Cap Hopper, Induction Sealer, Packing Table, Product Containers, Crates) shall be cleaned with approved detergent, rinsed where required, dried, and sanitised with CHM-021 (Pure IPA) prior to use. Minimum sanitiser contact time: 5 minutes.",
+    "Pure IPA (CHM-021) selected for fast-evaporation, no-residue applications on dry capsule-bottle contact equipment — consistent with Capsule Room sanitation philosophy per C-REG-001 Rev 06.",
+    "Bastion IPA wipes (formerly CHM-002) have been REMOVED from the register (per Rev 06). Do not use; substitute with CHM-021 Pure IPA at sanitiser concentration.",
+    "Cleaning verification: ATP swab per C.103 cadence on cleaning completion (per-run rotating + weekly full sweep); record on C-FORM-008. Critical food-contact surfaces per C-REG-004: filling nozzles, hopper interiors, conveyor surfaces.",
+    "Cleaning tool colour: ORANGE-coded (working classification — matching Capsule Room) per C.101 § 9.2. Tools dedicated to bottling area — do not cross-use.",
+    "Per-shift execution records: C-FORM-002D1 (Daily), C-FORM-002D2 (Weekly), C-FORM-002D3 (Monthly Deep Clean).",
+    "Any deviation, OOS, or breakage → record on A-FORM-NCR-001 and escalate per A.006."
+   ]
+  },
+  {
+   "key": "pouch-machine",
+   "name": "Pouch Machine",
+   "title": "EAGLE LABS AUSTRALIA | C-FORM-002 — Pouch Line Cleaning Schedule",
+   "zoneLine": "Zone: Pouch Packing Line (zone colour TBC per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "SF8-200R — Product Lifter / Elevator (feed hopper, buckets, belt / chain, discharge chute)",
+     "daily": "Pre-Op: clean, dry and line-cleared.\n Post-Prod: empty all product; clean + sanitise feed hopper, buckets and discharge chute. No liquid on drive / electrics.",
+     "weekly": "Inspect buckets for cracks / damage, belt / chain condition and tracking; clean return area",
+     "monthly": "Deep clean incl. return area; verify chute alignment to weigher after any dismantling",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "SF8-200R — Multi-Head Weigher (feed / vibratory hoppers, weigh buckets, aggregate hopper)",
+     "daily": "Pre-Op: clean and dry.\n Post-Prod: remove all product; detach and clean + sanitise feed hoppers, weigh buckets and aggregate hopper; dry fully before refitting.",
+     "weekly": "Inspect hoppers, gates and seals; clean top cone and vibrator pans",
+     "monthly": "Deep clean all accessible areas and frame. Weight verification per calibration program",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "SF8-200R — Filling Hopper, Filling Nozzles / Funnel (Stations 4–5)",
+     "daily": "Pre-Op: clean and dry (SOP-MFG-014 §11.3).\n Post-Prod: remove powder / product residue; clean + sanitise; dry fully",
+     "weekly": "Inspect for build-up, dents or damage",
+     "monthly": "Deep clean with removal of nozzles / funnel",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "SF8-200R — Pouch Magazine, Feeder, Grippers, Opening Fingers + Vacuum Cups (Stations 1 & 3)",
+     "daily": "Post-Prod: remove all remaining pouches and debris; wipe grippers and opening fingers; clean vacuum cups (§25.1)",
+     "weekly": "Inspect vacuum cups and vacuum lines for wear, splits or blockage",
+     "monthly": "Deep clean; replace worn vacuum cups",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "SF8-200R — Heat Sealing Jaws (Stations 6 & 7)",
+     "daily": "Pre-Op: clean and free of residue (§11.3).\n Post-Prod (power isolated, jaws cooled): remove product / powder and film residue from jaw faces",
+     "weekly": "Inspect jaw faces for build-up or damage",
+     "monthly": "Deep clean jaws; inspect seal faces and PTFE covers (if fitted)",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "SF8-200R — Date Coding Unit (Station 2)",
+     "daily": "Pre-Op: clean and operational.\n Post-Prod / changeover: remove coding materials; clean print head area and exterior",
+     "weekly": "Check print quality; clean components",
+     "monthly": "Complete deep clean",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "SF8-200R — Rotary Table, Guards, Frame + Sensors / Photocells",
+     "daily": "Post-Prod: remove powder accumulation from rotary table and stations; wipe guards; clean sensors and photocells",
+     "weekly": "Clean under rotary table and inside guarding",
+     "monthly": "Full deep clean of frame and hard-to-reach areas; PLC cabinet exterior only",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Discharge / Out-feed Conveyor",
+     "daily": "Post-Prod: remove pouches, off-cuts and debris; clean + wipe belt",
+     "weekly": "Clean rollers, guides and underneath",
+     "monthly": "Deep clean frame, rollers and hard-to-reach areas",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Checkweigher / Filling Scale",
+     "daily": "Post-Prod: wipe pan and exterior. Pre-Start verification with certified weights (BPR S2 #6)",
+     "weekly": "Clean underneath",
+     "monthly": "Calibration check (per D.103)",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "X-ray Inspection System (SHARED — Pouch Line + Single Serve Pouch): conveyor belt, inspection tunnel + lead curtains, reject unit / bin",
+     "daily": "Pre-Op: function test with certified test pieces; reject confirmed.\n Post-Prod / at line changeover (X-ray OFF and isolated): remove product debris; wipe conveyor belt, curtains and reject bin; wipe exterior. No liquid sprayed into tunnel or cabinet.",
+     "weekly": "Remove and clean conveyor belt and guides; inspect lead curtains for tears / missing strips; clean reject mechanism",
+     "monthly": "Deep clean accessible tunnel interior and frame; check warning lights and interlocks; HMI damp wipe only",
+     "role": "Production Operator + Maintenance"
+    },
+    {
+     "area": "Nitrogen Flush Lines (if used)",
+     "daily": "Post-Prod: wipe nozzle exterior",
+     "weekly": "Inspect nozzles for blockage",
+     "monthly": "Inspect hoses and fittings",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Control Panels / HMI (SF8-200R, weigher, lifter)",
+     "daily": "Damp wipe only — NO chemical spray",
+     "weekly": "Inspect condition",
+     "monthly": "Damp wipe + inspect",
+     "role": "PROD-SUP"
+    },
+    {
+     "area": "Packing Table",
+     "daily": "Clean and sanitise",
+     "weekly": "Move and clean underneath",
+     "monthly": "Deep clean",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Feed Containers / Crates / Totes",
+     "daily": "Clean after use and sanitise",
+     "weekly": "Remove labels and inspect condition",
+     "monthly": "Deep clean",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Reject / Waste Bins",
+     "daily": "Empty and clean",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Floors, Walls + Around Machines",
+     "daily": "Post-Prod sweep + mop; remove powder, off-cuts and packaging waste",
+     "weekly": "Clean corners, edges and under equipment; full wall wipe",
+     "monthly": "Move equipment and deep clean",
+     "role": "Pouch Packing Operator"
+    },
+    {
+     "area": "Cleaning Tools (colour TBC)",
+     "daily": "Clean and dry after use",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged items",
+     "role": "Pouch Packing Operator"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors / Walls",
+     "agent": "Approved Neutral Detergent — refer C-REG-001 (CHM-# TBC)",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Product Lifter (food contact)",
+     "agent": "Food-grade detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product contact. Protect drive / electrics; confirm wet-clean suitability from supplier docs"
+    },
+    {
+     "area": "Multi-Head Weigher parts (food contact)",
+     "agent": "Food-grade detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product contact. Clean detached parts off-machine; dry fully before refitting"
+    },
+    {
+     "area": "SF8-200R Filling Hopper / Nozzles (food contact)",
+     "agent": "Dry removal (vacuum / brush) of powder, then food-grade detergent + sanitiser",
+     "dilution": "Per SOP / RTU",
+     "contactTime": "10 min clean + 5 min sanitise",
+     "notes": "Product contact. Dry fully — powder + moisture causes build-up"
+    },
+    {
+     "area": "SF8-200R Grippers, Fingers, Vacuum Cups, Rotary Table",
+     "agent": "Dry removal + CHM-021 Pure IPA wipe",
+     "dilution": "RTU",
+     "contactTime": "5 min",
+     "notes": "Pouch contact. Keep liquid out of vacuum lines"
+    },
+    {
+     "area": "SF8-200R Heat Sealing Jaws",
+     "agent": "Dry removal (brush) + CHM-021 Pure IPA wipe",
+     "dilution": "RTU",
+     "contactTime": "5 min",
+     "notes": "Jaws cooled and power isolated before IPA (flammable)"
+    },
+    {
+     "area": "Date Coding Unit",
+     "agent": "Approved Neutral Detergent (damp wipe)",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": "Avoid solvent on print head / sensors unless supplier-approved"
+    },
+    {
+     "area": "Discharge Conveyor",
+     "agent": "Approved Neutral Detergent + CHM-021 Pure IPA",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": "Sealed-pouch contact only"
+    },
+    {
+     "area": "Checkweigher / Scale",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": "Avoid load-cell area; wipe only"
+    },
+    {
+     "area": "Control Panels / HMI",
+     "agent": "Damp wipe only — NO chemical spray",
+     "dilution": "Damp wipe",
+     "contactTime": "N/A",
+     "notes": "Safety — electrical isolation per OPS-MGR"
+    },
+    {
+     "area": "Packing Table / Crates / Bins",
+     "agent": "Approved Neutral Detergent + CHM-021 Pure IPA",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    }
+   ],
+   "notes": [
+    "Zone: Pouch Packing Line — colour code and zone classification TBC (update C.101 § 9.1 once confirmed).",
+    "Equipment and cleaning points from SOP Pouch Packing Machine Operation (§ 5.2, 5.4, 5.13, 5.14), BPR-POUCH-01 Rev 01 and HI-VAL-EQP-001 (ZL-180P + material elevator).",
+    "Daily / post-production clean is recorded in BPR-POUCH-01 Section 4 (#8 machine cleaned, #9 status label) and checked at next line clearance (Section 1 #3–4) — no separate daily register. Weekly / monthly execution forms TBC.",
+    "Follow Lock-Out/Tag-Out during cleaning (SOP § 4). Pouch machine: power OFF and heaters cooled before cleaning; do not spray water or steam onto the machine.",
+    "All product-contact parts (lifter hopper + buckets, discharge chute, weigher hoppers + buckets, aggregate hopper, chute / funnel / material tube) cleaned, dried and sanitised before next run; attach CLEANED status label (SOP § 5.14).",
+    "Cleaning verification: ATP swab per C.103 — add lifter buckets, weigh buckets, aggregate hopper and filling funnel to C-REG-004 critical FCS list.",
+    "To confirm: SOP describes pre-made pouches (pouch magazine) and a coding system; ZL-180P is roll-film form-fill-seal and BPR says no inline coder. Align SOP to the installed machine.",
+    "Any deviation → A-FORM-NCR-001 + escalate per A.006."
+   ]
+  },
+  {
+   "key": "single-serve-pouch-machine",
+   "name": "Single Serve Pouch Machine",
+   "title": "HEALTH ICONS | Single Serve Pouch Machine (ZL-180P) — Cleaning Schedule",
+   "zoneLine": "Zone: Single Serve Pouch — Packaging Area (zone colour TBC per C.101 § 9.1)",
+   "schedule": [
+    {
+     "area": "Bowl Elevator (Z-type, 45°) — infeed tray / hopper, bowls, chain, discharge chute",
+     "daily": "Pre-Op: bowls, infeed tray and discharge chute clean and dry.\n Post-Prod: run empty and remove residual gummies; clean + sanitise infeed tray, bowls and discharge chute; wipe frame and drip tray. No liquid on motor, gearbox or control box.",
+     "weekly": "Inspect bowls for cracks / chips and loose fasteners; check chain tracking; clean under return run and drip tray",
+     "monthly": "Remove bowls (if detachable) for deep clean; clean chain, return area and frame; verify reassembly and chute alignment to ZL-180P hopper before release",
+     "role": "Production Operator"
+    },
+    {
+     "area": "ZL-180P Single-Serve Pouch Machine — product hopper, material tube, bag former, film path",
+     "daily": "Pre-Op: tension roller, bag former and eye-mark sensors clean and unobstructed (OQ-05); no tools / debris on worktable or jaws.\n End of shift (power OFF, heaters cooled): remove product debris and film off-cuts; drain air-filter moisture. NO water / steam spray.",
+     "weekly": "Inspect bag former, material tube and film path for gummy residue / build-up; clean tension and fixed rollers",
+     "monthly": "Deep clean all accessible areas with guards opened under LOTO",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Mid-Seal + End-Seal Jaws and Cutter",
+     "daily": "Post-Prod (heaters cooled): remove film debris and trapped product from jaw faces and cutter",
+     "weekly": "Inspect jaw faces for build-up / damage; check cutter edge",
+     "monthly": "Deep clean jaws (method per QA approval); inspect seal faces",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Product Conveyor / Out-feed",
+     "daily": "Post-Prod: remove product debris with compressed air or approved method (HI-VAL-EQP-001 §12.1); wipe belt",
+     "weekly": "Clean rollers, guides and underneath",
+     "monthly": "Deep clean frame and rollers",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Protective Covers, Countertop + Safety Doors",
+     "daily": "End of shift: wipe with soft cloth (§12.1)",
+     "weekly": "Clean inside guarding and door seals",
+     "monthly": "Deep clean + inspect",
+     "role": "Production Operator"
+    },
+    {
+     "area": "X-ray Inspection System (SHARED — Pouch Line + Single Serve Pouch): conveyor belt, inspection tunnel + lead curtains, reject unit / bin",
+     "daily": "Pre-Op: function test with certified test pieces; reject confirmed.\n Post-Prod / at line changeover (X-ray OFF and isolated): remove product debris; wipe conveyor belt, curtains and reject bin; wipe exterior. No liquid sprayed into tunnel or cabinet.",
+     "weekly": "Remove and clean conveyor belt and guides; inspect lead curtains for tears / missing strips; clean reject mechanism",
+     "monthly": "Deep clean accessible tunnel interior and frame; check warning lights and interlocks; HMI damp wipe only",
+     "role": "Production Operator + Maintenance"
+    },
+    {
+     "area": "Control Panel / HMI Touch Screen",
+     "daily": "End of shift: soft-cloth wipe only — NO chemical spray (§12.1)",
+     "weekly": "Inspect condition",
+     "monthly": "Damp wipe + inspect",
+     "role": "PROD-SUP"
+    },
+    {
+     "area": "Pneumatic Air Filter / Regulator",
+     "daily": "End of shift: drain moisture (§12.1)",
+     "weekly": "Check for leaks / damage",
+     "monthly": "Inspect filter element",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Checkweigher / Scale (fill weight checks)",
+     "daily": "Post-Prod: wipe pan and exterior",
+     "weekly": "Clean underneath",
+     "monthly": "Calibration check (per D.103)",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Feed Containers / Totes",
+     "daily": "Clean after use and sanitise",
+     "weekly": "Remove labels and inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Reject / Waste Bins",
+     "daily": "Empty and clean",
+     "weekly": "Inspect condition",
+     "monthly": "Deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Floors, Walls + Around Machine",
+     "daily": "Post-Prod sweep + mop; remove film off-cuts and packaging waste",
+     "weekly": "Clean corners, edges and under machine; full wall wipe",
+     "monthly": "Move equipment and deep clean",
+     "role": "Production Operator"
+    },
+    {
+     "area": "Cleaning Tools (colour TBC)",
+     "daily": "Clean and dry after use",
+     "weekly": "Inspect condition",
+     "monthly": "Replace damaged items",
+     "role": "Production Operator"
+    }
+   ],
+   "agents": [
+    {
+     "area": "Floors / Walls",
+     "agent": "Approved Neutral Detergent — refer C-REG-001 (CHM-# TBC)",
+     "dilution": "As per SOP",
+     "contactTime": "10 min",
+     "notes": ""
+    },
+    {
+     "area": "Hopper, material tube, bag former (food / film contact)",
+     "agent": "Dry removal (compressed air / brush) + CHM-021 Pure IPA wipe",
+     "dilution": "RTU",
+     "contactTime": "5 min",
+     "notes": "NO water / steam spray on machine (manufacturer). Heaters OFF and cooled before IPA (flammable)"
+    },
+    {
+     "area": "Seal Jaws + Cutter",
+     "agent": "Dry removal (brush) + CHM-021 Pure IPA wipe",
+     "dilution": "RTU",
+     "contactTime": "5 min",
+     "notes": "Manufacturer method (wire brush + silicone lubricant) needs QA approval before use"
+    },
+    {
+     "area": "Product Conveyor / Out-feed",
+     "agent": "Compressed air / brush, then Approved Neutral Detergent damp wipe + CHM-021 Pure IPA",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Covers, Countertop, Doors",
+     "agent": "Soft cloth; Approved Neutral Detergent damp wipe if soiled",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": ""
+    },
+    {
+     "area": "Control Panel / HMI",
+     "agent": "Soft dry / damp cloth only — NO chemical spray",
+     "dilution": "Damp wipe",
+     "contactTime": "N/A",
+     "notes": "Safety — electrical isolation per OPS-MGR"
+    },
+    {
+     "area": "Checkweigher / Scale",
+     "agent": "Approved Neutral Detergent",
+     "dilution": "As per SOP",
+     "contactTime": "5 min",
+     "notes": "Avoid load-cell area; wipe only"
+    },
+    {
+     "area": "Containers / Bins",
+     "agent": "Approved Neutral Detergent + CHM-021 Pure IPA",
+     "dilution": "As per SOP / RTU",
+     "contactTime": "5 min",
+     "notes": ""
+    }
+   ],
+   "notes": [
+    "Equipment: ZL-180P Full Servo Intelligent Vertical Packaging Machine (Foshan Soontrue), roll-film vertical form-fill-seal — single serve gummy pouches. Asset ID HI-PKG-___ (TBC). Location: Health Icons Packaging Area.",
+    "Source: HI-VAL-EQP-001 Rev 00 § 12 (manufacturer manual § 8) and § 7 safety requirements. Zone colour code TBC (update C.101 § 9.1 once confirmed).",
+    "Manufacturer requirements: clean at end of each shift; power OFF and heaters cooled first; do not spray water or steam directly onto the machine; never place tools or debris on worktable, conveyor or sealing jaws.",
+    "Lubricants (2# lithium grease) must be HI-approved and kept away from product / film-contact surfaces. Maintenance tasks are listed in Section D.",
+    "Record every clean on the Cleaning Record tab (or the batch packaging record close-out once one exists for this line). Cleaning SOP for this machine TBC.",
+    "Cleaning verification: ATP swab per C.103 — add hopper, material tube and bag former to C-REG-004 critical FCS list.",
+    "Any deviation → A-FORM-NCR-001 + escalate per A.006.",
+    "D. MAINTENANCE-LINKED TASKS (HI-VAL-EQP-001 § 12.2–12.3)",
+    "Task",
+    "Lubricate cross-seal bearings and drive chains / wheels (approved grease only)",
+    "Check chain and belt tension; tighten set screws and nuts",
+    "Inspect triangle belts and film-pulling synchronous belts; replace if worn",
+    "Inspect consumable parts and replace as needed",
+    "Check junction-board wiring; dry compressed air clean of frequency converter and circuit boards (power isolated)"
+   ]
+  }
+ ]
+}
