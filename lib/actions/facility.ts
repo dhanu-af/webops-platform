@@ -2,17 +2,13 @@
 
 import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { revalidatePath, updateTag } from "next/cache";
 import { FACILITY_TAG } from "@/lib/cached-config";
 
 async function requireAreasManager() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "areas.manage");
-  return session.user;
+  return requireLiveUser("areas.manage");
 }
 
 async function createFacility__impl(input: {

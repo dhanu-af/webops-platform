@@ -3,26 +3,19 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { STAGE_LABEL } from "@/lib/drying-room-defaults";
 import type { DryingBayPurpose, DryingStage, TrolleyQcStatus } from "@/app/generated/prisma/client";
 
 const BASE_PATH = "/drying-room";
 
 async function requireUpdateAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authorized");
-  requirePermission(session.user.role, "drying.update");
-  return session;
+  return { user: await requireLiveUser("drying.update") };
 }
 
 async function requireManageAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authorized");
-  requirePermission(session.user.role, "drying.manage");
-  return session;
+  return { user: await requireLiveUser("drying.manage") };
 }
 
 async function createBay__impl() {
@@ -299,8 +292,7 @@ function startOfWeekMonday(d: Date) {
  * in-progress batches don't have a real duration yet.
  */
 export async function getDryingRoomMetrics(): Promise<DryingRoomMetrics> {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authorized");
+  await requireLiveUser("view");
 
   const completed = await db.dryingBatch.findMany({
     where: { completedAt: { not: null } },

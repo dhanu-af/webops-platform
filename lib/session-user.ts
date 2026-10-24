@@ -54,3 +54,30 @@ export async function requireUserWithPermission(...permissions: Permission[]) {
   }
   return user;
 }
+
+/**
+ * Same checks as requireUserWithPermission, returned in the shape of the JWT session user
+ * (id, name, role, areaIds, ...) but built from the live database row, so a deactivated
+ * account, a reduced role or a changed area assignment takes effect on the very next action.
+ */
+export async function requireLiveUser(...permissions: Permission[]) {
+  const user = permissions.length ? await requireUserWithPermission(...permissions) : await requireActiveUser();
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    areaIds: user.assignedAreas.map((a) => a.id),
+    sectionIds: [...new Set(user.assignedAreas.map((a) => a.sectionId))],
+    facilityId: user.assignedAreas[0]?.section.facilityId ?? null,
+  };
+}
+
+/** For API routes: the live user wrapped as `{ user }`, or null when signed out, deactivated or on a temporary password. */
+export async function liveSession(...permissions: Permission[]) {
+  try {
+    return { user: await requireLiveUser(...permissions) };
+  } catch {
+    return null;
+  }
+}

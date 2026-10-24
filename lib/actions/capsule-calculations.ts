@@ -3,9 +3,8 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { computeCalculation, DIRECTION_LABEL } from "@/lib/capsule-calculation";
 import type { CalculationDirection } from "@/app/generated/prisma/client";
 
@@ -15,10 +14,7 @@ const BASE_PATH = "/calculation";
 // "reports.view") -- a production-planning tool for the roles who plan
 // batches, not a new permission of its own.
 async function requireCalculationAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "reports.view");
-  return session.user;
+  return requireLiveUser("reports.view");
 }
 
 export async function listCalculations() {

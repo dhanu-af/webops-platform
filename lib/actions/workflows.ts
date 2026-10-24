@@ -2,18 +2,14 @@
 
 import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { WorkflowRole } from "@/app/generated/prisma/client";
 
 async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "checklist.manage");
-  return session.user;
+  return requireLiveUser("checklist.manage");
 }
 
 export type WorkflowInput = {

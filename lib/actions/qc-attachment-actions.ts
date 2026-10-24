@@ -3,17 +3,13 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { isAllowedQcAttachmentFile, storeQcAttachment, MAX_QC_ATTACHMENT_BYTES } from "@/lib/storage";
 import type { QcAttachmentKind } from "@/app/generated/prisma/client";
 
 async function requireAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "qc.manage");
-  return session.user;
+  return requireLiveUser("qc.manage");
 }
 
 async function attachQcSampleFile__impl(formData: FormData) {

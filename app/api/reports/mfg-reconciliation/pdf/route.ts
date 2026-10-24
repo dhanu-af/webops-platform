@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { getMfgBatchDetail } from "@/lib/data/mfg-reconciliation";
 import { MfgReconciliationDocument } from "@/lib/pdf/mfg-reconciliation-document";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const id = request.nextUrl.searchParams.get("id");

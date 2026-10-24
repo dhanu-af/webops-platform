@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { can } from "@/lib/permissions";
 import { getUserScope } from "@/lib/scope";
 import { getReportInspections, getReportSummary, resolveReportRange, type ReportFilters } from "@/lib/data/reports";
@@ -8,7 +8,7 @@ import { getFacilityTimezone } from "@/lib/timezone";
 import { ReportDocument } from "@/lib/pdf/report-document";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user || !can(session.user.role, "reports.export")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

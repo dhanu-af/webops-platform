@@ -3,17 +3,13 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 
 const BASE_PATH = "/formulations";
 
 async function requireEditor() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authorized");
-  requirePermission(session.user.role, "formulation.manage");
-  return session;
+  return { user: await requireLiveUser("formulation.manage") };
 }
 
 export type IngredientInput = {

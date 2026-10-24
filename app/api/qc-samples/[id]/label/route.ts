@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import QRCode from "qrcode";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { db } from "@/lib/db";
 import { QcSampleLabelDocument } from "@/lib/pdf/qc-sample-label-document";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const { id } = await params;

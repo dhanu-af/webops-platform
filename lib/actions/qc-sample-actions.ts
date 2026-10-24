@@ -3,33 +3,23 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission, can } from "@/lib/permissions";
 import { formatSampleId } from "@/lib/qc-sample-defaults";
 import type { QcSampleType, QcProductCategory, QcTestResult } from "@/app/generated/prisma/client";
 
 const BASE_PATH = "/qc-samples";
 
 async function requireManageAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "qc.manage");
-  return session.user;
+  return requireLiveUser("qc.manage");
 }
 
 async function requireCollectAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "qc.collect");
-  return session.user;
+  return requireLiveUser("qc.collect");
 }
 
 async function requireLabAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "qc.lab");
-  return session.user;
+  return requireLiveUser("qc.lab");
 }
 
 type NewQcSample = {
@@ -459,9 +449,7 @@ async function deleteQcSample__impl(id: string) {
 }
 
 async function getQcSampleAuditTrail__impl(sampleId: string) {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  if (!can(session.user.role, "view")) throw new UserFacingError("Not authorized");
+  await requireLiveUser("view");
 
   const entries = await db.auditLog.findMany({
     where: { entityType: "QcSample", entityId: sampleId },

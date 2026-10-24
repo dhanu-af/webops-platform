@@ -2,9 +2,8 @@
 
 import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { validateRetentionYears } from "@/lib/retention";
 import { revalidatePath, updateTag } from "next/cache";
 import { FACILITY_TAG, SETTINGS_TAG } from "@/lib/cached-config";
@@ -12,12 +11,7 @@ import { storePhoto, isAllowedPhotoFile } from "@/lib/storage";
 import type { NotificationType } from "@/app/generated/prisma/client";
 
 async function requireSettingsManager() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  // Facility-wide configuration is the same tier as Areas & Equipment —
-  // both describe the physical/organisational structure, not day-to-day ops.
-  requirePermission(session.user.role, "areas.manage");
-  return session.user;
+  return requireLiveUser("areas.manage");
 }
 
 async function updateFacilityTimezone__impl(facilityId: string, timezone: string) {

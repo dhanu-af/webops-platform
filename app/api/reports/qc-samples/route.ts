@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { db } from "@/lib/db";
 import { SAMPLE_TYPE_LABEL, IN_LAB_STATUSES } from "@/lib/qc-sample-defaults";
 import { QC_SAMPLE_STATUS_META } from "@/lib/status";
@@ -55,7 +55,7 @@ function csvResponse(filenameSuffix: string, rows: string[]): NextResponse {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const type = request.nextUrl.searchParams.get("type");

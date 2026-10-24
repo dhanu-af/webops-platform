@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { getFormulationDetail } from "@/lib/data/formulations";
 import { canConvertUnit } from "@/lib/formulation-calc";
 import { FormulationDocument } from "@/lib/pdf/formulation-document";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const { id } = await params;

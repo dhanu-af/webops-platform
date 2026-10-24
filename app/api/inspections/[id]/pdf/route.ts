@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { getUserScope } from "@/lib/scope";
 import { getFacilityTimezone } from "@/lib/timezone";
 import { getInspectionRecord } from "@/lib/data/inspection-record";
@@ -13,7 +13,7 @@ export const maxDuration = 30;
 // One inspection as a complete GMP record: answers, failures and corrective
 // actions, electronic signatures, and the full audit trail (URS-15).
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const { id } = await params;

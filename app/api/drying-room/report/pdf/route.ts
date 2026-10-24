@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { auth } from "@/lib/auth";
+import { liveSession } from "@/lib/session-user";
 import { formatDateInTimeZone, formatDateTimeInTimeZone, getFacilityTimezone } from "@/lib/timezone";
 import { listDryingBays, listMiscStorageItems } from "@/lib/data/drying-room";
 import { DryingRoomReportDocument } from "@/lib/pdf/drying-room-report-document";
 
 export async function GET() {
-  const session = await auth();
+  const session = await liveSession();
   if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const [bays, misc, timeZone] = await Promise.all([listDryingBays(), listMiscStorageItems(), getFacilityTimezone()]);

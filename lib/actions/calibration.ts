@@ -3,16 +3,12 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { storeCalibrationCertificate, isAllowedCertificateFile, MAX_CERTIFICATE_BYTES } from "@/lib/storage";
 
 async function requireCalibrationManager() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "calibration.manage");
-  return session.user;
+  return requireLiveUser("calibration.manage");
 }
 
 async function recordCalibration__impl(formData: FormData) {

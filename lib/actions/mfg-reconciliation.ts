@@ -3,9 +3,8 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/permissions";
 import { DEFAULT_PACKAGING_ISSUE_LINES, DEFAULT_PACKAGING_MATERIAL_LINES, canEditMfgStage, type MfgStageKey } from "@/lib/mfg-reconciliation";
 import { getUserAreaNames } from "@/lib/data/mfg-reconciliation";
 import type { MfgMaterialGroup, MfgPackagingMaterialType } from "@/app/generated/prisma/client";
@@ -16,23 +15,19 @@ const BASE_PATH = "/mfg-reconciliation";
 // full mfg.manage tier -- an operator who can edit their own section's
 // stage still can't create or delete a whole batch, or mark it complete.
 async function requireAccess() {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  requirePermission(session.user.role, "mfg.manage");
-  return session.user;
+  return requireLiveUser("mfg.manage");
 }
 
 // Per-stage save actions: mfg.manage roles can always edit; an
 // OPERATOR/TEAM_LEADER can only edit the one stage matching their own
 // assigned Area (see canEditMfgStage in lib/mfg-reconciliation.ts).
 async function requireStageAccess(stage: MfgStageKey) {
-  const session = await auth();
-  if (!session?.user) throw new UserFacingError("Not authenticated");
-  const areaNames = await getUserAreaNames(session.user.areaIds);
-  if (!canEditMfgStage(session.user.role, areaNames, stage)) {
+  const user = await requireLiveUser();
+  const areaNames = await getUserAreaNames(user.areaIds);
+  if (!canEditMfgStage(user.role, areaNames, stage)) {
     throw new UserFacingError("Forbidden: you don't have edit access to this stage.");
   }
-  return session.user;
+  return user;
 }
 
 // Creates the batch plus its Warehouse Issue and Packaging stages

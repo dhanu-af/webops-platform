@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireLiveUser } from "@/lib/session-user";
 
-async function requireUser() {
-  const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
-  return session.user;
+function requireUser() {
+  return requireLiveUser();
 }
 
 export async function markNotificationRead(id: string) {
