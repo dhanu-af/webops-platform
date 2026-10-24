@@ -24,6 +24,32 @@ export function getUserScope(user: {
   return { scoped: false };
 }
 
+/**
+ * May this user add to, edit and submit this record? (shared working within a section)
+ *
+ * - A user with assigned areas can work on any record in their own areas
+ *   (an exact area, a section-wide record in their section, or a facility-wide
+ *   one), whoever started it -- so one operator can carry on what another began.
+ * - A user with no assigned areas keeps the older rule: only records nobody has
+ *   claimed yet, or their own.
+ * Verification is unaffected: anyone who started the record or entered an answer
+ * on it still cannot verify it.
+ */
+export function canWorkOnRecord(
+  scope: UserScope,
+  userId: string,
+  record: { operatorId: string | null; areaId: string | null; sectionId: string | null; facilityId: string }
+): boolean {
+  if (scope.scoped) {
+    return (
+      (record.areaId !== null && scope.areaIds.includes(record.areaId)) ||
+      (record.areaId === null && record.sectionId !== null && scope.sectionIds.includes(record.sectionId)) ||
+      (record.areaId === null && record.sectionId === null && record.facilityId === scope.facilityId)
+    );
+  }
+  return !record.operatorId || record.operatorId === userId;
+}
+
 // Prisma `where` fragment matching any record whose own facility/section/area
 // scope *includes* one of the user's areas -- an exact area match, a
 // section-wide record in one of the user's sections, or a facility-wide

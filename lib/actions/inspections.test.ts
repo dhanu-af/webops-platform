@@ -45,9 +45,16 @@ import {
 
 type Role = "OPERATOR" | "SUPERVISOR" | "QA" | "VIEWER" | "ADMIN";
 
-function signIn(role: Role, id: string, opts: { active?: boolean; name?: string } = {}) {
+function signIn(role: Role, id: string, opts: { active?: boolean; name?: string; areas?: Array<{ id: string; sectionId: string; facilityId: string }> } = {}) {
   m.session.current = { user: { id } };
-  m.db.user.findUnique.mockResolvedValue({ id, name: opts.name ?? "Test User", email: `${id}@example.com`, role, active: opts.active ?? true });
+  m.db.user.findUnique.mockResolvedValue({
+    id,
+    name: opts.name ?? "Test User",
+    email: `${id}@example.com`,
+    role,
+    active: opts.active ?? true,
+    assignedAreas: (opts.areas ?? []).map((a) => ({ id: a.id, sectionId: a.sectionId, section: { facilityId: a.facilityId } })),
+  });
 }
 
 const FIXED_NOW = new Date("2026-10-23T01:02:03.000Z");
@@ -74,6 +81,8 @@ const openInspection = (over: Record<string, unknown> = {}) => ({
   status: "IN_PROGRESS",
   operatorId: "op1",
   areaId: "area1",
+  sectionId: "sec1",
+  facilityId: "fac1",
   equipmentId: null,
   submittedAt: null,
   reopenReason: null,
@@ -576,10 +585,10 @@ describe("clearResponse / deletePhoto (undo before submit)", () => {
     expect(m.db.inspectionResponse.update).not.toHaveBeenCalled();
   });
 
-  it("another operator cannot undo answers on someone else's record", async () => {
+  it("an operator with no assigned area cannot work on someone else's record", async () => {
     signIn("OPERATOR", "op2");
     const r = await clearResponse({ inspectionId: "insp1", checklistItemId: "item1" });
-    expect(r).toEqual({ ok: false, error: "This record belongs to another operator." });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/another section or operator/) });
   });
 
   it("deletes a photo from a draft and audits who removed it", async () => {
@@ -603,5 +612,44 @@ describe("clearResponse / deletePhoto (undo before submit)", () => {
     const r = await deletePhoto({ photoId: "ph1" });
     expect(r).toEqual({ ok: false, error: expect.stringMatching(/submitted/) });
     expect(m.db.photoEvidence.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("operators in the same section can work on each other's records", () => {
+  const record = (over: Record<string, unknown> = {}) => ({ id: "insp1", status: "IN_PROGRESS", operatorId: "dhanu", areaId: "bottling", sectionId: "prod", facilityId: "fac1", equipmentId: null, submittedAt: null, reopenReason: null, ...over });
+  const bottlingArea = { id: "bottling", sectionId: "prod", facilityId: "fac1" };
+  const capsuleArea = { id: "capsule", sectionId: "prod", facilityId: "fac1" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.db.inspectionResponse.upsert.mockResolvedValue({ id: "resp1" });
+    m.db.inspectionResponse.findUnique.mockResolvedValue(null);
+    m.db.finding.findUnique.mockResolvedValue(null);
+    m.db.checklistItem.findUniqueOrThrow.mockResolvedValue(checklistItem());
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(record());
+  });
+
+  it("an operator assigned to the record's area can add answers to a record another operator started", async () => {
+    signIn("OPERATOR", "bottling-op", { areas: [bottlingArea] });
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" });
+    expect(m.db.inspectionResponse.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ respondedById: "bottling-op" }) }));
+  });
+
+  it("an operator assigned to a different area cannot", async () => {
+    signIn("OPERATOR", "capsule-op", { areas: [capsuleArea] });
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/another section or operator/);
+    expect(m.db.inspectionResponse.upsert).not.toHaveBeenCalled();
+  });
+
+  it("the original operator stays the operator of record", async () => {
+    signIn("OPERATOR", "bottling-op", { areas: [bottlingArea] });
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" });
+    expect(m.db.inspection.update).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ operatorId: "bottling-op" }) }));
+  });
+
+  it("an in-area operator who entered an answer still cannot verify the record", async () => {
+    // Verification conflict rules are unchanged: see the URS-02 tests above.
+    signIn("OPERATOR", "bottling-op", { areas: [bottlingArea] });
+    await expect(verifyInspection({ inspectionId: "insp1", action: "APPROVE", password: "x" })).resolves.toEqual({ ok: false, error: expect.any(String) });
   });
 });

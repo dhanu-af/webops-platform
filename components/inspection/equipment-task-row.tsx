@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { saveResponse } from "@/lib/actions/inspections";
+import { saveResponse, clearResponse } from "@/lib/actions/inspections";
 import { formatAttribution } from "@/lib/format-attribution";
 
 type SubItem = {
@@ -22,6 +23,7 @@ type SubItem = {
 export function EquipmentTaskRow({
   inspectionId,
   editable,
+  canUndo = false,
   equipmentName,
   helpText,
   items,
@@ -29,6 +31,8 @@ export function EquipmentTaskRow({
 }: {
   inspectionId: string;
   editable: boolean;
+  /** True only until the record is first submitted: the whole row can be cleared. */
+  canUndo?: boolean;
   equipmentName: string;
   helpText: string | null;
   items: SubItem[];
@@ -43,6 +47,7 @@ export function EquipmentTaskRow({
   // map first means every tap always builds on the outcome of the tap
   // before it, not on whatever the server has confirmed so far.
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [undoError, setUndoError] = useState<string | null>(null);
 
   function currentValue(item: SubItem): string {
     return overrides[item.id] ?? item.choiceValue ?? "";
@@ -67,6 +72,27 @@ export function EquipmentTaskRow({
           return updated;
         });
         await Promise.all(blankSiblings.map((sibling) => saveResponse({ inspectionId, checklistItemId: sibling.id, choiceValue: "DONE" })));
+      }
+    });
+  }
+
+  // Undo clears every stage of the row that has a value, the way tapping
+  // Clean fills them in together.
+  function undoRow() {
+    setUndoError(null);
+    const toClear = items.filter((i) => currentValue(i));
+    setOverrides((prev) => {
+      const updated = { ...prev };
+      for (const i of toClear) updated[i.id] = "";
+      return updated;
+    });
+    startTransition(async () => {
+      const results = await Promise.all(toClear.map((i) => clearResponse({ inspectionId, checklistItemId: i.id })));
+      const failed = results.find((r) => !r.ok);
+      if (failed && !failed.ok) {
+        // Put the buttons back to what the server still holds.
+        setOverrides({});
+        setUndoError(failed.error);
       }
     });
   }
@@ -111,7 +137,21 @@ export function EquipmentTaskRow({
           );
         })}
       </div>
-      {attribution && <p className="mt-2 font-mono-tabular text-[11px] text-muted">{attribution}</p>}
+      {(attribution || (canUndo && items.some((i) => currentValue(i)))) && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono-tabular text-[11px] text-muted">{attribution}</p>
+          {canUndo && items.some((i) => currentValue(i)) && (
+            <button
+              type="button"
+              onClick={undoRow}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-surface-sunken"
+            >
+              <Undo2 className="size-3.5" /> Undo
+            </button>
+          )}
+        </div>
+      )}
+      {undoError && <p className="mt-1 text-xs text-status-critical">{undoError}</p>}
     </div>
   );
 }

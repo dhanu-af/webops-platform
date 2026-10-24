@@ -5,7 +5,8 @@ import { logAudit } from "@/lib/audit";
 import { notify, notifyUsers } from "@/lib/notifications";
 import { storePhoto, getMaxPhotoBytes, isAllowedPhotoFile, deletePhotoFile } from "@/lib/storage";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
-import { requireActiveUser, requireUserWithPermission } from "@/lib/session-user";
+import { requireActiveUser, requireUserWithPermission, scopeOf } from "@/lib/session-user";
+import { canWorkOnRecord, scopeWhere } from "@/lib/scope";
 import { verifySignaturePassword } from "@/lib/signature";
 import { APP_VERSION_STAMP } from "@/lib/app-version";
 import {
@@ -31,8 +32,15 @@ function assertEditable(inspection: { status: InspectionStatus }) {
   if (!EDITABLE_STATUSES.includes(inspection.status)) throw new UserFacingError("This inspection is not open for editing.");
 }
 
-function assertOwnRecord(inspection: { operatorId: string | null }, userId: string) {
-  if (inspection.operatorId && inspection.operatorId !== userId) throw new UserFacingError("This record belongs to another operator.");
+type RecordPlace = { operatorId: string | null; areaId: string | null; sectionId: string | null; facilityId: string };
+type Worker = Parameters<typeof scopeOf>[0] & { id: string };
+
+// Operators assigned to a record's area can all work on it, whoever started it;
+// everyone else is limited to records nobody has claimed or their own.
+function assertCanWork(inspection: RecordPlace, user: Worker) {
+  if (!canWorkOnRecord(scopeOf(user), user.id, inspection)) {
+    throw new UserFacingError("This record belongs to another section or operator. Only operators assigned to its area can work on it.");
+  }
 }
 
 // Lazy instantiation: Today's Ops "Start" turns a due ChecklistSchedule into
@@ -115,7 +123,7 @@ async function saveInspectionHeaderImpl(input: {
   const user = await requireUserWithPermission("inspection.submit");
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: input.inspectionId } });
   assertEditable(inspection);
-  assertOwnRecord(inspection, user.id);
+  assertCanWork(inspection, user);
 
   const next = {
     product: input.product?.trim() || null,
@@ -161,7 +169,7 @@ export async function saveResponse(input: {
   const user = await requireUserWithPermission("inspection.submit");
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: input.inspectionId } });
   assertEditable(inspection);
-  assertOwnRecord(inspection, user.id);
+  assertCanWork(inspection, user);
 
   const item = await db.checklistItem.findUniqueOrThrow({ where: { id: input.checklistItemId } });
 
@@ -289,7 +297,7 @@ export async function attachPhoto(formData: FormData) {
 
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: inspectionId } });
   assertEditable(inspection);
-  assertOwnRecord(inspection, user.id);
+  assertCanWork(inspection, user);
   const { url, sizeBytes } = await storePhoto(file);
 
   const photo = await db.photoEvidence.create({
@@ -323,7 +331,7 @@ export async function createFindingDetail(input: {
   const user = await requireUserWithPermission("inspection.submit");
   const finding = await db.finding.findUniqueOrThrow({ where: { id: input.findingId }, include: { inspection: true } });
   assertEditable(finding.inspection);
-  assertOwnRecord(finding.inspection, user.id);
+  assertCanWork(finding.inspection, user);
   await db.finding.update({
     where: { id: input.findingId },
     data: { reason: input.reason, severity: input.severity, immediateCorrection: input.immediateCorrection },
@@ -430,6 +438,8 @@ async function submitInspectionImpl(inspectionId: string) {
         status: true,
         operatorId: true,
         areaId: true,
+        sectionId: true,
+        facilityId: true,
         product: true,
         batchNumber: true,
         previousProduct: true,
@@ -458,9 +468,7 @@ async function submitInspectionImpl(inspectionId: string) {
   );
 
   assertEditable(inspection);
-  if (inspection.operatorId && inspection.operatorId !== user.id) {
-    throw new UserFacingError("Only the assigned operator can submit this inspection.");
-  }
+  assertCanWork(inspection, user);
 
   // Record header: area/line, and previous + next product/batch where the
   // checklist type needs them. Blank required header fields block submission.
@@ -694,7 +702,7 @@ async function resubmitReturnedInspectionImpl(inspectionId: string, reason?: str
 
   const inspection = await db.inspection.findUniqueOrThrow({ where: { id: inspectionId } });
   if (inspection.status !== "RETURNED") throw new UserFacingError("Only a returned record can be reopened for correction.");
-  assertOwnRecord(inspection, user.id);
+  assertCanWork(inspection, user);
 
   await db.inspection.update({ where: { id: inspectionId }, data: { status: "IN_PROGRESS", reopenReason: reason.trim() } });
   await logAudit({
@@ -791,7 +799,7 @@ export async function startAdHocInspection(input: {
         scheduleId: null,
         areaId,
         status: { in: EDITABLE_STATUSES },
-        OR: [{ operatorId: null }, { operatorId: user.id }],
+        ...scopeWhere(scopeOf(user)),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -900,7 +908,7 @@ export async function clearResponse(input: { inspectionId: string; checklistItem
     const user = await requireUserWithPermission("inspection.submit");
     const inspection = await db.inspection.findUniqueOrThrow({ where: { id: input.inspectionId } });
     assertEditable(inspection);
-    assertOwnRecord(inspection, user.id);
+    assertCanWork(inspection, user);
     if (inspection.submittedAt) throw new UserFacingError("This record has been submitted, so answers can no longer be undone. Change the answer instead.");
 
     const item = await db.checklistItem.findUniqueOrThrow({ where: { id: input.checklistItemId } });
@@ -951,7 +959,7 @@ export async function deletePhoto(input: { photoId: string }): Promise<ActionRes
     const inspection = photo.inspection;
     if (!inspection) throw new UserFacingError("This photo is not attached to an inspection record.");
     assertEditable(inspection);
-    assertOwnRecord(inspection, user.id);
+    assertCanWork(inspection, user);
     if (inspection.submittedAt) throw new UserFacingError("This record has been submitted, so its photos cannot be deleted.");
 
     await db.photoEvidence.delete({ where: { id: photo.id } });

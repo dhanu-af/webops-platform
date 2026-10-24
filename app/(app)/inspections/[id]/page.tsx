@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isAnswered } from "@/lib/inspection-rules";
+import { canWorkOnRecord, getUserScope } from "@/lib/scope";
 import { formatDateTimeInTimeZone } from "@/lib/timezone";
 import { auth } from "@/lib/auth";
 import { getFacilityTimezone } from "@/lib/timezone";
@@ -35,7 +36,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const editable =
     (inspection.status === "NOT_STARTED" || inspection.status === "IN_PROGRESS" || inspection.status === "RETURNED") &&
     can(session.user.role, "inspection.submit") &&
-    (!inspection.operatorId || inspection.operatorId === session.user.id);
+    canWorkOnRecord(getUserScope(session.user), session.user.id, inspection);
   const status = recordStatus(inspection.status);
   const noProduction = inspection.status === "NO_PRODUCTION";
 
@@ -135,18 +136,21 @@ export default async function InspectionDetailPage({ params }: { params: Promise
                     key={row.items[0].id}
                     inspectionId={inspection.id}
                     editable={editable}
+                    canUndo={editable && !inspection.submittedAt}
                     timeZone={timeZone}
                     equipmentName={row.equipmentName}
                     helpText={row.helpText}
                     items={row.items.map((item) => {
                       const r = responseByItem.get(item.id);
+                      // A stage emptied by Undo keeps its row but is not an answer, so it shows no attribution.
+                      const hasValue = r?.choiceValue === "DONE" || r?.choiceValue === "NA";
                       return {
                         id: item.id,
                         stage: item.prompt.split(" — ").pop() as "Clean" | "Sanitised" | "Dry",
                         required: item.required,
                         choiceValue: r?.choiceValue ?? null,
-                        respondedByName: r?.respondedBy?.name ?? null,
-                        respondedAt: r?.updatedAt ?? null,
+                        respondedByName: hasValue ? (r?.respondedBy?.name ?? null) : null,
+                        respondedAt: hasValue ? (r?.updatedAt ?? null) : null,
                       };
                     })}
                   />
