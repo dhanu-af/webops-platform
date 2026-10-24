@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -12,21 +13,21 @@ const BASE_PATH = "/qc-samples";
 
 async function requireManageAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "qc.manage");
   return session.user;
 }
 
 async function requireCollectAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "qc.collect");
   return session.user;
 }
 
 async function requireLabAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "qc.lab");
   return session.user;
 }
@@ -50,10 +51,10 @@ type NewQcSample = {
   remarks: string | null;
 };
 
-export async function createQcSample(data: NewQcSample) {
+async function createQcSample__impl(data: NewQcSample) {
   const actor = await requireCollectAccess();
   if (!data.productName || !data.batchNumber || !data.sampleType || !data.unit) {
-    throw new Error("Product, batch number, sample type, and unit are required");
+    throw new UserFacingError("Product, batch number, sample type, and unit are required");
   }
 
   const sample = await db.$transaction(async (tx) => {
@@ -99,10 +100,10 @@ export async function createQcSample(data: NewQcSample) {
   return sample;
 }
 
-export async function updateQcSample(id: string, data: NewQcSample) {
+async function updateQcSample__impl(id: string, data: NewQcSample) {
   const actor = await requireManageAccess();
   if (!data.productName || !data.batchNumber || !data.sampleType || !data.unit) {
-    throw new Error("Product, batch number, sample type, and unit are required");
+    throw new UserFacingError("Product, batch number, sample type, and unit are required");
   }
 
   const sample = await db.qcSample.update({
@@ -138,10 +139,10 @@ export async function updateQcSample(id: string, data: NewQcSample) {
   revalidatePath(BASE_PATH);
 }
 
-export async function markCollected(id: string) {
+async function markCollected__impl(id: string) {
   const actor = await requireCollectAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "WAITING_COLLECTION") throw new Error("Sample is not waiting collection");
+  if (sample.status !== "WAITING_COLLECTION") throw new UserFacingError("Sample is not waiting collection");
 
   await db.qcSample.update({
     where: { id },
@@ -163,13 +164,13 @@ export async function markCollected(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function markSentToLab(
+async function markSentToLab__impl(
   id: string,
   data: { sentDate: string; courierOrInternal: string | null; laboratoryName: string | null; laboratoryLocation: string | null }
 ) {
   const actor = await requireCollectAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "COLLECTED") throw new Error("Sample must be collected before it can be sent to the lab");
+  if (sample.status !== "COLLECTED") throw new UserFacingError("Sample must be collected before it can be sent to the lab");
 
   await db.qcSample.update({
     where: { id },
@@ -194,10 +195,10 @@ export async function markSentToLab(
   revalidatePath(BASE_PATH);
 }
 
-export async function markLabReceived(id: string) {
+async function markLabReceived__impl(id: string) {
   const actor = await requireLabAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "WAITING_LAB") throw new Error("Sample has not been sent to the lab yet");
+  if (sample.status !== "WAITING_LAB") throw new UserFacingError("Sample has not been sent to the lab yet");
 
   await db.qcSample.update({
     where: { id },
@@ -215,10 +216,10 @@ export async function markLabReceived(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function markTestingStarted(id: string) {
+async function markTestingStarted__impl(id: string) {
   const actor = await requireLabAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "IN_LABORATORY") throw new Error("Sample must be received at the laboratory first");
+  if (sample.status !== "IN_LABORATORY") throw new UserFacingError("Sample must be received at the laboratory first");
 
   await db.qcSample.update({ where: { id }, data: { status: "TESTING" } });
 
@@ -238,14 +239,14 @@ type LabTestItemInput = { section: string; parameter: string; result: QcTestResu
 // Saves the full product-category checklist in one go -- rows are always
 // replaced wholesale since the template (and therefore the row set) is
 // derived from the sample's productCategory, not edited piecemeal.
-export async function recordLabTestResults(id: string, items: LabTestItemInput[]) {
+async function recordLabTestResults__impl(id: string, items: LabTestItemInput[]) {
   const actor = await requireLabAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
   if (sample.status !== "TESTING" && sample.status !== "IN_LABORATORY") {
-    throw new Error("Sample must be in the laboratory before test results can be recorded");
+    throw new UserFacingError("Sample must be in the laboratory before test results can be recorded");
   }
   if (!sample.productCategory) {
-    throw new Error("Set a Product Category on the sample record before recording test results");
+    throw new UserFacingError("Set a Product Category on the sample record before recording test results");
   }
 
   await db.$transaction(async (tx) => {
@@ -279,10 +280,10 @@ export async function recordLabTestResults(id: string, items: LabTestItemInput[]
   revalidatePath(BASE_PATH);
 }
 
-export async function approveSample(id: string) {
+async function approveSample__impl(id: string) {
   const actor = await requireLabAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "WAITING_RESULTS") throw new Error("Sample is not awaiting a result");
+  if (sample.status !== "WAITING_RESULTS") throw new UserFacingError("Sample is not awaiting a result");
 
   await db.qcSample.update({ where: { id }, data: { status: "APPROVED" } });
 
@@ -297,11 +298,11 @@ export async function approveSample(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function rejectSample(id: string, reason: string) {
+async function rejectSample__impl(id: string, reason: string) {
   const actor = await requireLabAccess();
-  if (!reason) throw new Error("A rejection reason is required");
+  if (!reason) throw new UserFacingError("A rejection reason is required");
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "WAITING_RESULTS") throw new Error("Sample is not awaiting a result");
+  if (sample.status !== "WAITING_RESULTS") throw new UserFacingError("Sample is not awaiting a result");
 
   await db.qcSample.update({
     where: { id },
@@ -327,10 +328,10 @@ type RetentionInput = {
   quantityRemaining: number | null;
 };
 
-export async function moveToRetention(id: string, data: RetentionInput) {
+async function moveToRetention__impl(id: string, data: RetentionInput) {
   const actor = await requireManageAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "APPROVED") throw new Error("Only an approved sample can move to retention");
+  if (sample.status !== "APPROVED") throw new UserFacingError("Only an approved sample can move to retention");
 
   await db.$transaction([
     db.qcRetentionRecord.upsert({
@@ -352,7 +353,7 @@ export async function moveToRetention(id: string, data: RetentionInput) {
   revalidatePath(BASE_PATH);
 }
 
-export async function updateRetentionRecord(
+async function updateRetentionRecord__impl(
   id: string,
   data: RetentionInput & { opened: boolean; lastChecked: string | null; destroyDate: string | null }
 ) {
@@ -384,10 +385,10 @@ export async function updateRetentionRecord(
   revalidatePath(BASE_PATH);
 }
 
-export async function markExpired(id: string) {
+async function markExpired__impl(id: string) {
   const actor = await requireManageAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  if (sample.status !== "RETENTION") throw new Error("Only a retained sample can be marked expired");
+  if (sample.status !== "RETENTION") throw new UserFacingError("Only a retained sample can be marked expired");
 
   await db.qcSample.update({ where: { id }, data: { status: "EXPIRED" } });
 
@@ -402,11 +403,11 @@ export async function markExpired(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function markDisposed(id: string) {
+async function markDisposed__impl(id: string) {
   const actor = await requireManageAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id }, include: { retentionRecord: true } });
   if (sample.status !== "RETENTION" && sample.status !== "EXPIRED") {
-    throw new Error("Only a retained or expired sample can be disposed");
+    throw new UserFacingError("Only a retained or expired sample can be disposed");
   }
 
   await db.$transaction([
@@ -432,13 +433,13 @@ export async function markDisposed(id: string) {
 // force-delete at any stage regardless (e.g. to clean up test/mistake
 // data); cascading QcLabTest/QcRetentionRecord/QcSampleAttachment rows are
 // removed automatically via the schema's onDelete: Cascade.
-export async function deleteQcSample(id: string) {
+async function deleteQcSample__impl(id: string) {
   const actor = await requireManageAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
   const isForce = actor.role === "SUPER_ADMIN";
 
   if (!isForce && sample.status !== "WAITING_COLLECTION" && sample.status !== "COLLECTED") {
-    throw new Error("Can't delete — this sample already has lab or retention history. A Super Admin can force-delete it.");
+    throw new UserFacingError("Can't delete — this sample already has lab or retention history. A Super Admin can force-delete it.");
   }
 
   await db.qcSample.delete({ where: { id } });
@@ -457,10 +458,10 @@ export async function deleteQcSample(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function getQcSampleAuditTrail(sampleId: string) {
+async function getQcSampleAuditTrail__impl(sampleId: string) {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
-  if (!can(session.user.role, "view")) throw new Error("Not authorized");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
+  if (!can(session.user.role, "view")) throw new UserFacingError("Not authorized");
 
   const entries = await db.auditLog.findMany({
     where: { entityType: "QcSample", entityId: sampleId },
@@ -474,4 +475,66 @@ export async function getQcSampleAuditTrail(sampleId: string) {
     summary: e.reason ?? e.action,
     createdAt: e.createdAt.toISOString(),
   }));
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function approveSample(...args: Parameters<typeof approveSample__impl>) {
+  return guard(() => approveSample__impl(...args));
+}
+
+export async function createQcSample(...args: Parameters<typeof createQcSample__impl>) {
+  return guard(() => createQcSample__impl(...args));
+}
+
+export async function deleteQcSample(...args: Parameters<typeof deleteQcSample__impl>) {
+  return guard(() => deleteQcSample__impl(...args));
+}
+
+export async function getQcSampleAuditTrail(...args: Parameters<typeof getQcSampleAuditTrail__impl>) {
+  return guard(() => getQcSampleAuditTrail__impl(...args));
+}
+
+export async function markCollected(...args: Parameters<typeof markCollected__impl>) {
+  return guard(() => markCollected__impl(...args));
+}
+
+export async function markDisposed(...args: Parameters<typeof markDisposed__impl>) {
+  return guard(() => markDisposed__impl(...args));
+}
+
+export async function markExpired(...args: Parameters<typeof markExpired__impl>) {
+  return guard(() => markExpired__impl(...args));
+}
+
+export async function markLabReceived(...args: Parameters<typeof markLabReceived__impl>) {
+  return guard(() => markLabReceived__impl(...args));
+}
+
+export async function markSentToLab(...args: Parameters<typeof markSentToLab__impl>) {
+  return guard(() => markSentToLab__impl(...args));
+}
+
+export async function markTestingStarted(...args: Parameters<typeof markTestingStarted__impl>) {
+  return guard(() => markTestingStarted__impl(...args));
+}
+
+export async function moveToRetention(...args: Parameters<typeof moveToRetention__impl>) {
+  return guard(() => moveToRetention__impl(...args));
+}
+
+export async function recordLabTestResults(...args: Parameters<typeof recordLabTestResults__impl>) {
+  return guard(() => recordLabTestResults__impl(...args));
+}
+
+export async function rejectSample(...args: Parameters<typeof rejectSample__impl>) {
+  return guard(() => rejectSample__impl(...args));
+}
+
+export async function updateQcSample(...args: Parameters<typeof updateQcSample__impl>) {
+  return guard(() => updateQcSample__impl(...args));
+}
+
+export async function updateRetentionRecord(...args: Parameters<typeof updateRetentionRecord__impl>) {
+  return guard(() => updateRetentionRecord__impl(...args));
 }

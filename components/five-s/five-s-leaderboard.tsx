@@ -75,7 +75,7 @@ export function FiveSLeaderboard({ data }: { data: { daily: FiveSPeriod; weekly:
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-baseline gap-2">
                       <span className="truncate text-sm font-medium text-foreground">{entry.areaName}</span>
-                      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted">{entry.sectionName}</span>
+                      <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted">{entry.sectionName}</span>
                     </div>
                     <span className="shrink-0 font-mono-tabular text-sm font-semibold text-foreground">{entry.score}%</span>
                   </div>

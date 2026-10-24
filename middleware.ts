@@ -20,6 +20,6 @@ export default auth((req) => {
 // unauthenticated on /login itself, so it can't require a session to load).
 export const config = {
   matcher: [
-    "/((?!api|login|_next/static|_next/image|favicon.ico|eagle-labs-logo.jpg|$).*)",
+    "/((?!api|login|_next/static|_next/image|favicon.ico|eagle-labs-logo.jpg|manifest.webmanifest|icons/|$).*)",
   ],
 };

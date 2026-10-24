@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { upsertMiscStorageItem } from "@/lib/actions/drying-room-actions";
+import { upsertMiscStorageItem } from "@/lib/actions-client/drying-room-actions";
 import { Button } from "@/components/ui/button";
 import { Field, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import type { MiscItem } from "./drying-room-client";

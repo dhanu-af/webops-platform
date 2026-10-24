@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
+import { getCachedFacilityTimezone } from "@/lib/cached-config";
 
 // Vercel functions run in UTC regardless of where the facility actually is
 // (Queensland, in this app's case) — every "what day is it / is this due
@@ -13,8 +13,8 @@ const FALLBACK_TIMEZONE = "Australia/Brisbane";
 // gets called from several independent data-fetching functions that can
 // all run within the same render/request.
 export const getFacilityTimezone = cache(async (): Promise<string> => {
-  const facility = await db.facility.findFirst({ where: { archived: false }, select: { timezone: true } });
-  return facility?.timezone ?? FALLBACK_TIMEZONE;
+  // Also kept across requests for a few minutes (lib/cached-config.ts); changing the timezone in Settings refreshes it at once.
+  return (await getCachedFacilityTimezone()) ?? FALLBACK_TIMEZONE;
 });
 
 function zonedDateParts(at: Date, timeZone: string) {

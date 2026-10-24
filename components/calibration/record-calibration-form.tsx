@@ -11,7 +11,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { recordCalibration } from "@/lib/actions/calibration";
+import { recordCalibration } from "@/lib/actions-client/calibration";
 
 export function RecordCalibrationForm({
   equipmentId,

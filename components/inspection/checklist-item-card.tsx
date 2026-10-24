@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useSafeTransition } from "@/lib/hooks/use-safe-transition";
 import { useRouter } from "next/navigation";
 import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { saveResponse, createFindingDetail, createCorrectiveAction, clearResponse } from "@/lib/actions/inspections";
+import { createCorrectiveAction, clearResponse } from "@/lib/actions/inspections";
+import { saveResponse, createFindingDetail } from "@/lib/actions-client/inspections";
 import { isAnswered } from "@/lib/inspection-rules";
 import { PhotoUpload } from "./photo-upload";
 import { formatAttribution } from "@/lib/format-attribution";
@@ -42,12 +44,12 @@ type ItemResponse = {
   comment: string | null;
   updatedAt: Date;
   respondedBy: { name: string } | null;
-  photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }>;
+  photoEvidence: Array<{ id: string; storagePath: string; thumbnailPath?: string | null; caption: string | null }>;
   finding: {
     id: string;
     severity: Severity;
     reason: string | null;
-    photoEvidence: Array<{ id: string; storagePath: string; caption: string | null }>;
+    photoEvidence: Array<{ id: string; storagePath: string; thumbnailPath?: string | null; caption: string | null }>;
     correctiveAction: { id: string; status: string; correctiveAction: string } | null;
   } | null;
 } | null;
@@ -78,7 +80,7 @@ export function ChecklistItemCard({
   };
   response: ItemResponse;
 }) {
-  const [, startTransition] = useTransition();
+  const { run: startTransition, error: saveError } = useSafeTransition();
   const [numeric, setNumeric] = useState(response?.numericValue?.toString() ?? "");
   const [text, setText] = useState(response?.textValue ?? "");
   const [comment, setComment] = useState(response?.comment ?? "");
@@ -151,7 +153,7 @@ export function ChecklistItemCard({
           {item.helpText && <p className="mt-0.5 text-xs text-muted">{item.helpText}</p>}
         </div>
         {item.criticalFailure && (
-          <span className="shrink-0 rounded-full bg-status-critical-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-status-critical">
+          <span className="shrink-0 rounded-full bg-status-critical-soft px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-status-critical">
             Critical
           </span>
         )}
@@ -291,6 +293,7 @@ export function ChecklistItemCard({
         </div>
       )}
       {undoError && <p className="mt-1 text-xs text-status-critical">{undoError}</p>}
+      {saveError && <p role="alert" className="mt-2 rounded-lg bg-status-critical-soft px-3 py-2 text-xs text-status-critical">{saveError}</p>}
 
       {failed && (
         <FindingDetail
@@ -361,7 +364,8 @@ function NumericScaleButtons({
   const options = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    // auto-fit: a wide scale (e.g. 0-10) wraps onto a second row instead of squeezing every button below a finger width
+    <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(3rem, 1fr))" }}>
       {options.map((n) => {
         const isSelected = selected === n;
         const tone = scaleButtonTone(n, min, max);
@@ -403,7 +407,7 @@ function FindingDetail({
   editable: boolean;
   correctiveAction: { id: string; status: string; correctiveAction: string } | null;
 }) {
-  const [, startTransition] = useTransition();
+  const { run: startTransition, error: saveError } = useSafeTransition();
   const [localSeverity, setLocalSeverity] = useState(severity);
   const [localReason, setLocalReason] = useState(reason);
 
@@ -452,6 +456,7 @@ function FindingDetail({
         placeholder="Reason / immediate correction taken…"
         className="w-full rounded-lg border border-border bg-surface-sunken px-3 py-2 text-xs text-foreground outline-none focus:border-accent"
       />
+      {saveError && <p role="alert" className="text-xs text-status-critical">{saveError}</p>}
       <CorrectiveActionEntry findingId={findingId} editable={editable} existing={correctiveAction} />
     </div>
   );

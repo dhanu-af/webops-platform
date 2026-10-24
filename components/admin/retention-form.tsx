@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { updateRetentionYears } from "@/lib/actions/settings";
+import { updateRetentionYears } from "@/lib/actions-client/settings";
 
 export function RetentionForm({ years }: { years: number }) {
   const router = useRouter();

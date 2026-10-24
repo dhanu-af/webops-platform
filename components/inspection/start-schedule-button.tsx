@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getOrCreateInspectionForSchedule } from "@/lib/actions/inspections";
+import { getOrCreateInspectionForSchedule } from "@/lib/actions-client/inspections";
 
 export function StartScheduleButton({ scheduleId, label }: { scheduleId: string; label: string }) {
   const router = useRouter();

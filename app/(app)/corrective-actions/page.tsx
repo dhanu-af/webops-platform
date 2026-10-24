@@ -35,11 +35,11 @@ export default async function CorrectiveActionsPage() {
                 const statusMeta = CORRECTIVE_ACTION_STATUS_META[isPast(ca.dueDate) && ca.status !== "CLOSED" ? "OVERDUE" : ca.status];
                 const severityMeta = SEVERITY_META[ca.finding.severity];
                 return (
-                  <div key={ca.id} className="flex items-center justify-between gap-4 py-3.5">
+                  <div key={ca.id} className="flex flex-col gap-2.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={severityMeta.tone}>{severityMeta.label}</Badge>
-                        <Link href={`/inspections/${ca.finding.inspectionId}`} className="truncate text-sm font-medium text-foreground hover:text-accent">
+                        <Link href={`/inspections/${ca.finding.inspectionId}`} className="text-sm font-medium text-foreground hover:text-accent sm:truncate">
                           {ca.finding.description}
                         </Link>
                       </div>
@@ -47,7 +47,7 @@ export default async function CorrectiveActionsPage() {
                         {ca.area?.name ?? "—"} · {ca.correctiveAction} · owner {ca.responsibleUser.name} · due {format(ca.dueDate, "d MMM yyyy")}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
                       <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
                       {canClose && ca.status !== "CLOSED" && <CloseCorrectiveActionButton id={ca.id} />}
                     </div>

@@ -3,12 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  renameArea,
-  renameEquipment,
-  renameFacility,
-  renameSection,
-} from "@/lib/actions/facility";
+import { renameArea, renameEquipment, renameFacility, renameSection } from "@/lib/actions-client/facility";
 
 const ACTIONS = {
   facility: renameFacility,

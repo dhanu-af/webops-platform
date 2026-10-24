@@ -325,7 +325,7 @@ describe("URS-02 nobody verifies their own work, and roles are enforced on the s
   it("blocks a Supervisor or Viewer from entering record answers", async () => {
     for (const role of ["SUPERVISOR", "VIEWER", "ADMIN"] as Role[]) {
       signIn(role, "x1");
-      await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/Forbidden/);
+      await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/Forbidden/) });
     }
     expect(m.db.inspectionResponse.upsert).not.toHaveBeenCalled();
   });
@@ -341,7 +341,7 @@ describe("URS-02 nobody verifies their own work, and roles are enforced on the s
 
   it("rejects a deactivated account even while its session token is still valid (URS-03)", async () => {
     signIn("OPERATOR", "op1", { active: false });
-    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/deactivated/);
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/deactivated/) });
   });
 });
 
@@ -350,7 +350,7 @@ describe("URS-11 / URS-12 edits after submission keep the original and are fully
     signIn("OPERATOR", "op1");
     for (const status of ["AWAITING_SUPERVISOR", "AWAITING_QA", "CLOSED", "REJECTED"]) {
       m.db.inspection.findUniqueOrThrow.mockResolvedValue(openInspection({ status, submittedAt: FIXED_NOW }));
-      await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "FAIL" })).rejects.toThrow(/not open for editing/);
+      await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "FAIL" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/not open for editing/) });
     }
     expect(m.db.inspectionResponse.upsert).not.toHaveBeenCalled();
   });
@@ -652,7 +652,7 @@ describe("operators in the same section can work on each other's records", () =>
 
   it("an operator assigned to a different area cannot", async () => {
     signIn("OPERATOR", "capsule-op", { areas: [capsuleArea] });
-    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/another section or operator/);
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/another section or operator/) });
     expect(m.db.inspectionResponse.upsert).not.toHaveBeenCalled();
   });
 
@@ -699,12 +699,12 @@ describe("facility-level checklists (generator, facility open/close) are open to
     m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "POST_OPERATION_CLEANING" } } });
     m.db.inspection.findUniqueOrThrow.mockResolvedValue(record({ areaId: "bottling", sectionId: "prod" }));
     signIn("SUPER_ADMIN", "dhanu");
-    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/another section or operator/);
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/another section or operator/) });
   });
 
   it("still enforces the role: a viewer cannot fill it in", async () => {
     m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "FACILITY_GENERATOR" } } });
     signIn("VIEWER", "v1");
-    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/Forbidden/);
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/Forbidden/) });
   });
 });

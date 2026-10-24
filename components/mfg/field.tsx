@@ -6,7 +6,7 @@ export function Field({ label, note, children }: { label: string; note?: string;
     <label className="block">
       <span className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs font-medium text-muted-strong">
         {label}
-        {note && <span className="text-[10px] font-normal normal-case text-accent">{note}</span>}
+        {note && <span className="text-[11px] font-normal normal-case text-accent">{note}</span>}
       </span>
       {children}
     </label>

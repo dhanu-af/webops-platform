@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -10,7 +11,7 @@ import type { WorkflowRole } from "@/app/generated/prisma/client";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "checklist.manage");
   return session.user;
 }
@@ -23,12 +24,12 @@ export type WorkflowInput = {
 };
 
 function validateSteps(steps: WorkflowRole[]) {
-  if (steps.length === 0) throw new Error("A workflow needs at least one verification step.");
+  if (steps.length === 0) throw new UserFacingError("A workflow needs at least one verification step.");
 }
 
-export async function createWorkflow(input: WorkflowInput) {
+async function createWorkflow__impl(input: WorkflowInput) {
   const actor = await requireAdmin();
-  if (!input.name.trim()) throw new Error("Workflow name is required.");
+  if (!input.name.trim()) throw new UserFacingError("Workflow name is required.");
   validateSteps(input.steps);
 
   const workflow = await db.verificationWorkflow.create({
@@ -51,9 +52,9 @@ export async function createWorkflow(input: WorkflowInput) {
   redirect(`/admin/workflows/${workflow.id}`);
 }
 
-export async function updateWorkflow(id: string, input: WorkflowInput) {
+async function updateWorkflow__impl(id: string, input: WorkflowInput) {
   const actor = await requireAdmin();
-  if (!input.name.trim()) throw new Error("Workflow name is required.");
+  if (!input.name.trim()) throw new UserFacingError("Workflow name is required.");
   validateSteps(input.steps);
 
   await db.$transaction([
@@ -78,4 +79,14 @@ export async function updateWorkflow(id: string, input: WorkflowInput) {
 
   revalidatePath("/admin/workflows");
   revalidatePath(`/admin/workflows/${id}`);
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function createWorkflow(...args: Parameters<typeof createWorkflow__impl>) {
+  return guard(() => createWorkflow__impl(...args));
+}
+
+export async function updateWorkflow(...args: Parameters<typeof updateWorkflow__impl>) {
+  return guard(() => updateWorkflow__impl(...args));
 }

@@ -55,7 +55,7 @@ export function NotificationBell({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex size-9 items-center justify-center rounded-full border border-border-strong bg-surface text-muted-strong transition-colors hover:bg-surface-sunken hover:text-foreground"
+        className="relative flex size-9 pointer-coarse:size-11 items-center justify-center rounded-full border border-border-strong bg-surface text-muted-strong transition-colors hover:bg-surface-sunken hover:text-foreground"
         title="Notifications"
       >
         <Bell className="size-4" />

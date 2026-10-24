@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { createChecklist } from "@/lib/actions/checklist-builder";
+import { createChecklist } from "@/lib/actions-client/checklist-builder";
 import type { ChecklistCategory } from "@/app/generated/prisma/client";
 
 const CATEGORIES: { value: ChecklistCategory; label: string }[] = [

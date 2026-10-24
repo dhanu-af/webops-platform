@@ -4,9 +4,11 @@ import { Sidebar } from "@/components/nav/sidebar";
 import { Topbar } from "@/components/nav/topbar";
 import { MobileNavProvider } from "@/components/nav/mobile-nav-context";
 import { IdleLogout } from "@/components/auth/idle-logout";
+import { TableLabels } from "@/components/ui/table-labels";
 import { AppFooter } from "@/components/nav/app-footer";
 import { signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getCachedRetentionYears } from "@/lib/cached-config";
 
 export default async function AppLayout({
   children,
@@ -18,9 +20,9 @@ export default async function AppLayout({
 
   // A deactivated user's token stays valid until it expires; refuse it here so
   // deactivation takes effect on the very next page load (URS-03).
-  const [account, settings] = await Promise.all([
+  const [account, retentionYears] = await Promise.all([
     db.user.findUnique({ where: { id: session.user.id }, select: { active: true, mustChangePassword: true } }),
-    db.systemSettings.findFirst({ select: { retentionYears: true } }),
+    getCachedRetentionYears(),
   ]);
   if (!account?.active) {
     await signOut({ redirectTo: "/login" });
@@ -30,6 +32,7 @@ export default async function AppLayout({
 
   return (
     <MobileNavProvider>
+      <TableLabels />
       <IdleLogout
         signOutAction={async () => {
           "use server";
@@ -47,7 +50,7 @@ export default async function AppLayout({
           <main className="flex-1 overflow-x-hidden bg-background p-4 sm:p-6">
             {children}
           </main>
-          <AppFooter retentionYears={settings?.retentionYears ?? 3} />
+          <AppFooter retentionYears={retentionYears} />
         </div>
       </div>
     </MobileNavProvider>

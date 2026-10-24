@@ -132,7 +132,7 @@ export default async function AreasAdminPage() {
                                 <span>
                                   · {eq.name}
                                   {eq.archived && (
-                                    <span className="ml-1.5 text-[10px] text-muted">
+                                    <span className="ml-1.5 text-[11px] text-muted">
                                       (archived)
                                     </span>
                                   )}

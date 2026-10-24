@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createSection } from "@/lib/actions/facility";
+import { createSection } from "@/lib/actions-client/facility";
 
 export function AddSectionForm({ facilityId }: { facilityId: string }) {
   const router = useRouter();

@@ -22,7 +22,7 @@ function BrandBlock() {
           priority
         />
       </div>
-      <div className="text-[10px] font-medium tracking-wide text-sidebar-fg-muted">
+      <div className="text-[11px] font-medium tracking-wide text-sidebar-fg-muted">
         Quality &amp; Operations
       </div>
     </div>
@@ -47,7 +47,7 @@ function NavContent({
         if (items.length === 0) return null;
         return (
           <div key={group.label}>
-            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-fg-muted">
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-sidebar-fg-muted">
               {group.label}
             </div>
             <div className="space-y-0.5">
@@ -62,7 +62,7 @@ function NavContent({
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors duration-150",
+                      "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 pointer-coarse:py-3 text-[13.5px] font-medium transition-colors duration-150",
                       active
                         ? "bg-sidebar-active-bg text-sidebar-fg-active"
                         : "text-sidebar-fg hover:bg-sidebar-hover-bg hover:text-sidebar-fg-active",
@@ -101,7 +101,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   return (
     <>
       {/* Desktop: a permanent rail, never overlays content. */}
-      <aside className="hidden w-64 shrink-0 flex-col bg-sidebar-bg md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col bg-sidebar-bg lg:flex">
         <div className="flex h-16 items-center border-b border-sidebar-border px-6">
           <BrandBlock />
         </div>
@@ -112,7 +112,7 @@ export function Sidebar({ role }: { role: UserRole }) {
           Topbar's hamburger button via MobileNavContext (siblings, not
           parent/child, under the server-rendered layout). */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Close menu"
@@ -126,7 +126,7 @@ export function Sidebar({ role }: { role: UserRole }) {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close menu"
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sidebar-fg-muted hover:bg-sidebar-hover-bg hover:text-sidebar-fg-active"
+                className="flex size-8 pointer-coarse:size-11 shrink-0 items-center justify-center rounded-lg text-sidebar-fg-muted hover:bg-sidebar-hover-bg hover:text-sidebar-fg-active"
               >
                 <X className="size-4" />
               </button>

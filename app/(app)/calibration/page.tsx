@@ -46,18 +46,18 @@ function EquipmentRow({ e }: { e: EquipmentOverviewItem }) {
   return (
     <Link
       href={`/calibration/${e.id}`}
-      className="group flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
+      className="group flex flex-col gap-2 px-5 py-3.5 transition-colors hover:bg-surface-sunken sm:flex-row sm:items-center sm:justify-between sm:gap-4"
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="truncate text-sm font-medium text-foreground">{e.name}</p>
+          <p className="text-sm font-medium text-foreground sm:truncate">{e.name}</p>
           {e.criticality && <Badge tone={criticalityTone(e.criticality)}>{e.criticality}</Badge>}
           {e.foodSafetyRisk && <Badge tone="warn">Food Safety</Badge>}
         </div>
-        <p className="mt-1 truncate text-xs text-muted">{metaParts.join(" · ")}</p>
-        {e.comments && <p className="mt-0.5 truncate text-xs text-muted italic">{e.comments}</p>}
+        <p className="mt-1 text-xs text-muted sm:truncate">{metaParts.join(" · ")}</p>
+        {e.comments && <p className="mt-0.5 text-xs text-muted italic sm:truncate">{e.comments}</p>}
       </div>
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
         {e.latestCalibration && (
           <span className="font-mono-tabular text-xs text-muted">
             due {format(e.latestCalibration.dueDate, "d MMM yyyy")}

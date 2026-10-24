@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createBay } from "@/lib/actions/drying-room-actions";
+import { createBay } from "@/lib/actions-client/drying-room-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PURPOSE_LABEL, PRIORITY_BADGE, BAY_STATUS_LABEL, BAY_STATUS_CLASS, computeBayStatus, daysSinceProduction } from "@/lib/drying-room-defaults";
@@ -44,7 +44,7 @@ export default function BaysTab({
               <CardContent>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-semibold text-foreground">Bay {bay.bayNumber}</p>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${BAY_STATUS_CLASS[status]}`}>{BAY_STATUS_LABEL[status]}</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${BAY_STATUS_CLASS[status]}`}>{BAY_STATUS_LABEL[status]}</span>
                 </div>
                 {bay.batches.length === 0 ? (
                   <p className="text-xs text-muted">{PURPOSE_LABEL[bay.purpose]}</p>

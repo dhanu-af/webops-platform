@@ -20,10 +20,37 @@ export function TodaysOperationsTable({ schedules }: { schedules: Schedule[] }) 
           <CardDescription>Every check scheduled for today, live status</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto p-0">
+      <CardContent className="p-0">
         {rows.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted">Nothing scheduled for today.</p>
         ) : (
+          <>
+          {/* Phones: one card per check; the table below needs more width than a phone has. */}
+          <ul className="divide-y divide-border md:hidden">
+            {rows.map((s) => {
+              const inspection = s.inspections[0];
+              const meta = inspection ? INSPECTION_STATUS_META[inspection.status] : INSPECTION_STATUS_META.NOT_STARTED;
+              const label = !inspection ? "Start" : ["NOT_STARTED", "IN_PROGRESS", "RETURNED"].includes(inspection.status) ? "Continue" : "View";
+              const placeName = s.area?.name ?? s.section?.name ?? s.facility.name;
+              return (
+                <li key={s.id} className="space-y-2.5 px-4 py-3.5">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{s.checklist.name}</p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {placeName}
+                      {s.dueTime ? ` · due ${s.dueTime}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                    {label !== "View" && <NoProductionButton scheduleId={s.id} />}
+                    <StartScheduleButton scheduleId={s.id} label={label} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
           <Table className="min-w-[720px]">
             <TableHead>
               <TableRow className="hover:bg-transparent">
@@ -62,6 +89,8 @@ export function TodaysOperationsTable({ schedules }: { schedules: Schedule[] }) 
               })}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </CardContent>
       <div className="border-t border-border px-5 py-3">

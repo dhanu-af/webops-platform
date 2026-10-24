@@ -22,7 +22,7 @@ import {
   AreaPerformanceChart,
   FindingsBySeverityChart,
   CorrectiveActionAgingChart,
-} from "@/components/analytics/charts";
+} from "@/components/analytics/charts-lazy";
 
 type AnalyticsFilters = Pick<ReportFilters, "from" | "to" | "areaId">;
 

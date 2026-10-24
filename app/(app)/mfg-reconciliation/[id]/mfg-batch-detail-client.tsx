@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { MfgBatchStatus } from "@/app/generated/prisma/client";
-import { deleteMfgBatch, markMfgBatchCompleted } from "@/lib/actions/mfg-reconciliation";
+import { deleteMfgBatch, markMfgBatchCompleted } from "@/lib/actions-client/mfg-reconciliation";
 import { MFG_BATCH_STATUS_LABEL, type MfgStageKey } from "@/lib/mfg-reconciliation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

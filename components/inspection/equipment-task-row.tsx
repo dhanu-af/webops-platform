@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useSafeTransition } from "@/lib/hooks/use-safe-transition";
 import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { saveResponse, clearResponse } from "@/lib/actions/inspections";
+import { clearResponse } from "@/lib/actions/inspections";
+import { saveResponse } from "@/lib/actions-client/inspections";
 import { formatAttribution } from "@/lib/format-attribution";
 
 type SubItem = {
@@ -38,7 +40,7 @@ export function EquipmentTaskRow({
   items: SubItem[];
   timeZone: string;
 }) {
-  const [, startTransition] = useTransition();
+  const { run: startTransition, error: saveError } = useSafeTransition();
   // Optimistic local overrides, keyed by item id. saveResponse's
   // revalidatePath round-trip can take long enough on a slow mobile
   // connection that a second rapid tap would otherwise still see the
@@ -152,6 +154,7 @@ export function EquipmentTaskRow({
         </div>
       )}
       {undoError && <p className="mt-1 text-xs text-status-critical">{undoError}</p>}
+      {saveError && <p role="alert" className="mt-2 rounded-lg bg-status-critical-soft px-3 py-2 text-xs text-status-critical">{saveError}</p>}
     </div>
   );
 }

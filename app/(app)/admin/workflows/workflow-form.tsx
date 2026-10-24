@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { createWorkflow, updateWorkflow, type WorkflowInput } from "@/lib/actions/workflows";
+import { type WorkflowInput } from "@/lib/actions/workflows";
+import { createWorkflow, updateWorkflow } from "@/lib/actions-client/workflows";
 import type { WorkflowRole } from "@/app/generated/prisma/client";
 import { GripVertical, ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
 

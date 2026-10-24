@@ -20,7 +20,7 @@ import {
   unsignedCorrectiveActionCount,
   verifierConflict,
 } from "@/lib/inspection-rules";
-import { UserFacingError, runAction, type ActionResult } from "@/lib/user-error";
+import { UserFacingError, guard, runAction, type ActionResult } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import type { InspectionStatus, ResponseValue, Severity, VerificationAction, WorkflowRole } from "@/app/generated/prisma/client";
 
@@ -61,7 +61,7 @@ async function isFacilityLevelInspection(inspectionId: string): Promise<boolean>
 // requiring a separate always-on cron worker for this MVP milestone (see
 // HANDOVER.md — a Vercel Cron generator is the documented next step for
 // true unattended recurrence).
-export async function getOrCreateInspectionForSchedule(scheduleId: string) {
+async function getOrCreateInspectionForSchedule__impl(scheduleId: string) {
   const user = await requireUserWithPermission("inspection.create");
   const schedule = await db.checklistSchedule.findUniqueOrThrow({
     where: { id: scheduleId },
@@ -168,7 +168,7 @@ async function saveInspectionHeaderImpl(input: {
   revalidatePath(`/inspections/${inspection.id}`);
 }
 
-export async function saveResponse(input: {
+async function saveResponse__impl(input: {
   inspectionId: string;
   checklistItemId: string;
   passFail?: ResponseValue;
@@ -294,7 +294,7 @@ export async function saveResponse(input: {
   revalidatePath(`/inspections/${input.inspectionId}`);
 }
 
-export async function attachPhoto(formData: FormData) {
+async function attachPhoto__impl(formData: FormData) {
   const user = await requireUserWithPermission("inspection.submit");
   const inspectionId = formData.get("inspectionId") as string;
   const responseId = (formData.get("responseId") as string) || undefined;
@@ -302,6 +302,7 @@ export async function attachPhoto(formData: FormData) {
   const kind = (formData.get("kind") as "GENERAL" | "BEFORE" | "AFTER") || "GENERAL";
   const caption = (formData.get("caption") as string) || undefined;
   const file = formData.get("file") as File;
+  const thumbnail = formData.get("thumbnail");
 
   if (!file || file.size === 0) throw new UserFacingError("No file provided.");
   const maxPhotoBytes = await getMaxPhotoBytes();
@@ -312,6 +313,11 @@ export async function attachPhoto(formData: FormData) {
   assertEditable(inspection);
   await assertCanWork(inspection, user);
   const { url, sizeBytes } = await storePhoto(file);
+  // The browser also sends a ~360px JPEG for lists and the gallery (optional; ignored if it is anything else).
+  const thumbnailUrl =
+    thumbnail instanceof File && thumbnail.size > 0 && thumbnail.size <= 600 * 1024 && thumbnail.type === "image/jpeg"
+      ? (await storePhoto(thumbnail)).url
+      : null;
 
   const photo = await db.photoEvidence.create({
     data: {
@@ -322,6 +328,7 @@ export async function attachPhoto(formData: FormData) {
       equipmentId: inspection.equipmentId,
       kind,
       storagePath: url,
+      thumbnailPath: thumbnailUrl,
       filename: file.name,
       mimeType: file.type,
       sizeBytes,
@@ -335,7 +342,7 @@ export async function attachPhoto(formData: FormData) {
   return photo.id;
 }
 
-export async function createFindingDetail(input: {
+async function createFindingDetail__impl(input: {
   findingId: string;
   reason?: string;
   severity: Severity;
@@ -996,7 +1003,27 @@ export async function deletePhoto(input: { photoId: string }): Promise<ActionRes
       oldValue: { file: photo.filename, url: photo.storagePath },
       reason: "Photo deleted from an open record",
     });
-    await deletePhotoFile(photo.storagePath).catch((e) => console.error("Failed to remove photo file:", e));
+    for (const stored of [photo.storagePath, photo.thumbnailPath]) {
+      if (stored) await deletePhotoFile(stored).catch((e) => console.error("Failed to remove photo file:", e));
+    }
     revalidatePath(`/inspections/${inspection.id}`);
   });
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function attachPhoto(...args: Parameters<typeof attachPhoto__impl>) {
+  return guard(() => attachPhoto__impl(...args));
+}
+
+export async function createFindingDetail(...args: Parameters<typeof createFindingDetail__impl>) {
+  return guard(() => createFindingDetail__impl(...args));
+}
+
+export async function getOrCreateInspectionForSchedule(...args: Parameters<typeof getOrCreateInspectionForSchedule__impl>) {
+  return guard(() => getOrCreateInspectionForSchedule__impl(...args));
+}
+
+export async function saveResponse(...args: Parameters<typeof saveResponse__impl>) {
+  return guard(() => saveResponse__impl(...args));
 }

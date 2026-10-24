@@ -5,23 +5,8 @@ import { useRouter } from "next/navigation";
 import type { QcSampleType, QcProductCategory, QcAttachmentKind } from "@/app/generated/prisma/client";
 import { QC_SAMPLE_STATUS_META, QC_ATTACHMENT_KIND_LABEL } from "@/lib/status";
 import { SAMPLE_TYPE_LABEL, PRODUCT_CATEGORY_LABEL, TEST_SECTIONS_BY_CATEGORY, timeUntilExpiryLabel } from "@/lib/qc-sample-defaults";
-import {
-  updateQcSample,
-  markCollected,
-  markSentToLab,
-  markLabReceived,
-  markTestingStarted,
-  recordLabTestResults,
-  approveSample,
-  rejectSample,
-  moveToRetention,
-  updateRetentionRecord,
-  markExpired,
-  markDisposed,
-  deleteQcSample,
-  getQcSampleAuditTrail,
-} from "@/lib/actions/qc-sample-actions";
-import { attachQcSampleFile, deleteQcSampleAttachment } from "@/lib/actions/qc-attachment-actions";
+import { updateQcSample, markCollected, markSentToLab, markLabReceived, markTestingStarted, recordLabTestResults, approveSample, rejectSample, moveToRetention, updateRetentionRecord, markExpired, markDisposed, deleteQcSample, getQcSampleAuditTrail } from "@/lib/actions-client/qc-sample-actions";
+import { attachQcSampleFile, deleteQcSampleAttachment } from "@/lib/actions-client/qc-attachment-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "./samples-tab";

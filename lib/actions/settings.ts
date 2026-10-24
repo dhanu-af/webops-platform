@@ -1,28 +1,30 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
 import { validateRetentionYears } from "@/lib/retention";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { FACILITY_TAG, SETTINGS_TAG } from "@/lib/cached-config";
 import { storePhoto, isAllowedPhotoFile } from "@/lib/storage";
 import type { NotificationType } from "@/app/generated/prisma/client";
 
 async function requireSettingsManager() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   // Facility-wide configuration is the same tier as Areas & Equipment —
   // both describe the physical/organisational structure, not day-to-day ops.
   requirePermission(session.user.role, "areas.manage");
   return session.user;
 }
 
-export async function updateFacilityTimezone(facilityId: string, timezone: string) {
+async function updateFacilityTimezone__impl(facilityId: string, timezone: string) {
   const actor = await requireSettingsManager();
 
   if (!Intl.supportedValuesOf("timeZone").includes(timezone)) {
-    throw new Error(`"${timezone}" is not a recognised IANA timezone.`);
+    throw new UserFacingError(`"${timezone}" is not a recognised IANA timezone.`);
   }
 
   const facility = await db.facility.findUniqueOrThrow({ where: { id: facilityId } });
@@ -38,6 +40,8 @@ export async function updateFacilityTimezone(facilityId: string, timezone: strin
     newValue: { timezone },
   });
 
+  updateTag(FACILITY_TAG);
+
   revalidatePath("/admin/settings");
 }
 
@@ -45,7 +49,7 @@ async function getOrCreateSettings() {
   return (await db.systemSettings.findFirst()) ?? (await db.systemSettings.create({ data: {} }));
 }
 
-export async function updateBranding(formData: FormData) {
+async function updateBranding__impl(formData: FormData) {
   const actor = await requireSettingsManager();
 
   const organizationName = ((formData.get("organizationName") as string) || "").trim() || null;
@@ -54,7 +58,7 @@ export async function updateBranding(formData: FormData) {
   const existing = await getOrCreateSettings();
   let logoUrl = existing.logoUrl;
   if (logoFile && logoFile.size > 0) {
-    if (!isAllowedPhotoFile(logoFile)) throw new Error("Unsupported image type for logo — use JPEG, PNG, WebP, or HEIC.");
+    if (!isAllowedPhotoFile(logoFile)) throw new UserFacingError("Unsupported image type for logo — use JPEG, PNG, WebP, or HEIC.");
     logoUrl = (await storePhoto(logoFile)).url;
   }
 
@@ -64,11 +68,11 @@ export async function updateBranding(formData: FormData) {
   revalidatePath("/admin/settings");
 }
 
-export async function updatePhotoLimit(maxPhotoSizeMb: number) {
+async function updatePhotoLimit__impl(maxPhotoSizeMb: number) {
   const actor = await requireSettingsManager();
 
   if (!Number.isInteger(maxPhotoSizeMb) || maxPhotoSizeMb < 1 || maxPhotoSizeMb > 100) {
-    throw new Error("Photo size limit must be a whole number between 1 and 100 MB.");
+    throw new UserFacingError("Photo size limit must be a whole number between 1 and 100 MB.");
   }
 
   const existing = await getOrCreateSettings();
@@ -78,7 +82,7 @@ export async function updatePhotoLimit(maxPhotoSizeMb: number) {
   revalidatePath("/admin/settings");
 }
 
-export async function setNotificationEnabled(type: NotificationType, enabled: boolean) {
+async function setNotificationEnabled__impl(type: NotificationType, enabled: boolean) {
   const actor = await requireSettingsManager();
 
   await db.notificationSetting.upsert({ where: { type }, create: { type, enabled }, update: { enabled } });
@@ -87,7 +91,7 @@ export async function setNotificationEnabled(type: NotificationType, enabled: bo
   revalidatePath("/admin/settings");
 }
 
-export async function addNotificationRecipient(type: NotificationType, userId: string) {
+async function addNotificationRecipient__impl(type: NotificationType, userId: string) {
   const actor = await requireSettingsManager();
 
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
@@ -97,7 +101,7 @@ export async function addNotificationRecipient(type: NotificationType, userId: s
   revalidatePath("/admin/settings");
 }
 
-export async function removeNotificationRecipient(type: NotificationType, userId: string) {
+async function removeNotificationRecipient__impl(type: NotificationType, userId: string) {
   const actor = await requireSettingsManager();
 
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
@@ -109,7 +113,7 @@ export async function removeNotificationRecipient(type: NotificationType, userId
 
 // Minimum record retention (URS-16). Raising it is always fine; it can never go
 // below the 3-year floor, and the change is audited with the old value.
-export async function updateRetentionYears(years: number): Promise<{ ok: true } | { ok: false; error: string }> {
+async function updateRetentionYears__impl(years: number): Promise<{ ok: true } | { ok: false; error: string }> {
   const actor = await requireSettingsManager();
   const problem = validateRetentionYears(years);
   if (problem) return { ok: false, error: problem };
@@ -126,6 +130,37 @@ export async function updateRetentionYears(years: number): Promise<{ ok: true } 
     newValue: { value: years },
     reason: "Record retention period changed",
   });
+  updateTag(SETTINGS_TAG);
   revalidatePath("/admin/settings");
   return { ok: true };
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function addNotificationRecipient(...args: Parameters<typeof addNotificationRecipient__impl>) {
+  return guard(() => addNotificationRecipient__impl(...args));
+}
+
+export async function removeNotificationRecipient(...args: Parameters<typeof removeNotificationRecipient__impl>) {
+  return guard(() => removeNotificationRecipient__impl(...args));
+}
+
+export async function setNotificationEnabled(...args: Parameters<typeof setNotificationEnabled__impl>) {
+  return guard(() => setNotificationEnabled__impl(...args));
+}
+
+export async function updateBranding(...args: Parameters<typeof updateBranding__impl>) {
+  return guard(() => updateBranding__impl(...args));
+}
+
+export async function updateFacilityTimezone(...args: Parameters<typeof updateFacilityTimezone__impl>) {
+  return guard(() => updateFacilityTimezone__impl(...args));
+}
+
+export async function updatePhotoLimit(...args: Parameters<typeof updatePhotoLimit__impl>) {
+  return guard(() => updatePhotoLimit__impl(...args));
+}
+
+export async function updateRetentionYears(...args: Parameters<typeof updateRetentionYears__impl>) {
+  return guard(() => updateRetentionYears__impl(...args));
 }

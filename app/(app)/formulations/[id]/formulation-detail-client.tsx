@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteFormulation } from "@/lib/actions/formulation-actions";
+import { deleteFormulation } from "@/lib/actions-client/formulation-actions";
 import { calculateBatch, canConvertUnit, unitOptionsFor } from "@/lib/formulation-calc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

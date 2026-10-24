@@ -18,9 +18,9 @@ export async function Topbar({
   name: string;
   role: string;
 }) {
-  const timeZone = await getFacilityTimezone();
+  // Independent lookups: run together rather than one after the other.
+  const [timeZone, { items, unreadCount }] = await Promise.all([getFacilityTimezone(), getRecentNotifications(userId)]);
   const clockParts = facilityClockParts(timeZone);
-  const { items, unreadCount } = await getRecentNotifications(userId);
   const initials = name
     .split(" ")
     .map((p) => p[0])
@@ -45,7 +45,7 @@ export async function Topbar({
 
         <Link
           href="/account"
-          className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-surface-sunken"
+          className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-3 pointer-coarse:min-h-11 transition-colors hover:bg-surface-sunken"
           title="My Account"
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-strong">
@@ -69,7 +69,7 @@ export async function Topbar({
         >
           <button
             type="submit"
-            className="flex size-9 items-center justify-center rounded-full border border-border-strong text-muted-strong transition-colors hover:bg-surface-sunken hover:text-foreground"
+            className="flex size-9 pointer-coarse:size-11 items-center justify-center rounded-full border border-border-strong text-muted-strong transition-colors hover:bg-surface-sunken hover:text-foreground"
             title="Sign out"
           >
             <LogOut className="size-4" />

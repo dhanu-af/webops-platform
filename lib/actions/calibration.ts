@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -9,12 +10,12 @@ import { storeCalibrationCertificate, isAllowedCertificateFile, MAX_CERTIFICATE_
 
 async function requireCalibrationManager() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "calibration.manage");
   return session.user;
 }
 
-export async function recordCalibration(formData: FormData) {
+async function recordCalibration__impl(formData: FormData) {
   const actor = await requireCalibrationManager();
 
   const equipmentId = formData.get("equipmentId") as string;
@@ -25,17 +26,17 @@ export async function recordCalibration(formData: FormData) {
   const notes = (formData.get("notes") as string)?.trim() || undefined;
   const file = formData.get("certificate") as File | null;
 
-  if (!equipmentId) throw new Error("Equipment is required.");
-  if (!calibratedDate) throw new Error("Calibration date is required.");
-  if (!performedBy) throw new Error("Performed by is required.");
-  if (!Number.isFinite(intervalDays) || intervalDays <= 0) throw new Error("Calibration interval must be a positive number of days.");
+  if (!equipmentId) throw new UserFacingError("Equipment is required.");
+  if (!calibratedDate) throw new UserFacingError("Calibration date is required.");
+  if (!performedBy) throw new UserFacingError("Performed by is required.");
+  if (!Number.isFinite(intervalDays) || intervalDays <= 0) throw new UserFacingError("Calibration interval must be a positive number of days.");
 
   const equipment = await db.equipment.findUniqueOrThrow({ where: { id: equipmentId } });
 
   let certificateUrl: string | undefined;
   if (file && file.size > 0) {
-    if (file.size > MAX_CERTIFICATE_BYTES) throw new Error(`Certificate exceeds ${Math.round(MAX_CERTIFICATE_BYTES / (1024 * 1024))}MB limit.`);
-    if (!isAllowedCertificateFile(file)) throw new Error("Unsupported file type — PDF, JPG, or PNG only.");
+    if (file.size > MAX_CERTIFICATE_BYTES) throw new UserFacingError(`Certificate exceeds ${Math.round(MAX_CERTIFICATE_BYTES / (1024 * 1024))}MB limit.`);
+    if (!isAllowedCertificateFile(file)) throw new UserFacingError("Unsupported file type — PDF, JPG, or PNG only.");
     const stored = await storeCalibrationCertificate(file);
     certificateUrl = stored.url;
   }
@@ -66,4 +67,10 @@ export async function recordCalibration(formData: FormData) {
   });
 
   revalidatePath("/calibration");
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function recordCalibration(...args: Parameters<typeof recordCalibration__impl>) {
+  return guard(() => recordCalibration__impl(...args));
 }

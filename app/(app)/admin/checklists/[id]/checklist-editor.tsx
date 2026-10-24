@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { saveChecklistVersion, type BuilderItem } from "@/lib/actions/checklist-builder";
+import { type BuilderItem } from "@/lib/actions/checklist-builder";
+import { saveChecklistVersion } from "@/lib/actions-client/checklist-builder";
 import { Badge } from "@/components/ui/badge";
 import { ArchiveToggleButton } from "@/components/admin/archive-toggle-button";
 import { CloneChecklistButton } from "@/components/admin/clone-checklist-button";
@@ -204,13 +205,13 @@ export function ChecklistEditor({
                   </select>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => moveItem(index, -1)} className="rounded p-1 text-muted hover:bg-surface">
+                  <button type="button" onClick={() => moveItem(index, -1)} className="rounded p-1 pointer-coarse:p-2.5 text-muted hover:bg-surface">
                     <ChevronUp className="size-4" />
                   </button>
-                  <button type="button" onClick={() => moveItem(index, 1)} className="rounded p-1 text-muted hover:bg-surface">
+                  <button type="button" onClick={() => moveItem(index, 1)} className="rounded p-1 pointer-coarse:p-2.5 text-muted hover:bg-surface">
                     <ChevronDown className="size-4" />
                   </button>
-                  <button type="button" onClick={() => removeItem(index)} className="rounded p-1 text-status-critical hover:bg-status-critical-soft">
+                  <button type="button" onClick={() => removeItem(index)} className="rounded p-1 pointer-coarse:p-2.5 text-status-critical hover:bg-status-critical-soft">
                     <Trash2 className="size-4" />
                   </button>
                 </div>

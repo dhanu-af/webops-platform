@@ -61,7 +61,7 @@ export function ScheduleList({
               return (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between gap-4 py-3.5"
+                  className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-foreground">
@@ -79,7 +79,7 @@ export function ScheduleList({
                       {s.dueTime ? ` · due ${s.dueTime}` : ""}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end sm:gap-3">
                     {meta && <Badge tone={meta.tone}>{meta.label}</Badge>}
                     {label !== "View" && <NoProductionButton scheduleId={s.id} />}
                     <StartScheduleButton scheduleId={s.id} label={label} />

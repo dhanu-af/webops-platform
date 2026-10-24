@@ -3,15 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { DryingBayPurpose, DryingStage, TrolleyQcStatus } from "@/app/generated/prisma/client";
-import {
-  updateBayPurpose,
-  updateBatchStage,
-  deleteBatch,
-  moveBatchToBay,
-  updateBatchPriority,
-  updateBatchRemarks,
-  updateTrolley,
-} from "@/lib/actions/drying-room-actions";
+import { updateBayPurpose, updateBatchStage, deleteBatch, moveBatchToBay, updateBatchPriority, updateBatchRemarks, updateTrolley } from "@/lib/actions-client/drying-room-actions";
 import { PURPOSE_LABEL, STAGE_LABEL, STAGE_ACTIONS, PRIORITY_LABEL, PRIORITY_BADGE, computeBatchAlerts, daysSinceProduction } from "@/lib/drying-room-defaults";
 import { Button } from "@/components/ui/button";
 import { Field, MFG_INPUT_CLASS } from "@/components/mfg/field";
@@ -170,7 +162,7 @@ export default function BayDetailModal({
                 </Field>
               </div>
             </div>
-            <p className="mt-2 text-[10px] text-muted">Last updated {new Date(bay.updatedAt).toLocaleString()}</p>
+            <p className="mt-2 text-[11px] text-muted">Last updated {new Date(bay.updatedAt).toLocaleString()}</p>
             {canUpdate && (
               <div className="mt-2 flex justify-end">
                 <Button size="sm" onClick={saveBayInfo} disabled={pending}>
@@ -278,9 +270,9 @@ function BatchCard({
             {batch.batchSize} {batch.batchSizeUnit} · {batch.numberOfTrolleys} trolleys · {batch.trayCount} trays · {days} day{days === 1 ? "" : "s"}
           </p>
           <p className="mt-1 flex flex-wrap gap-1">
-            <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium text-foreground">{STAGE_LABEL[batch.currentStage]}</span>
+            <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">{STAGE_LABEL[batch.currentStage]}</span>
             {batch.priorityRank && (
-              <span className="rounded-full border border-accent/30 bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-strong">{PRIORITY_LABEL[batch.priorityRank]}</span>
+              <span className="rounded-full border border-accent/30 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent-strong">{PRIORITY_LABEL[batch.priorityRank]}</span>
             )}
           </p>
         </div>
@@ -307,7 +299,7 @@ function BatchCard({
           {alerts.map((a) => (
             <span
               key={a.key}
-              className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+              className={`rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${
                 a.severity === "danger" ? "border-status-critical/30 bg-status-critical-soft text-status-critical" : "border-status-warn/30 bg-status-warn-soft text-status-warn"
               }`}
             >

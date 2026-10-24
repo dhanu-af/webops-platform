@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveEncapsulation } from "@/lib/actions/mfg-reconciliation";
+import { saveEncapsulation } from "@/lib/actions-client/mfg-reconciliation";
 import { capsulesFromKg, checkRange, checkBelow, formatCount } from "@/lib/mfg-reconciliation";
 import { Field, StageSection, ComputedField, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import { ReconciliationCheckRow } from "@/components/mfg/reconciliation-check-row";

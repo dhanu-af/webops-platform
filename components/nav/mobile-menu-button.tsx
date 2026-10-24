@@ -10,7 +10,7 @@ export function MobileMenuButton() {
       type="button"
       onClick={() => setOpen(true)}
       aria-label="Open menu"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-muted-strong transition-colors hover:bg-surface-sunken hover:text-foreground md:hidden"
+      className="flex size-9 pointer-coarse:size-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-muted-strong transition-colors hover:bg-surface-sunken hover:text-foreground lg:hidden"
     >
       <Menu className="size-4" />
     </button>

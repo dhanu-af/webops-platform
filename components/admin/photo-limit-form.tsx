@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { updatePhotoLimit } from "@/lib/actions/settings";
+import { updatePhotoLimit } from "@/lib/actions-client/settings";
 
 export function PhotoLimitForm({ maxPhotoSizeMb }: { maxPhotoSizeMb: number }) {
   const router = useRouter();

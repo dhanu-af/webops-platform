@@ -1,19 +1,21 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/permissions";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { FACILITY_TAG } from "@/lib/cached-config";
 
 async function requireAreasManager() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "areas.manage");
   return session.user;
 }
 
-export async function createFacility(input: {
+async function createFacility__impl(input: {
   name: string;
   code: string;
   address?: string;
@@ -22,12 +24,12 @@ export async function createFacility(input: {
 
   const name = input.name.trim();
   const code = input.code.trim().toUpperCase();
-  if (!name) throw new Error("Facility name is required.");
-  if (!code) throw new Error("Facility code is required.");
+  if (!name) throw new UserFacingError("Facility name is required.");
+  if (!code) throw new UserFacingError("Facility code is required.");
 
   const existing = await db.facility.findFirst({ where: { code } });
   if (existing)
-    throw new Error(`A facility with code "${code}" already exists.`);
+    throw new UserFacingError(`A facility with code "${code}" already exists.`);
 
   const facility = await db.facility.create({
     data: { name, code, address: input.address?.trim() || undefined },
@@ -40,10 +42,12 @@ export async function createFacility(input: {
     newValue: { name, code },
   });
 
+  updateTag(FACILITY_TAG);
+
   revalidatePath("/admin/areas");
 }
 
-export async function createSection(input: {
+async function createSection__impl(input: {
   facilityId: string;
   name: string;
   code: string;
@@ -52,14 +56,14 @@ export async function createSection(input: {
 
   const name = input.name.trim();
   const code = input.code.trim().toUpperCase();
-  if (!name) throw new Error("Section name is required.");
-  if (!code) throw new Error("Section code is required.");
+  if (!name) throw new UserFacingError("Section name is required.");
+  if (!code) throw new UserFacingError("Section code is required.");
 
   const existing = await db.section.findFirst({
     where: { facilityId: input.facilityId, code },
   });
   if (existing)
-    throw new Error(
+    throw new UserFacingError(
       `A section with code "${code}" already exists in this facility.`,
     );
 
@@ -77,11 +81,11 @@ export async function createSection(input: {
   revalidatePath("/admin/areas");
 }
 
-export async function renameFacility(facilityId: string, name: string) {
+async function renameFacility__impl(facilityId: string, name: string) {
   const actor = await requireAreasManager();
 
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Facility name is required.");
+  if (!trimmed) throw new UserFacingError("Facility name is required.");
 
   const before = await db.facility.findUniqueOrThrow({
     where: { id: facilityId },
@@ -100,10 +104,12 @@ export async function renameFacility(facilityId: string, name: string) {
     reason: "Renamed",
   });
 
+  updateTag(FACILITY_TAG);
+
   revalidatePath("/admin/areas");
 }
 
-export async function setFacilityArchived(
+async function setFacilityArchived__impl(
   facilityId: string,
   archived: boolean,
 ) {
@@ -119,14 +125,16 @@ export async function setFacilityArchived(
     reason: archived ? "Archived" : "Restored",
   });
 
+  updateTag(FACILITY_TAG);
+
   revalidatePath("/admin/areas");
 }
 
-export async function renameSection(sectionId: string, name: string) {
+async function renameSection__impl(sectionId: string, name: string) {
   const actor = await requireAreasManager();
 
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Section name is required.");
+  if (!trimmed) throw new UserFacingError("Section name is required.");
 
   const before = await db.section.findUniqueOrThrow({
     where: { id: sectionId },
@@ -148,7 +156,7 @@ export async function renameSection(sectionId: string, name: string) {
   revalidatePath("/admin/areas");
 }
 
-export async function setSectionArchived(sectionId: string, archived: boolean) {
+async function setSectionArchived__impl(sectionId: string, archived: boolean) {
   const actor = await requireAreasManager();
 
   await db.section.update({ where: { id: sectionId }, data: { archived } });
@@ -164,7 +172,7 @@ export async function setSectionArchived(sectionId: string, archived: boolean) {
   revalidatePath("/admin/areas");
 }
 
-export async function createArea(input: {
+async function createArea__impl(input: {
   sectionId: string;
   name: string;
   code: string;
@@ -173,14 +181,14 @@ export async function createArea(input: {
 
   const name = input.name.trim();
   const code = input.code.trim().toUpperCase();
-  if (!name) throw new Error("Area name is required.");
-  if (!code) throw new Error("Area code is required.");
+  if (!name) throw new UserFacingError("Area name is required.");
+  if (!code) throw new UserFacingError("Area code is required.");
 
   const existing = await db.area.findFirst({
     where: { sectionId: input.sectionId, code },
   });
   if (existing)
-    throw new Error(
+    throw new UserFacingError(
       `An area with code "${code}" already exists in this section.`,
     );
 
@@ -198,7 +206,7 @@ export async function createArea(input: {
   revalidatePath("/admin/areas");
 }
 
-export async function createEquipment(input: {
+async function createEquipment__impl(input: {
   areaId: string;
   name: string;
   code: string;
@@ -208,14 +216,14 @@ export async function createEquipment(input: {
 
   const name = input.name.trim();
   const code = input.code.trim().toUpperCase();
-  if (!name) throw new Error("Equipment name is required.");
-  if (!code) throw new Error("Equipment code is required.");
+  if (!name) throw new UserFacingError("Equipment name is required.");
+  if (!code) throw new UserFacingError("Equipment code is required.");
 
   const existing = await db.equipment.findFirst({
     where: { areaId: input.areaId, code },
   });
   if (existing)
-    throw new Error(
+    throw new UserFacingError(
       `Equipment with code "${code}" already exists in this area.`,
     );
 
@@ -238,11 +246,11 @@ export async function createEquipment(input: {
   revalidatePath("/admin/areas");
 }
 
-export async function renameArea(areaId: string, name: string) {
+async function renameArea__impl(areaId: string, name: string) {
   const actor = await requireAreasManager();
 
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Area name is required.");
+  if (!trimmed) throw new UserFacingError("Area name is required.");
 
   const before = await db.area.findUniqueOrThrow({ where: { id: areaId } });
   await db.area.update({ where: { id: areaId }, data: { name: trimmed } });
@@ -259,7 +267,7 @@ export async function renameArea(areaId: string, name: string) {
   revalidatePath("/admin/areas");
 }
 
-export async function setAreaArchived(areaId: string, archived: boolean) {
+async function setAreaArchived__impl(areaId: string, archived: boolean) {
   const actor = await requireAreasManager();
 
   await db.area.update({ where: { id: areaId }, data: { archived } });
@@ -275,11 +283,11 @@ export async function setAreaArchived(areaId: string, archived: boolean) {
   revalidatePath("/admin/areas");
 }
 
-export async function renameEquipment(equipmentId: string, name: string) {
+async function renameEquipment__impl(equipmentId: string, name: string) {
   const actor = await requireAreasManager();
 
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Equipment name is required.");
+  if (!trimmed) throw new UserFacingError("Equipment name is required.");
 
   const before = await db.equipment.findUniqueOrThrow({
     where: { id: equipmentId },
@@ -301,7 +309,7 @@ export async function renameEquipment(equipmentId: string, name: string) {
   revalidatePath("/admin/areas");
 }
 
-export async function setEquipmentArchived(
+async function setEquipmentArchived__impl(
   equipmentId: string,
   archived: boolean,
 ) {
@@ -318,4 +326,54 @@ export async function setEquipmentArchived(
   });
 
   revalidatePath("/admin/areas");
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function createArea(...args: Parameters<typeof createArea__impl>) {
+  return guard(() => createArea__impl(...args));
+}
+
+export async function createEquipment(...args: Parameters<typeof createEquipment__impl>) {
+  return guard(() => createEquipment__impl(...args));
+}
+
+export async function createFacility(...args: Parameters<typeof createFacility__impl>) {
+  return guard(() => createFacility__impl(...args));
+}
+
+export async function createSection(...args: Parameters<typeof createSection__impl>) {
+  return guard(() => createSection__impl(...args));
+}
+
+export async function renameArea(...args: Parameters<typeof renameArea__impl>) {
+  return guard(() => renameArea__impl(...args));
+}
+
+export async function renameEquipment(...args: Parameters<typeof renameEquipment__impl>) {
+  return guard(() => renameEquipment__impl(...args));
+}
+
+export async function renameFacility(...args: Parameters<typeof renameFacility__impl>) {
+  return guard(() => renameFacility__impl(...args));
+}
+
+export async function renameSection(...args: Parameters<typeof renameSection__impl>) {
+  return guard(() => renameSection__impl(...args));
+}
+
+export async function setAreaArchived(...args: Parameters<typeof setAreaArchived__impl>) {
+  return guard(() => setAreaArchived__impl(...args));
+}
+
+export async function setEquipmentArchived(...args: Parameters<typeof setEquipmentArchived__impl>) {
+  return guard(() => setEquipmentArchived__impl(...args));
+}
+
+export async function setFacilityArchived(...args: Parameters<typeof setFacilityArchived__impl>) {
+  return guard(() => setFacilityArchived__impl(...args));
+}
+
+export async function setSectionArchived(...args: Parameters<typeof setSectionArchived__impl>) {
+  return guard(() => setSectionArchived__impl(...args));
 }

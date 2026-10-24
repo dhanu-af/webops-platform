@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createEquipment } from "@/lib/actions/facility";
+import { createEquipment } from "@/lib/actions-client/facility";
 
 export function AddEquipmentForm({ areaId }: { areaId: string }) {
   const router = useRouter();

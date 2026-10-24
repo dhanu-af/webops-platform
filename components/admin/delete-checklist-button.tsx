@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { deleteChecklist } from "@/lib/actions/checklist-builder";
+import { deleteChecklist } from "@/lib/actions-client/checklist-builder";
 import { Trash2 } from "lucide-react";
 
 export function DeleteChecklistButton({ checklistId, checklistName }: { checklistId: string; checklistName: string }) {

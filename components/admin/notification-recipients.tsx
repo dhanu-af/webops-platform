@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addNotificationRecipient, removeNotificationRecipient } from "@/lib/actions/settings";
+import { addNotificationRecipient, removeNotificationRecipient } from "@/lib/actions-client/settings";
 import type { NotificationType } from "@/app/generated/prisma/client";
 
 type Person = { id: string; name: string };

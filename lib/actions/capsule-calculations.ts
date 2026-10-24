@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -15,7 +16,7 @@ const BASE_PATH = "/calculation";
 // batches, not a new permission of its own.
 async function requireCalculationAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "reports.view");
   return session.user;
 }
@@ -32,10 +33,10 @@ export async function listCalculationFolders() {
   return db.calculationFolder.findMany({ orderBy: { name: "asc" } });
 }
 
-export async function createCalculationFolder(name: string) {
+async function createCalculationFolder__impl(name: string) {
   const actor = await requireCalculationAccess();
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Folder name can't be empty.");
+  if (!trimmed) throw new UserFacingError("Folder name can't be empty.");
 
   const folder = await db.calculationFolder.create({ data: { name: trimmed, createdById: actor.id } });
 
@@ -51,7 +52,7 @@ export async function createCalculationFolder(name: string) {
   return folder.id;
 }
 
-export async function deleteCalculationFolder(id: string) {
+async function deleteCalculationFolder__impl(id: string) {
   const actor = await requireCalculationAccess();
   const folder = await db.calculationFolder.delete({ where: { id } });
 
@@ -67,7 +68,7 @@ export async function deleteCalculationFolder(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function moveCalculationToFolder(id: string, folderId: string | null) {
+async function moveCalculationToFolder__impl(id: string, folderId: string | null) {
   const actor = await requireCalculationAccess();
   await db.capsuleCalculation.update({ where: { id }, data: { folderId } });
 
@@ -83,7 +84,7 @@ export async function moveCalculationToFolder(id: string, folderId: string | nul
   revalidatePath(BASE_PATH);
 }
 
-export async function createCalculation(data: {
+async function createCalculation__impl(data: {
   direction: CalculationDirection;
   label?: string | null;
   productName?: string | null;
@@ -93,9 +94,9 @@ export async function createCalculation(data: {
   inputValue: number;
 }) {
   const actor = await requireCalculationAccess();
-  if (!data.capsulesPerBottle || data.capsulesPerBottle <= 0) throw new Error("Capsules per bottle must be greater than 0.");
-  if (!data.avgWeightMg || data.avgWeightMg <= 0) throw new Error("Weight must be greater than 0.");
-  if (!data.inputValue || data.inputValue <= 0) throw new Error("Enter a value greater than 0.");
+  if (!data.capsulesPerBottle || data.capsulesPerBottle <= 0) throw new UserFacingError("Capsules per bottle must be greater than 0.");
+  if (!data.avgWeightMg || data.avgWeightMg <= 0) throw new UserFacingError("Weight must be greater than 0.");
+  if (!data.inputValue || data.inputValue <= 0) throw new UserFacingError("Enter a value greater than 0.");
 
   const result = computeCalculation(data.direction, data.inputValue, data.capsulesPerBottle, data.avgWeightMg);
 
@@ -133,7 +134,7 @@ export async function createCalculation(data: {
   return calc.id;
 }
 
-export async function updateCalculation(
+async function updateCalculation__impl(
   id: string,
   data: {
     direction: CalculationDirection;
@@ -146,9 +147,9 @@ export async function updateCalculation(
   }
 ) {
   const actor = await requireCalculationAccess();
-  if (!data.capsulesPerBottle || data.capsulesPerBottle <= 0) throw new Error("Capsules per bottle must be greater than 0.");
-  if (!data.avgWeightMg || data.avgWeightMg <= 0) throw new Error("Weight must be greater than 0.");
-  if (!data.inputValue || data.inputValue <= 0) throw new Error("Enter a value greater than 0.");
+  if (!data.capsulesPerBottle || data.capsulesPerBottle <= 0) throw new UserFacingError("Capsules per bottle must be greater than 0.");
+  if (!data.avgWeightMg || data.avgWeightMg <= 0) throw new UserFacingError("Weight must be greater than 0.");
+  if (!data.inputValue || data.inputValue <= 0) throw new UserFacingError("Enter a value greater than 0.");
 
   const existing = await db.capsuleCalculation.findUniqueOrThrow({ where: { id } });
   const result = computeCalculation(data.direction, data.inputValue, data.capsulesPerBottle, data.avgWeightMg);
@@ -182,7 +183,7 @@ export async function updateCalculation(
   revalidatePath(BASE_PATH);
 }
 
-export async function deleteCalculation(id: string) {
+async function deleteCalculation__impl(id: string) {
   const actor = await requireCalculationAccess();
   const calc = await db.capsuleCalculation.delete({ where: { id } });
 
@@ -196,4 +197,30 @@ export async function deleteCalculation(id: string) {
   });
 
   revalidatePath(BASE_PATH);
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function createCalculation(...args: Parameters<typeof createCalculation__impl>) {
+  return guard(() => createCalculation__impl(...args));
+}
+
+export async function createCalculationFolder(...args: Parameters<typeof createCalculationFolder__impl>) {
+  return guard(() => createCalculationFolder__impl(...args));
+}
+
+export async function deleteCalculation(...args: Parameters<typeof deleteCalculation__impl>) {
+  return guard(() => deleteCalculation__impl(...args));
+}
+
+export async function deleteCalculationFolder(...args: Parameters<typeof deleteCalculationFolder__impl>) {
+  return guard(() => deleteCalculationFolder__impl(...args));
+}
+
+export async function moveCalculationToFolder(...args: Parameters<typeof moveCalculationToFolder__impl>) {
+  return guard(() => moveCalculationToFolder__impl(...args));
+}
+
+export async function updateCalculation(...args: Parameters<typeof updateCalculation__impl>) {
+  return guard(() => updateCalculation__impl(...args));
 }

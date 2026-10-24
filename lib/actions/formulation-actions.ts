@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -10,7 +11,7 @@ const BASE_PATH = "/formulations";
 
 async function requireEditor() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authorized");
+  if (!session?.user) throw new UserFacingError("Not authorized");
   requirePermission(session.user.role, "formulation.manage");
   return session;
 }
@@ -27,9 +28,9 @@ export type IngredientInput = {
   comments?: string | null;
 };
 
-export async function createFolder(name: string) {
+async function createFolder__impl(name: string) {
   const session = await requireEditor();
-  if (!name.trim()) throw new Error("Folder name can't be empty");
+  if (!name.trim()) throw new UserFacingError("Folder name can't be empty");
 
   const count = await db.formulationFolder.count();
   const folder = await db.formulationFolder.create({
@@ -47,11 +48,11 @@ export async function createFolder(name: string) {
   return folder;
 }
 
-export async function deleteFolder(id: string) {
+async function deleteFolder__impl(id: string) {
   const session = await requireEditor();
 
   const count = await db.formulation.count({ where: { folderId: id } });
-  if (count > 0) throw new Error("This folder still has formulations in it — move or delete them first");
+  if (count > 0) throw new UserFacingError("This folder still has formulations in it — move or delete them first");
 
   await db.formulationFolder.delete({ where: { id } });
 
@@ -65,15 +66,15 @@ export async function deleteFolder(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function createFormulation(data: {
+async function createFormulation__impl(data: {
   folderId: string;
   productName: string;
   baseUnit: string;
   ingredients: IngredientInput[];
 }) {
   const session = await requireEditor();
-  if (!data.productName.trim()) throw new Error("Product name is required");
-  if (data.ingredients.length === 0) throw new Error("Add at least one ingredient");
+  if (!data.productName.trim()) throw new UserFacingError("Product name is required");
+  if (data.ingredients.length === 0) throw new UserFacingError("Add at least one ingredient");
 
   // baseBatchSize is never entered directly -- it's the sum of every
   // ingredient's baseQty, computed here at save time.
@@ -115,7 +116,7 @@ export async function createFormulation(data: {
   return formulation;
 }
 
-export async function updateFormulation(
+async function updateFormulation__impl(
   id: string,
   data: {
     folderId: string;
@@ -125,8 +126,8 @@ export async function updateFormulation(
   }
 ) {
   const session = await requireEditor();
-  if (!data.productName.trim()) throw new Error("Product name is required");
-  if (data.ingredients.length === 0) throw new Error("Add at least one ingredient");
+  if (!data.productName.trim()) throw new UserFacingError("Product name is required");
+  if (data.ingredients.length === 0) throw new UserFacingError("Add at least one ingredient");
 
   const baseBatchSize = data.ingredients.reduce((s, i) => s + (Number(i.baseQty) || 0), 0);
 
@@ -171,7 +172,7 @@ export async function updateFormulation(
   revalidatePath(`${BASE_PATH}/${id}`);
 }
 
-export async function deleteFormulation(id: string) {
+async function deleteFormulation__impl(id: string) {
   const session = await requireEditor();
 
   await db.formulation.delete({ where: { id } });
@@ -184,4 +185,26 @@ export async function deleteFormulation(id: string) {
   });
 
   revalidatePath(BASE_PATH);
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function createFolder(...args: Parameters<typeof createFolder__impl>) {
+  return guard(() => createFolder__impl(...args));
+}
+
+export async function createFormulation(...args: Parameters<typeof createFormulation__impl>) {
+  return guard(() => createFormulation__impl(...args));
+}
+
+export async function deleteFolder(...args: Parameters<typeof deleteFolder__impl>) {
+  return guard(() => deleteFolder__impl(...args));
+}
+
+export async function deleteFormulation(...args: Parameters<typeof deleteFormulation__impl>) {
+  return guard(() => deleteFormulation__impl(...args));
+}
+
+export async function updateFormulation(...args: Parameters<typeof updateFormulation__impl>) {
+  return guard(() => updateFormulation__impl(...args));
 }

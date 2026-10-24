@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { cloneChecklist } from "@/lib/actions/checklist-builder";
+import { cloneChecklist } from "@/lib/actions-client/checklist-builder";
 import { Copy } from "lucide-react";
 
 export function CloneChecklistButton({ checklistId }: { checklistId: string }) {

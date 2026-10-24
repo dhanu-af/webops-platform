@@ -56,7 +56,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
         return (
           <span>
             <span className={LINE} />
-            {it.minValue !== null && it.maxValue !== null ? <span className="ml-1 text-[10px]">(acceptable {it.minValue}–{it.maxValue})</span> : null}
+            {it.minValue !== null && it.maxValue !== null ? <span className="ml-1 text-[11px]">(acceptable {it.minValue}–{it.maxValue})</span> : null}
           </span>
         );
       case "ACKNOWLEDGEMENT":
@@ -101,9 +101,9 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
         </header>
       ) : (
       <header className="mb-3 border-b-2 border-black pb-2">
-        <p className="text-[10px] font-bold uppercase tracking-widest">{organization ?? "GMP record"}</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest">{organization ?? "GMP record"}</p>
         <h1 className="text-lg font-bold">{checklist.name}</h1>
-        <p className="text-[10px]">
+        <p className="text-[11px]">
           {checklist.category.replace(/_/g, " ")} · Template v{version.versionNumber} · System release {APP_VERSION_STAMP} · PAPER FALLBACK FORM — enter into the system when it is available
         </p>
       </header>
@@ -141,7 +141,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
 
       {Array.from(groups.entries()).map(([group, items]) => (
         <section key={group} className="mb-3 break-inside-avoid-page">
-          <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{group}</h2>
+          <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">{group}</h2>
           <table className="w-full border-collapse">
             <tbody>
               {items.map((it, n) => (
@@ -160,15 +160,15 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
           </table>
         </section>
       ))}
-      <p className="mb-3 text-[10px]">* required — the record cannot be signed off with a blank required item.</p>
+      <p className="mb-3 text-[11px]">* required — the record cannot be signed off with a blank required item.</p>
 
       <section className="mb-3 break-inside-avoid">
-        <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">Corrective action (required for every FAIL / NO / out-of-range answer)</h2>
+        <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">Corrective action (required for every FAIL / NO / out-of-range answer)</h2>
         <table className="w-full border-collapse">
           <thead>
             <tr>
               {["Item no.", "What was done / will be done", "By whom", "Date", "Signed off (Supervisor/QA)"].map((h) => (
-                <th key={h} className="border border-black p-1 text-left text-[10px]">
+                <th key={h} className="border border-black p-1 text-left text-[11px]">
                   {h}
                 </th>
               ))}
@@ -184,7 +184,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
             ))}
           </tbody>
         </table>
-        <p className="mt-1 text-[10px]">Line is NOT released until every corrective action above is signed off.</p>
+        <p className="mt-1 text-[11px]">Line is NOT released until every corrective action above is signed off.</p>
       </section>
 
       {docControl ? (
@@ -194,7 +194,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
             <thead>
               <tr>
                 {["Role", "Name", "Signature", "Date"].map((h) => (
-                  <th key={h} className="border border-black bg-neutral-100 p-1 text-left text-[10px]">
+                  <th key={h} className="border border-black bg-neutral-100 p-1 text-left text-[11px]">
                     {h}
                   </th>
                 ))}
@@ -218,12 +218,12 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
         </section>
       ) : (
       <section className="break-inside-avoid">
-        <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">Sign-off</h2>
+        <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider">Sign-off</h2>
         <table className="w-full border-collapse">
           <thead>
             <tr>
               {["Role / meaning", "Print name", "Signature", "Date / time"].map((h) => (
-                <th key={h} className="border border-black p-1 text-left text-[10px]">
+                <th key={h} className="border border-black p-1 text-left text-[11px]">
                   {h}
                 </th>
               ))}

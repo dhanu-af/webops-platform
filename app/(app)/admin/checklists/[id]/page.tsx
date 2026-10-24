@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { isRecordNotFound } from "@/lib/db-errors";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
@@ -13,7 +14,10 @@ export default async function ChecklistEditPage({ params }: { params: Promise<{ 
   if (!session?.user || !can(session.user.role, "checklist.manage")) notFound();
 
   const { id } = await params;
-  const checklist = await getChecklistForEdit(id).catch(() => null);
+  const checklist = await getChecklistForEdit(id).catch((e) => {
+    if (isRecordNotFound(e)) return null;
+    throw e;
+  });
   if (!checklist) notFound();
   const timeZone = await getFacilityTimezone();
 

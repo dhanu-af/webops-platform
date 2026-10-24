@@ -2,8 +2,8 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setAreaArchived, setEquipmentArchived, setFacilityArchived, setSectionArchived } from "@/lib/actions/facility";
-import { setChecklistActive } from "@/lib/actions/checklist-builder";
+import { setAreaArchived, setEquipmentArchived, setFacilityArchived, setSectionArchived } from "@/lib/actions-client/facility";
+import { setChecklistActive } from "@/lib/actions-client/checklist-builder";
 
 const ACTIONS = {
   facility: setFacilityArchived,

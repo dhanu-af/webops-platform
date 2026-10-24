@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setNotificationEnabled } from "@/lib/actions/settings";
+import { setNotificationEnabled } from "@/lib/actions-client/settings";
 import type { NotificationType } from "@/app/generated/prisma/client";
 
 export function NotificationToggle({ type, label, enabled }: { type: NotificationType; label: string; enabled: boolean }) {

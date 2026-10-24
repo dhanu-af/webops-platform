@@ -88,7 +88,7 @@ export default async function CalendarPage({
         <div className="flex items-center gap-2">
           <Link
             href={monthQuery(addMonths(month, -1), areaId, frequency)}
-            className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground"
+            className="flex size-8 pointer-coarse:size-11 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
           </Link>
@@ -97,7 +97,7 @@ export default async function CalendarPage({
           </span>
           <Link
             href={monthQuery(addMonths(month, 1), areaId, frequency)}
-            className="flex size-8 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground"
+            className="flex size-8 pointer-coarse:size-11 items-center justify-center rounded-lg border border-border-strong text-muted-strong hover:bg-surface-sunken hover:text-foreground"
           >
             <ChevronRight className="size-4" />
           </Link>

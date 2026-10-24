@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveXrayInspection } from "@/lib/actions/mfg-reconciliation";
+import { saveXrayInspection } from "@/lib/actions-client/mfg-reconciliation";
 import { Field, StageSection, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import { Button } from "@/components/ui/button";
 

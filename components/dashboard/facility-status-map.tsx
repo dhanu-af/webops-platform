@@ -57,7 +57,7 @@ export function FacilityStatusMap({
                 <Link
                   key={area.id}
                   href={`/inspections?areaId=${area.id}`}
-                  className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
+                  className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
                 >
                   <span
                     className={cn(
@@ -65,12 +65,12 @@ export function FacilityStatusMap({
                       RAIL_CLASS[area.releaseStatus] ?? "bg-status-neutral",
                     )}
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1 basis-40">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-sm font-medium text-foreground">
                         {area.name}
                       </span>
-                      <span className="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-strong">
+                      <span className="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-strong">
                         {area.sectionName}
                       </span>
                     </div>
@@ -84,7 +84,7 @@ export function FacilityStatusMap({
                         : "no checks recorded yet"}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
+                  <div className="flex shrink-0 items-center gap-3 pl-4 sm:pl-0">
                     {area.openFindings > 0 && (
                       <span className="text-xs font-medium text-status-critical">
                         {area.openFindings} finding

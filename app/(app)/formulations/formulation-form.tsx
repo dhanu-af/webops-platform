@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createFormulation, updateFormulation, type IngredientInput } from "@/lib/actions/formulation-actions";
+import { type IngredientInput } from "@/lib/actions/formulation-actions";
+import { createFormulation, updateFormulation } from "@/lib/actions-client/formulation-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from "@/components/ui/table";
@@ -137,7 +138,7 @@ export default function FormulationForm({
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="min-w-[1050px]">
+            <Table stack={false} className="min-w-[1050px]">
               <TableHead>
                 <TableRow className="hover:bg-transparent">
                   <TableHeaderCell>No.</TableHeaderCell>

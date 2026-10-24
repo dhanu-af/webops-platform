@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { updateFacilityTimezone } from "@/lib/actions/settings";
+import { updateFacilityTimezone } from "@/lib/actions-client/settings";
 
 export function TimezoneForm({ facilityId, timezone, timezones }: { facilityId: string; timezone: string; timezones: string[] }) {
   const router = useRouter();
@@ -13,7 +13,7 @@ export function TimezoneForm({ facilityId, timezone, timezones }: { facilityId: 
 
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <div>
+      <div className="min-w-0 max-w-full">
         <label className="text-xs font-medium text-muted-strong">Timezone</label>
         <select
           value={value}

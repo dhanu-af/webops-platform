@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isAnswered, isFacilityLevelCategory } from "@/lib/inspection-rules";
+import { isRecordNotFound } from "@/lib/db-errors";
 import { canWorkOnRecord, getUserScope } from "@/lib/scope";
 import { parseDocControl } from "@/lib/doc-control";
 import { ControlledFormHeader, ControlledFormFooter } from "@/components/inspection/controlled-form-header";
@@ -30,7 +31,10 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const session = await auth();
   if (!session?.user) notFound();
 
-  const inspection = await getInspection(id).catch(() => null);
+  const inspection = await getInspection(id).catch((e) => {
+    if (isRecordNotFound(e)) return null;
+    throw e; // a dropped connection must not look like "page not found"
+  });
   if (!inspection) notFound();
   const timeZone = await getFacilityTimezone();
 

@@ -58,7 +58,7 @@ export default async function SettingsAdminPage() {
         <CardContent className="space-y-4 pt-2">
           <p className="text-sm text-muted">Used for due-dates, ageing calculations and displayed timestamps across each facility.</p>
           {facilities.map((facility) => (
-            <div key={facility.id} className="flex items-center justify-between gap-4 border-b border-border pb-4 last:border-0 last:pb-0">
+            <div key={facility.id} className="flex flex-col gap-3 border-b border-border pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div>
                 <p className="text-sm font-medium text-foreground">{facility.name}</p>
                 <p className="text-xs text-muted">{facility.code}</p>

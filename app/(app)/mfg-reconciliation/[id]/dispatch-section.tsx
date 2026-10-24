@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addDispatchEvent, deleteDispatchEvent } from "@/lib/actions/mfg-reconciliation";
+import { addDispatchEvent, deleteDispatchEvent } from "@/lib/actions-client/mfg-reconciliation";
 import { Field, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from "@/components/ui/table";

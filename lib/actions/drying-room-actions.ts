@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -12,19 +13,19 @@ const BASE_PATH = "/drying-room";
 
 async function requireUpdateAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authorized");
+  if (!session?.user) throw new UserFacingError("Not authorized");
   requirePermission(session.user.role, "drying.update");
   return session;
 }
 
 async function requireManageAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authorized");
+  if (!session?.user) throw new UserFacingError("Not authorized");
   requirePermission(session.user.role, "drying.manage");
   return session;
 }
 
-export async function createBay() {
+async function createBay__impl() {
   const session = await requireManageAccess();
 
   const highest = await db.dryingBay.findFirst({ orderBy: { bayNumber: "desc" } });
@@ -38,7 +39,7 @@ export async function createBay() {
   return { id: bay.id, bayNumber };
 }
 
-export async function updateBayPurpose(
+async function updateBayPurpose__impl(
   bayId: string,
   data: {
     purpose: DryingBayPurpose;
@@ -67,7 +68,7 @@ export async function updateBayPurpose(
   revalidatePath(BASE_PATH);
 }
 
-export async function createBatch(
+async function createBatch__impl(
   bayId: string | null,
   data: {
     productName: string;
@@ -84,7 +85,7 @@ export async function createBatch(
 ) {
   const session = await requireUpdateAccess();
 
-  if (!data.productName.trim() || !data.batchNumber.trim()) throw new Error("Product name and batch number are required");
+  if (!data.productName.trim() || !data.batchNumber.trim()) throw new UserFacingError("Product name and batch number are required");
 
   const batch = await db.dryingBatch.create({
     data: {
@@ -117,7 +118,7 @@ export async function createBatch(
   revalidatePath(BASE_PATH);
 }
 
-export async function deleteBatch(batchId: string) {
+async function deleteBatch__impl(batchId: string) {
   const session = await requireManageAccess();
 
   const batch = await db.dryingBatch.delete({ where: { id: batchId } });
@@ -133,7 +134,7 @@ export async function deleteBatch(batchId: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function moveBatchToBay(batchId: string, bayId: string | null) {
+async function moveBatchToBay__impl(batchId: string, bayId: string | null) {
   const session = await requireUpdateAccess();
 
   await db.dryingBatch.update({ where: { id: batchId }, data: { bayId, updatedByName: session.user.name } });
@@ -150,7 +151,7 @@ export async function moveBatchToBay(batchId: string, bayId: string | null) {
   revalidatePath(BASE_PATH);
 }
 
-export async function updateBatchPriority(batchId: string, priorityRank: number | null) {
+async function updateBatchPriority__impl(batchId: string, priorityRank: number | null) {
   const session = await requireUpdateAccess();
 
   await db.dryingBatch.update({ where: { id: batchId }, data: { priorityRank, updatedByName: session.user.name } });
@@ -166,7 +167,7 @@ export async function updateBatchPriority(batchId: string, priorityRank: number 
   revalidatePath(BASE_PATH);
 }
 
-export async function updateBatchRemarks(batchId: string, remarks: string | null) {
+async function updateBatchRemarks__impl(batchId: string, remarks: string | null) {
   const session = await requireUpdateAccess();
 
   await db.dryingBatch.update({ where: { id: batchId }, data: { remarks, updatedByName: session.user.name } });
@@ -182,7 +183,7 @@ export async function updateBatchRemarks(batchId: string, remarks: string | null
  * per-stage timestamps by reading it back out, so a batch's stage history
  * doesn't need its own dedicated table.
  */
-export async function updateBatchStage(batchId: string, stage: DryingStage) {
+async function updateBatchStage__impl(batchId: string, stage: DryingStage) {
   const session = await requireUpdateAccess();
 
   await db.dryingBatch.update({
@@ -207,7 +208,7 @@ export async function updateBatchStage(batchId: string, stage: DryingStage) {
   revalidatePath(BASE_PATH);
 }
 
-export async function updateTrolley(
+async function updateTrolley__impl(
   trolleyId: string,
   data: {
     quantity: number | null;
@@ -228,7 +229,7 @@ export async function updateTrolley(
   revalidatePath(BASE_PATH);
 }
 
-export async function upsertMiscStorageItem(
+async function upsertMiscStorageItem__impl(
   id: string | null,
   data: {
     product: string;
@@ -243,7 +244,7 @@ export async function upsertMiscStorageItem(
 ) {
   const session = await requireUpdateAccess();
 
-  if (!data.product.trim() || !data.quantityLabel.trim()) throw new Error("Product and quantity are required");
+  if (!data.product.trim() || !data.quantityLabel.trim()) throw new UserFacingError("Product and quantity are required");
 
   let itemId = id;
   if (id) {
@@ -264,7 +265,7 @@ export async function upsertMiscStorageItem(
   revalidatePath(BASE_PATH);
 }
 
-export async function deleteMiscStorageItem(id: string) {
+async function deleteMiscStorageItem__impl(id: string) {
   const session = await requireManageAccess();
 
   const item = await db.miscStorageItem.delete({ where: { id } });
@@ -299,7 +300,7 @@ function startOfWeekMonday(d: Date) {
  */
 export async function getDryingRoomMetrics(): Promise<DryingRoomMetrics> {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authorized");
+  if (!session?.user) throw new UserFacingError("Not authorized");
 
   const completed = await db.dryingBatch.findMany({
     where: { completedAt: { not: null } },
@@ -352,4 +353,50 @@ export async function getDryingRoomMetrics(): Promise<DryingRoomMetrics> {
     throughputToday: completed.filter((b) => b.completedAt! >= startOfToday).length,
     throughputThisWeek: completed.filter((b) => b.completedAt! >= startOfWeek).length,
   };
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function createBatch(...args: Parameters<typeof createBatch__impl>) {
+  return guard(() => createBatch__impl(...args));
+}
+
+export async function createBay(...args: Parameters<typeof createBay__impl>) {
+  return guard(() => createBay__impl(...args));
+}
+
+export async function deleteBatch(...args: Parameters<typeof deleteBatch__impl>) {
+  return guard(() => deleteBatch__impl(...args));
+}
+
+export async function deleteMiscStorageItem(...args: Parameters<typeof deleteMiscStorageItem__impl>) {
+  return guard(() => deleteMiscStorageItem__impl(...args));
+}
+
+export async function moveBatchToBay(...args: Parameters<typeof moveBatchToBay__impl>) {
+  return guard(() => moveBatchToBay__impl(...args));
+}
+
+export async function updateBatchPriority(...args: Parameters<typeof updateBatchPriority__impl>) {
+  return guard(() => updateBatchPriority__impl(...args));
+}
+
+export async function updateBatchRemarks(...args: Parameters<typeof updateBatchRemarks__impl>) {
+  return guard(() => updateBatchRemarks__impl(...args));
+}
+
+export async function updateBatchStage(...args: Parameters<typeof updateBatchStage__impl>) {
+  return guard(() => updateBatchStage__impl(...args));
+}
+
+export async function updateBayPurpose(...args: Parameters<typeof updateBayPurpose__impl>) {
+  return guard(() => updateBayPurpose__impl(...args));
+}
+
+export async function updateTrolley(...args: Parameters<typeof updateTrolley__impl>) {
+  return guard(() => updateTrolley__impl(...args));
+}
+
+export async function upsertMiscStorageItem(...args: Parameters<typeof upsertMiscStorageItem__impl>) {
+  return guard(() => upsertMiscStorageItem__impl(...args));
 }

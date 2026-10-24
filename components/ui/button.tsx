@@ -17,8 +17,9 @@ const buttonVariants = cva(
         pass: "bg-status-pass text-white shadow-[var(--shadow-xs)] hover:opacity-90",
       },
       size: {
-        sm: "h-8 px-3 text-xs",
-        md: "h-10 px-4",
+        // pointer-coarse: phones and tablets get a 44px touch target
+        sm: "h-8 px-3 text-xs pointer-coarse:h-11",
+        md: "h-10 px-4 pointer-coarse:h-11",
         lg: "h-14 px-6 text-base",
       },
     },

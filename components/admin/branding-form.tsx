@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { updateBranding } from "@/lib/actions/settings";
+import { updateBranding } from "@/lib/actions-client/settings";
 
 export function BrandingForm({ organizationName, logoUrl }: { organizationName: string; logoUrl: string | null }) {
   const router = useRouter();

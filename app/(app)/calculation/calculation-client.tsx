@@ -3,14 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  createCalculation,
-  updateCalculation,
-  deleteCalculation,
-  createCalculationFolder,
-  deleteCalculationFolder,
-  moveCalculationToFolder,
-} from "@/lib/actions/capsule-calculations";
+import { createCalculation, updateCalculation, deleteCalculation, createCalculationFolder, deleteCalculationFolder, moveCalculationToFolder } from "@/lib/actions-client/capsule-calculations";
 import {
   CALCULATION_DIRECTIONS,
   DIRECTION_LABEL,
@@ -471,7 +464,7 @@ export function CalculationClient({ calculations, folders }: { calculations: Cal
                       <TableCell className="font-mono-tabular">{formatWholeCount(c.resultCapsules)}</TableCell>
                       <TableCell className="font-mono-tabular">
                         {formatWholeCount(c.resultBottles)}
-                        <span className="ml-1 font-sans text-[10px] text-muted">{CONTAINER_RESULT_LABEL[c.direction].toLowerCase()}</span>
+                        <span className="ml-1 font-sans text-[11px] text-muted">{CONTAINER_RESULT_LABEL[c.direction].toLowerCase()}</span>
                       </TableCell>
                       <TableCell className="text-xs text-muted">
                         {c.createdByName}

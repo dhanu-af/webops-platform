@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { requirePermission } from "@/lib/permissions";
@@ -9,12 +10,12 @@ import type { ChecklistCategory, ItemType, Frequency, Priority, UserRole } from 
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "checklist.manage");
   return session.user;
 }
 
-export async function createChecklist(input: { name: string; category: ChecklistCategory; workflowId: string; description?: string }) {
+async function createChecklist__impl(input: { name: string; category: ChecklistCategory; workflowId: string; description?: string }) {
   const user = await requireAdmin();
   const checklist = await db.checklist.create({
     data: { name: input.name, category: input.category, workflowId: input.workflowId, description: input.description },
@@ -55,7 +56,7 @@ export type BuilderItem = {
 // fresh version (spec §35: historical inspections keep the exact version
 // they were performed against; a controlled document gets a new revision,
 // it doesn't get silently edited in place).
-export async function saveChecklistVersion(input: {
+async function saveChecklistVersion__impl(input: {
   checklistId: string;
   name: string;
   category: ChecklistCategory;
@@ -64,7 +65,7 @@ export async function saveChecklistVersion(input: {
   items: BuilderItem[];
 }) {
   const user = await requireAdmin();
-  if (input.items.length === 0) throw new Error("Add at least one item before publishing.");
+  if (input.items.length === 0) throw new UserFacingError("Add at least one item before publishing.");
 
   const checklist = await db.checklist.findUniqueOrThrow({
     where: { id: input.checklistId },
@@ -124,7 +125,7 @@ export async function saveChecklistVersion(input: {
 // without re-typing every item, then just renaming the copy and giving it
 // its own schedule. Deliberately doesn't copy schedules: a clone almost
 // always needs a different area/section, not the same one as the source.
-export async function cloneChecklist(id: string) {
+async function cloneChecklist__impl(id: string) {
   const user = await requireAdmin();
 
   const source = await db.checklist.findUniqueOrThrow({
@@ -132,7 +133,7 @@ export async function cloneChecklist(id: string) {
     include: { versions: { where: { isCurrent: true }, take: 1, include: { items: { orderBy: { sortOrder: "asc" } } } } },
   });
   const currentVersion = source.versions[0];
-  if (!currentVersion) throw new Error("This checklist has no published version to clone.");
+  if (!currentVersion) throw new UserFacingError("This checklist has no published version to clone.");
 
   const clone = await db.$transaction(async (tx) => {
     const newChecklist = await tx.checklist.create({
@@ -171,7 +172,7 @@ export async function cloneChecklist(id: string) {
   redirect(`/admin/checklists/${clone.id}`);
 }
 
-export async function setChecklistActive(id: string, active: boolean) {
+async function setChecklistActive__impl(id: string, active: boolean) {
   await requireAdmin();
   await db.checklist.update({ where: { id }, data: { active } });
   revalidatePath("/admin/checklists");
@@ -183,14 +184,14 @@ export async function setChecklistActive(id: string, active: boolean) {
 // allowed when no Inspection has ever been performed against any version of
 // this checklist: once real inspection data exists, that's audit history and
 // must go through Archive instead, never deletion.
-export async function deleteChecklist(id: string) {
+async function deleteChecklist__impl(id: string) {
   await requireAdmin();
 
   const inspectionCount = await db.inspection.count({
     where: { checklistVersion: { checklistId: id } },
   });
   if (inspectionCount > 0) {
-    throw new Error(
+    throw new UserFacingError(
       `Can't delete — ${inspectionCount} inspection${inspectionCount === 1 ? "" : "s"} exist for this checklist. Archive it instead to preserve that history.`
     );
   }
@@ -200,7 +201,7 @@ export async function deleteChecklist(id: string) {
   revalidatePath("/checklists");
 }
 
-export async function createSchedule(input: {
+async function createSchedule__impl(input: {
   checklistId: string;
   frequency: Frequency;
   facilityId: string;
@@ -232,9 +233,39 @@ export async function createSchedule(input: {
   revalidatePath("/today");
 }
 
-export async function setScheduleActive(scheduleId: string, active: boolean, checklistId: string) {
+async function setScheduleActive__impl(scheduleId: string, active: boolean, checklistId: string) {
   await requireAdmin();
   await db.checklistSchedule.update({ where: { id: scheduleId }, data: { active } });
   revalidatePath(`/admin/checklists/${checklistId}`);
   revalidatePath("/today");
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function cloneChecklist(...args: Parameters<typeof cloneChecklist__impl>) {
+  return guard(() => cloneChecklist__impl(...args));
+}
+
+export async function createChecklist(...args: Parameters<typeof createChecklist__impl>) {
+  return guard(() => createChecklist__impl(...args));
+}
+
+export async function createSchedule(...args: Parameters<typeof createSchedule__impl>) {
+  return guard(() => createSchedule__impl(...args));
+}
+
+export async function deleteChecklist(...args: Parameters<typeof deleteChecklist__impl>) {
+  return guard(() => deleteChecklist__impl(...args));
+}
+
+export async function saveChecklistVersion(...args: Parameters<typeof saveChecklistVersion__impl>) {
+  return guard(() => saveChecklistVersion__impl(...args));
+}
+
+export async function setChecklistActive(...args: Parameters<typeof setChecklistActive__impl>) {
+  return guard(() => setChecklistActive__impl(...args));
+}
+
+export async function setScheduleActive(...args: Parameters<typeof setScheduleActive__impl>) {
+  return guard(() => setScheduleActive__impl(...args));
 }

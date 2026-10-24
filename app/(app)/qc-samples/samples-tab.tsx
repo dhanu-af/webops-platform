@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { QcSampleType, QcProductCategory } from "@/app/generated/prisma/client";
 import { QC_SAMPLE_STATUS_META } from "@/lib/status";
 import { SAMPLE_TYPE_LABEL, PRODUCT_CATEGORY_LABEL, timeUntilExpiryLabel } from "@/lib/qc-sample-defaults";
-import { createQcSample } from "@/lib/actions/qc-sample-actions";
+import { createQcSample } from "@/lib/actions-client/qc-sample-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";

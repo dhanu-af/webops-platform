@@ -4,7 +4,9 @@ import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { Camera, X, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { attachPhoto, deletePhoto } from "@/lib/actions/inspections";
+import { deletePhoto } from "@/lib/actions/inspections";
+import { attachPhoto } from "@/lib/actions-client/inspections";
+import { prepareImage } from "@/lib/image-prepare";
 
 export function PhotoUpload({
   inspectionId,
@@ -18,7 +20,7 @@ export function PhotoUpload({
   inspectionId: string;
   responseId?: string;
   findingId?: string;
-  existingPhotos: Array<{ id: string; storagePath: string; caption: string | null }>;
+  existingPhotos: Array<{ id: string; storagePath: string; thumbnailPath?: string | null; caption: string | null }>;
   required?: boolean;
   maxPhotos?: number;
   canDelete?: boolean;
@@ -40,11 +42,14 @@ export function PhotoUpload({
       for (const file of toUpload) {
         setPreview(URL.createObjectURL(file));
         try {
+          // Shrink on the phone first: smaller upload, and under the server's request size limit.
+          const { main, thumb } = await prepareImage(file);
           const formData = new FormData();
           formData.set("inspectionId", inspectionId);
           if (responseId) formData.set("responseId", responseId);
           if (findingId) formData.set("findingId", findingId);
-          formData.set("file", file);
+          formData.set("file", main);
+          if (thumb) formData.set("thumbnail", thumb);
           await attachPhoto(formData);
         } catch (e) {
           setError(e instanceof Error ? e.message : "Upload failed.");
@@ -66,7 +71,7 @@ export function PhotoUpload({
               rel="noreferrer"
               className="relative block size-16 overflow-hidden rounded-lg border border-border bg-surface-sunken"
             >
-              <Image src={p.storagePath} alt={p.caption ?? "Evidence photo"} fill sizes="64px" className="object-cover" unoptimized />
+              <Image src={p.thumbnailPath ?? p.storagePath} alt={p.caption ?? "Evidence photo"} fill sizes="64px" className="object-cover" unoptimized />
             </a>
             {canDelete && (
               <button
@@ -88,7 +93,8 @@ export function PhotoUpload({
                     setDeletingId(null);
                   }
                 }}
-                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-status-critical text-white shadow disabled:opacity-60"
+                data-compact
+                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-status-critical text-white shadow before:absolute before:-inset-3 before:content-[''] disabled:opacity-60"
               >
                 {deletingId === p.id ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
               </button>
@@ -106,7 +112,7 @@ export function PhotoUpload({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={pending}
-            className={`flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[10px] font-medium ${
+            className={`flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[11px] font-medium ${
               required && existingPhotos.length === 0 ? "border-status-critical text-status-critical" : "border-border-strong text-muted"
             }`}
           >

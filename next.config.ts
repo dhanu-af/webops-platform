@@ -6,7 +6,8 @@ import pkg from "./package.json";
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  // Never framed in production. Development allows it so pages can be checked at phone/tablet widths in a sized frame.
+  ...(process.env.NODE_ENV === "production" ? [{ key: "X-Frame-Options", value: "DENY" }] : []),
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
 ];
@@ -20,7 +21,13 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_GIT_SHA: (process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 7),
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    const staticAsset = [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Logos and home-screen icons rarely change: let phones keep them for a day.
+      { source: "/icons/:path*", headers: staticAsset },
+      { source: "/:file(.*\\.(?:jpg|jpeg|png|svg|webp|ico))", headers: staticAsset },
+    ];
   },
 };
 

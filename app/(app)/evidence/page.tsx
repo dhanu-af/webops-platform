@@ -43,7 +43,7 @@ export default async function EvidenceGalleryPage() {
                 const media = (
                   <>
                     <div className="relative aspect-square overflow-hidden rounded-[var(--radius)] border border-border bg-surface-sunken">
-                      <Image src={p.storagePath} alt={p.caption ?? "Evidence"} fill sizes="200px" className="object-cover transition-transform group-hover:scale-105" unoptimized />
+                      <Image src={p.thumbnailPath ?? p.storagePath} alt={p.caption ?? "Evidence"} fill sizes="200px" className="object-cover transition-transform group-hover:scale-105" unoptimized />
                       {p.finding && (
                         <span className="absolute left-1.5 top-1.5 rounded-full bg-status-critical-soft px-1.5 py-0.5 text-[9px] font-semibold text-status-critical">
                           FINDING

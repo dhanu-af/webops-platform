@@ -40,7 +40,7 @@ export default async function UsersAdminPage() {
         <CardContent className="pt-2">
           <div className="divide-y divide-border">
             {users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between gap-4 py-3">
+              <div key={u.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div>
                   <p className="text-sm font-medium text-foreground">{u.name}</p>
                   <p className="text-xs text-muted">
@@ -50,7 +50,7 @@ export default async function UsersAdminPage() {
                     {u.section ? ` · ${u.section.facility.name} / ${u.section.name}` : ""}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={u.active ? "pass" : "neutral"}>{u.active ? "Active" : "Inactive"}</Badge>
                   {u.mustChangePassword && <Badge tone="warn">Temp password</Badge>}
                   {u.assignedAreas.length > 0 && (

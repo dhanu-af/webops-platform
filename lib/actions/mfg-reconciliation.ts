@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -16,7 +17,7 @@ const BASE_PATH = "/mfg-reconciliation";
 // stage still can't create or delete a whole batch, or mark it complete.
 async function requireAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "mfg.manage");
   return session.user;
 }
@@ -26,10 +27,10 @@ async function requireAccess() {
 // assigned Area (see canEditMfgStage in lib/mfg-reconciliation.ts).
 async function requireStageAccess(stage: MfgStageKey) {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   const areaNames = await getUserAreaNames(session.user.areaIds);
   if (!canEditMfgStage(session.user.role, areaNames, stage)) {
-    throw new Error("Forbidden: you don't have edit access to this stage.");
+    throw new UserFacingError("Forbidden: you don't have edit access to this stage.");
   }
   return session.user;
 }
@@ -39,9 +40,9 @@ async function requireStageAccess(stage: MfgStageKey) {
 // checklist pre-populating its items from a template). The other five
 // stages are created lazily by their own save* action the first time that
 // stage is filled in.
-export async function createMfgBatch(data: { batchNumber: string; productName: string; formulationReference: string | null }) {
+async function createMfgBatch__impl(data: { batchNumber: string; productName: string; formulationReference: string | null }) {
   const actor = await requireAccess();
-  if (!data.batchNumber || !data.productName) throw new Error("Batch number and product name are required.");
+  if (!data.batchNumber || !data.productName) throw new UserFacingError("Batch number and product name are required.");
 
   const batch = await db.mfgBatch.create({
     data: {
@@ -71,7 +72,7 @@ export async function createMfgBatch(data: { batchNumber: string; productName: s
   return batch.id;
 }
 
-export async function deleteMfgBatch(id: string) {
+async function deleteMfgBatch__impl(id: string) {
   const actor = await requireAccess();
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id } });
 
@@ -88,7 +89,7 @@ export async function deleteMfgBatch(id: string) {
   revalidatePath(BASE_PATH);
 }
 
-export async function markMfgBatchCompleted(id: string) {
+async function markMfgBatchCompleted__impl(id: string) {
   const actor = await requireAccess();
   const batch = await db.mfgBatch.update({ where: { id }, data: { status: "COMPLETED" } });
 
@@ -118,7 +119,7 @@ type MaterialIssueLineInput = {
 
 // Replaces the Warehouse Issue header + all material lines wholesale -- the
 // row set is edited as a whole table in the UI, not patched row-by-row.
-export async function saveWarehouseIssue(
+async function saveWarehouseIssue__impl(
   batchId: string,
   header: { issuedByName: string | null; issueDate: string | null; remarks: string | null },
   lines: MaterialIssueLineInput[]
@@ -173,7 +174,7 @@ type BlendingInput = {
   remarks: string | null;
 };
 
-export async function saveBlending(batchId: string, data: BlendingInput) {
+async function saveBlending__impl(batchId: string, data: BlendingInput) {
   const actor = await requireStageAccess("blending");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -206,7 +207,7 @@ type EncapsulationInput = {
   comments: string | null;
 };
 
-export async function saveEncapsulation(batchId: string, data: EncapsulationInput) {
+async function saveEncapsulation__impl(batchId: string, data: EncapsulationInput) {
   const actor = await requireStageAccess("encapsulation");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -236,7 +237,7 @@ type BottlingInput = {
   comments: string | null;
 };
 
-export async function saveBottling(batchId: string, data: BottlingInput) {
+async function saveBottling__impl(batchId: string, data: BottlingInput) {
   const actor = await requireStageAccess("bottling");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -267,7 +268,7 @@ type XrayInspectionInput = {
   remarks: string | null;
 };
 
-export async function saveXrayInspection(batchId: string, data: XrayInspectionInput) {
+async function saveXrayInspection__impl(batchId: string, data: XrayInspectionInput) {
   const actor = await requireStageAccess("xray");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -280,7 +281,7 @@ export async function saveXrayInspection(batchId: string, data: XrayInspectionIn
 
 type PackagingMaterialLineInput = { materialType: MfgPackagingMaterialType; issued: number | null; used: number | null; damaged: number | null; returned: number | null; destroyed: number | null };
 
-export async function savePackaging(
+async function savePackaging__impl(
   batchId: string,
   header: { packedBottles: number | null; cartonsProduced: number | null; casesProduced: number | null; packedByName: string | null; packedAt: string | null; remarks: string | null },
   lines: PackagingMaterialLineInput[]
@@ -314,7 +315,7 @@ type FinishedGoodsWarehouseInput = {
   remarks: string | null;
 };
 
-export async function saveFinishedGoodsWarehouse(batchId: string, data: FinishedGoodsWarehouseInput) {
+async function saveFinishedGoodsWarehouse__impl(batchId: string, data: FinishedGoodsWarehouseInput) {
   const actor = await requireStageAccess("fgWarehouse");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -337,9 +338,9 @@ type DispatchEventInput = {
   remarks: string | null;
 };
 
-export async function addDispatchEvent(batchId: string, data: DispatchEventInput) {
+async function addDispatchEvent__impl(batchId: string, data: DispatchEventInput) {
   const actor = await requireStageAccess("dispatch");
-  if (!data.customer) throw new Error("Customer is required.");
+  if (!data.customer) throw new UserFacingError("Customer is required.");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
   await db.mfgDispatchEvent.create({
@@ -362,7 +363,7 @@ export async function addDispatchEvent(batchId: string, data: DispatchEventInput
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
-export async function deleteDispatchEvent(batchId: string, dispatchEventId: string) {
+async function deleteDispatchEvent__impl(batchId: string, dispatchEventId: string) {
   const actor = await requireStageAccess("dispatch");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
 
@@ -370,4 +371,54 @@ export async function deleteDispatchEvent(batchId: string, dispatchEventId: stri
 
   await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "DELETED", userId: actor.id, reason: `Dispatch event removed for batch ${batch.batchNumber}` });
   revalidatePath(`${BASE_PATH}/${batchId}`);
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function addDispatchEvent(...args: Parameters<typeof addDispatchEvent__impl>) {
+  return guard(() => addDispatchEvent__impl(...args));
+}
+
+export async function createMfgBatch(...args: Parameters<typeof createMfgBatch__impl>) {
+  return guard(() => createMfgBatch__impl(...args));
+}
+
+export async function deleteDispatchEvent(...args: Parameters<typeof deleteDispatchEvent__impl>) {
+  return guard(() => deleteDispatchEvent__impl(...args));
+}
+
+export async function deleteMfgBatch(...args: Parameters<typeof deleteMfgBatch__impl>) {
+  return guard(() => deleteMfgBatch__impl(...args));
+}
+
+export async function markMfgBatchCompleted(...args: Parameters<typeof markMfgBatchCompleted__impl>) {
+  return guard(() => markMfgBatchCompleted__impl(...args));
+}
+
+export async function saveBlending(...args: Parameters<typeof saveBlending__impl>) {
+  return guard(() => saveBlending__impl(...args));
+}
+
+export async function saveBottling(...args: Parameters<typeof saveBottling__impl>) {
+  return guard(() => saveBottling__impl(...args));
+}
+
+export async function saveEncapsulation(...args: Parameters<typeof saveEncapsulation__impl>) {
+  return guard(() => saveEncapsulation__impl(...args));
+}
+
+export async function saveFinishedGoodsWarehouse(...args: Parameters<typeof saveFinishedGoodsWarehouse__impl>) {
+  return guard(() => saveFinishedGoodsWarehouse__impl(...args));
+}
+
+export async function savePackaging(...args: Parameters<typeof savePackaging__impl>) {
+  return guard(() => savePackaging__impl(...args));
+}
+
+export async function saveWarehouseIssue(...args: Parameters<typeof saveWarehouseIssue__impl>) {
+  return guard(() => saveWarehouseIssue__impl(...args));
+}
+
+export async function saveXrayInspection(...args: Parameters<typeof saveXrayInspection__impl>) {
+  return guard(() => saveXrayInspection__impl(...args));
 }

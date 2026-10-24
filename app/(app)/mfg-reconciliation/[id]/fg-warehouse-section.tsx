@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveFinishedGoodsWarehouse } from "@/lib/actions/mfg-reconciliation";
+import { saveFinishedGoodsWarehouse } from "@/lib/actions-client/mfg-reconciliation";
 import { Field, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import { Button } from "@/components/ui/button";
 

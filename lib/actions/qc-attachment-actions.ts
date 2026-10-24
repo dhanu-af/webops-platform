@@ -1,5 +1,6 @@
 "use server";
 
+import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -10,21 +11,21 @@ import type { QcAttachmentKind } from "@/app/generated/prisma/client";
 
 async function requireAccess() {
   const session = await auth();
-  if (!session?.user) throw new Error("Not authenticated");
+  if (!session?.user) throw new UserFacingError("Not authenticated");
   requirePermission(session.user.role, "qc.manage");
   return session.user;
 }
 
-export async function attachQcSampleFile(formData: FormData) {
+async function attachQcSampleFile__impl(formData: FormData) {
   const actor = await requireAccess();
 
   const sampleId = String(formData.get("sampleId") ?? "");
   const kind = formData.get("kind") as QcAttachmentKind;
   const file = formData.get("file") as File | null;
-  if (!sampleId || !kind) throw new Error("Sample and attachment kind are required");
-  if (!file || file.size === 0) throw new Error("Choose a file to upload");
-  if (file.size > MAX_QC_ATTACHMENT_BYTES) throw new Error("File is too large (10 MB max)");
-  if (!isAllowedQcAttachmentFile(file)) throw new Error("Unsupported file type — PDF, JPG, PNG, WEBP, or HEIC only");
+  if (!sampleId || !kind) throw new UserFacingError("Sample and attachment kind are required");
+  if (!file || file.size === 0) throw new UserFacingError("Choose a file to upload");
+  if (file.size > MAX_QC_ATTACHMENT_BYTES) throw new UserFacingError("File is too large (10 MB max)");
+  if (!isAllowedQcAttachmentFile(file)) throw new UserFacingError("Unsupported file type — PDF, JPG, PNG, WEBP, or HEIC only");
 
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id: sampleId } });
   const { url, sizeBytes } = await storeQcAttachment(file);
@@ -52,7 +53,7 @@ export async function attachQcSampleFile(formData: FormData) {
   return attachment;
 }
 
-export async function deleteQcSampleAttachment(id: string) {
+async function deleteQcSampleAttachment__impl(id: string) {
   const actor = await requireAccess();
 
   const attachment = await db.qcSampleAttachment.findUniqueOrThrow({
@@ -71,4 +72,14 @@ export async function deleteQcSampleAttachment(id: string) {
   });
 
   revalidatePath("/qc-samples");
+}
+
+// Callable from the browser forms. Returns the message of any UserFacingError as data
+// (production hides the text of a thrown server-action error); see lib/actions-client/.
+export async function attachQcSampleFile(...args: Parameters<typeof attachQcSampleFile__impl>) {
+  return guard(() => attachQcSampleFile__impl(...args));
+}
+
+export async function deleteQcSampleAttachment(...args: Parameters<typeof deleteQcSampleAttachment__impl>) {
+  return guard(() => deleteQcSampleAttachment__impl(...args));
 }

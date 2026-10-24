@@ -37,7 +37,7 @@ const dash = (v: string) => (v && v !== "—" ? v : "—");
 function FreqBlock({ label, text }: { label: string; text: string }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
       <p className="whitespace-pre-line text-sm text-foreground">{dash(text)}</p>
     </div>
   );
