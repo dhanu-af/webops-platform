@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { changePassword } from "@/lib/actions/users";
 import { validatePassword } from "@/lib/password-policy";
 
-export function ChangePasswordForm({
-  onSuccess,
-  loginId,
-  name,
-}: { onSuccess?: () => void; loginId?: string; name?: string } = {}) {
+export function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -25,7 +21,7 @@ export function ChangePasswordForm({
         setError(null);
         setSuccess(false);
         if (!currentPassword) return setError("Enter your current password.");
-        { const problems = validatePassword(newPassword, { loginId, name }); if (problems.length) return setError(problems.join(" ")); }
+        { const problems = validatePassword(newPassword); if (problems.length) return setError(problems.join(" ")); }
         if (newPassword !== confirmPassword) return setError("New passwords do not match.");
         startTransition(async () => {
           try {

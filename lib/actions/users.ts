@@ -19,8 +19,8 @@ import type { UserRole } from "@/app/generated/prisma/client";
 
 const requireUserManager = () => requireUserWithPermission("users.manage");
 
-function checkPassword(password: string, context: { loginId?: string; email?: string | null; name?: string }) {
-  const problems = validatePassword(password, context);
+function checkPassword(password: string) {
+  const problems = validatePassword(password);
   if (problems.length) throw new UserFacingError(`Password not accepted. ${problems.join(" ")}`);
 }
 
@@ -50,7 +50,7 @@ export async function createUser(input: {
       throw new UserFacingError(`Employee number "${input.employeeId}" is already used by another user.`);
     }
 
-    checkPassword(input.password, { loginId, email, name: input.name });
+    checkPassword(input.password);
     const passwordHash = await bcrypt.hash(input.password, 10);
     const user = await db.user.create({
       data: {
@@ -108,7 +108,7 @@ export async function changePassword(input: { currentPassword: string; newPasswo
     if (!valid) throw new UserFacingError("Current password is incorrect.");
 
     if (input.newPassword === input.currentPassword) throw new UserFacingError("Choose a password you haven't used just now.");
-    checkPassword(input.newPassword, { loginId: user.loginId, email: user.email, name: user.name });
+    checkPassword(input.newPassword);
     const passwordHash = await bcrypt.hash(input.newPassword, 10);
     await db.user.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false } });
     await logAudit({
@@ -209,8 +209,8 @@ export async function adminResetPassword(userId: string, newPassword: string, te
   return runAction(async () => {
     const actor = await requireUserManager();
 
-    const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { loginId: true, email: true, name: true } });
-    checkPassword(newPassword, target);
+    await db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true } });
+    checkPassword(newPassword);
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await db.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: temporary } });

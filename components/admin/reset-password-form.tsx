@@ -6,7 +6,7 @@ import { adminResetPassword } from "@/lib/actions/users";
 import { validatePassword } from "@/lib/password-policy";
 import { generateTemporaryPassword } from "@/lib/temp-password";
 
-export function ResetPasswordForm({ userId, loginId, name }: { userId: string; loginId?: string; name?: string }) {
+export function ResetPasswordForm({ userId }: { userId: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -21,7 +21,7 @@ export function ResetPasswordForm({ userId, loginId, name }: { userId: string; l
         e.preventDefault();
         setError(null);
         setDone(false);
-        { const problems = validatePassword(newPassword, { loginId, name }); if (problems.length) return setError(problems.join(" ")); }
+        { const problems = validatePassword(newPassword); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
             const result = await adminResetPassword(userId, newPassword, temporary);

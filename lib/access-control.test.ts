@@ -50,13 +50,13 @@ describe("URS-01 password rules", () => {
     expect(validatePassword("Password1234!")).not.toEqual([]); // contains "password"
   });
 
-  it("rejects passwords containing the user's name or email", () => {
-    expect(validatePassword("Dhanushka#2026x", { name: "Dhanushka K" })).toContain("Don't include your name in the password.");
-    expect(validatePassword("jordan.blake-Secure9", { email: "jordan.blake@example.com" }).join(" ")).toMatch(/email/);
+  it("allows a password that contains the user's name or User ID", () => {
+    expect(validatePassword("Dhanu12345")).toEqual([]);
+    expect(validatePassword("Dhanushka#2026x")).toEqual([]);
   });
 
   it("accepts a strong password", () => {
-    expect(validatePassword("river-Plank-47-lamp", { email: "a@b.com", name: "Zed" })).toEqual([]);
+    expect(validatePassword("river-Plank-47-lamp")).toEqual([]);
     expect(PASSWORD_MIN_LENGTH).toBeGreaterThanOrEqual(10);
   });
 });

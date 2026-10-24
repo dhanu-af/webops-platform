@@ -30,10 +30,15 @@ describe("changePassword returns readable errors instead of throwing", () => {
     });
   });
 
-  it("rejects a new password that contains the user's name, with the reason", async () => {
-    const r = await changePassword({ currentPassword: "Dhanu123", newPassword: "Dhanu12345!" });
-    expect(r).toEqual({ ok: false, error: expect.stringMatching(/name|User ID/) });
+  it("rejects a weak new password with the reason, instead of throwing", async () => {
+    const r = await changePassword({ currentPassword: "Dhanu123", newPassword: "short" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/at least 10 characters/) });
     expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it("allows a new password that contains the user's name", async () => {
+    const r = await changePassword({ currentPassword: "Dhanu123", newPassword: "Dhanu12345" });
+    expect(r).toEqual({ ok: true });
   });
 
   it("rejects a wrong current password", async () => {

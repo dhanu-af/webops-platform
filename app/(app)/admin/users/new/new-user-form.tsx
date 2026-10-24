@@ -52,7 +52,7 @@ export function NewUserForm({
         setError(null);
         if (!name.trim()) return setError("Name is required.");
         { const idProblem = validateLoginId(normalizeLoginId(loginId)); if (idProblem) return setError(idProblem); }
-        { const problems = validatePassword(password, { loginId: normalizeLoginId(loginId), name }); if (problems.length) return setError(problems.join(" ")); }
+        { const problems = validatePassword(password); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
             const result = await createUser({

@@ -5,13 +5,13 @@ export const PASSWORD_MIN_LENGTH = 10;
 
 export const PASSWORD_POLICY_HINT =
   `At least ${PASSWORD_MIN_LENGTH} characters, mixing at least three of: upper case, lower case, numbers, symbols. ` +
-  "It must not contain your name or User ID, or be a common password.";
+  "It must not be a very common password.";
 
 // Deliberately short: the length + variety rules do the heavy lifting, this
 // only catches the passwords that technically satisfy them but are everywhere.
 const COMMON = ["password", "passw0rd", "welcome", "letmein", "qwerty", "admin123", "changeme", "123456", "iloveyou", "monkey", "dragon", "football"];
 
-export function validatePassword(password: string, context: { loginId?: string; email?: string | null; name?: string } = {}): string[] {
+export function validatePassword(password: string): string[] {
   const problems: string[] = [];
   if (password.length < PASSWORD_MIN_LENGTH) problems.push(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
 
@@ -19,22 +19,12 @@ export function validatePassword(password: string, context: { loginId?: string; 
   if (classes < 3) problems.push("Mix at least three of: upper case, lower case, numbers, symbols.");
 
   const lower = password.toLowerCase();
-  const emailLocal = context.email?.split("@")[0]?.toLowerCase();
-  const id = context.loginId?.toLowerCase();
-  if (id && id.length >= 3 && lower.includes(id)) problems.push("Don't include your User ID in the password.");
-  if (emailLocal && emailLocal.length >= 3 && lower.includes(emailLocal)) problems.push("Don't include your email name in the password.");
-  for (const part of (context.name ?? "").toLowerCase().split(/\s+/).filter((p) => p.length >= 3)) {
-    if (lower.includes(part)) {
-      problems.push("Don't include your name in the password.");
-      break;
-    }
-  }
   if (COMMON.some((c) => lower.includes(c))) problems.push("That password is too common.");
   return problems;
 }
 
 /** Throws one readable Error if the password breaks the policy. */
-export function assertPasswordPolicy(password: string, context: { loginId?: string; email?: string | null; name?: string } = {}) {
-  const problems = validatePassword(password, context);
+export function assertPasswordPolicy(password: string) {
+  const problems = validatePassword(password);
   if (problems.length) throw new Error(`Password not accepted. ${problems.join(" ")}`);
 }
