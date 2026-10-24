@@ -13,7 +13,7 @@ export async function loginAction(_prevState: { error: string } | null, formData
     return null;
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Invalid User ID or password." };
+      return { error: "Invalid User ID or password. After several wrong attempts an account is locked for 15 minutes." };
     }
     throw error;
   }

@@ -15,6 +15,7 @@ import { GreetingHeader } from "@/components/dashboard/greeting-header";
 import { SummaryCard } from "@/components/dashboard/summary-card";
 import { OperationsOverviewChart } from "@/components/dashboard/operations-overview-chart";
 import { TodaysOperationsTable } from "@/components/dashboard/todays-operations-table";
+import { can } from "@/lib/permissions";
 import { QualityCompliance } from "@/components/dashboard/quality-compliance";
 import { ActionRequired, type ActionItem } from "@/components/dashboard/action-required";
 import { RecentActivityTimeline } from "@/components/dashboard/recent-activity-timeline";
@@ -150,7 +151,7 @@ export default async function DashboardPage() {
 
       <OperationsOverviewChart data={opsChart} />
 
-      <TodaysOperationsTable schedules={todaySchedules} />
+      <TodaysOperationsTable schedules={todaySchedules} canCreate={can(session!.user.role, "inspection.create")} />
 
       <QualityCompliance
         inspectionCompletion={kpis.compliance}

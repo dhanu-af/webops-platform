@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { auth } from "@/lib/auth";
+import { getUserScope } from "@/lib/scope";
 import { getOnDemandChecklists } from "@/lib/data/by-category";
 import { OnDemandList } from "@/components/inspection/on-demand-list";
 import type { ChecklistCategory } from "@/app/generated/prisma/client";
@@ -6,7 +8,8 @@ import type { ChecklistCategory } from "@/app/generated/prisma/client";
 // "Start any": every checklist in the category, whether or not it is scheduled
 // today. Pick the place, fill it in and submit it for verification.
 export async function OnDemandChecklists({ category, facilityLevel = false }: { category: ChecklistCategory; facilityLevel?: boolean }) {
-  const { checklists, areas } = await getOnDemandChecklists(category);
+  const session = await auth();
+  const { checklists, areas } = await getOnDemandChecklists(category, session?.user ? getUserScope(session.user) : { scoped: false });
 
   return (
     <Card>

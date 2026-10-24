@@ -29,21 +29,24 @@ enum UserRole {
 }
 
 model User {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   name               String
   // Sign-in name (lower case, no email needed). Email is optional contact info.
-  loginId            String   @unique
-  email              String?  @unique
+  loginId            String    @unique
+  email              String?   @unique
   passwordHash       String
   // Set when an admin issues a temporary password; cleared once the user picks their own.
-  mustChangePassword Boolean  @default(false)
-  employeeId         String?  @unique
+  mustChangePassword Boolean   @default(false)
+  // Sign-in lockout (lib/login-throttle.ts)
+  failedLogins       Int       @default(0)
+  lockedUntil        DateTime?
+  employeeId         String?   @unique
   role               UserRole
   jobTitle           String?
   phone              String?
-  active             Boolean  @default(true)
+  active             Boolean   @default(true)
   sectionId          String?
-  section            Section? @relation(fields: [sectionId], references: [id])
+  section            Section?  @relation(fields: [sectionId], references: [id])
   // Area-level access scope (spec: section staff only see their own areas'
   // tasks). Distinct from sectionId above, which is only a display/record
   // field - assignedAreas is what actually restricts visibility. An
@@ -52,9 +55,9 @@ model User {
   // Capsule Room and Bottling); every other role, and any of those three
   // roles left with zero areas assigned (e.g. a floor-wide "Production
   // Supervisor"), sees everything. See lib/scope.ts.
-  assignedAreas      Area[]   @relation("UserAssignedAreas")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  assignedAreas      Area[]    @relation("UserAssignedAreas")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   operatorInspections       Inspection[]            @relation("OperatorInspections")
   supervisorInspections     Inspection[]            @relation("SupervisorInspections")

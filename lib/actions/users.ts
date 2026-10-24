@@ -110,7 +110,7 @@ export async function changePassword(input: { currentPassword: string; newPasswo
     if (input.newPassword === input.currentPassword) throw new UserFacingError("Choose a password you haven't used just now.");
     checkPassword(input.newPassword);
     const passwordHash = await bcrypt.hash(input.newPassword, 10);
-    await db.user.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false } });
+    await db.user.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false, failedLogins: 0, lockedUntil: null } });
     await logAudit({
       entityType: "User",
       entityId: user.id,
@@ -213,7 +213,8 @@ export async function adminResetPassword(userId: string, newPassword: string, te
     checkPassword(newPassword);
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await db.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: temporary } });
+    // a reset also unlocks an account locked by repeated wrong passwords
+    await db.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: temporary, failedLogins: 0, lockedUntil: null } });
     await logAudit({
       entityType: "User",
       entityId: userId,

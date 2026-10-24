@@ -22,9 +22,3 @@ export function validatePassword(password: string): string[] {
   if (COMMON.some((c) => lower.includes(c))) problems.push("That password is too common.");
   return problems;
 }
-
-/** Throws one readable Error if the password breaks the policy. */
-export function assertPasswordPolicy(password: string) {
-  const problems = validatePassword(password);
-  if (problems.length) throw new Error(`Password not accepted. ${problems.join(" ")}`);
-}

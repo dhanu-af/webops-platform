@@ -299,7 +299,7 @@ export default async function ReportsPage({
                       </Link>
                     </TableCell>
                     <TableCell className="text-muted-strong">
-                      {insp.area?.name ?? insp.section?.name ?? "—"}
+                      {insp.area?.name ?? insp.section?.name ?? "Facility-wide"}
                     </TableCell>
                     <TableCell className="text-muted-strong">
                       {insp.operator?.name ?? "—"}

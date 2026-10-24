@@ -9,7 +9,7 @@ import type { getTodaySchedules } from "@/lib/data/inspections";
 
 type Schedule = Awaited<ReturnType<typeof getTodaySchedules>>[number];
 
-export function TodaysOperationsTable({ schedules }: { schedules: Schedule[] }) {
+export function TodaysOperationsTable({ schedules, canCreate = true }: { schedules: Schedule[]; canCreate?: boolean }) {
   const rows = schedules.slice(0, 8);
 
   return (
@@ -43,8 +43,8 @@ export function TodaysOperationsTable({ schedules }: { schedules: Schedule[] }) 
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={meta.tone}>{meta.label}</Badge>
-                    {label !== "View" && <NoProductionButton scheduleId={s.id} />}
-                    <StartScheduleButton scheduleId={s.id} label={label} />
+                    {canCreate && label !== "View" && <NoProductionButton scheduleId={s.id} />}
+                    {(canCreate || label === "View") && <StartScheduleButton scheduleId={s.id} label={label} />}
                   </div>
                 </li>
               );
@@ -80,8 +80,8 @@ export function TodaysOperationsTable({ schedules }: { schedules: Schedule[] }) 
                     <TableCell className="font-mono-tabular text-xs text-muted">{s.dueTime ?? "—"}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
-                        {label !== "View" && <NoProductionButton scheduleId={s.id} />}
-                        <StartScheduleButton scheduleId={s.id} label={label} />
+                        {canCreate && label !== "View" && <NoProductionButton scheduleId={s.id} />}
+                        {(canCreate || label === "View") && <StartScheduleButton scheduleId={s.id} label={label} />}
                       </div>
                     </TableCell>
                   </TableRow>

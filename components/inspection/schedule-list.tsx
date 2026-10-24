@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 import { StartScheduleButton } from "@/components/inspection/start-schedule-button";
 import { NoProductionButton } from "@/components/inspection/no-production-button";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 type Schedule = {
   id: string;
@@ -27,13 +29,16 @@ function scopeHref(s: Pick<Schedule, "area" | "section">) {
   return "/inspections";
 }
 
-export function ScheduleList({
+export async function ScheduleList({
   schedules,
   emptyLabel,
 }: {
   schedules: Schedule[];
   emptyLabel: string;
 }) {
+  // Start / No production are only offered to roles that may create inspections.
+  const session = await auth();
+  const canCreate = !!session?.user && can(session.user.role, "inspection.create");
   return (
     <Card>
       <CardHeader>
@@ -81,8 +86,8 @@ export function ScheduleList({
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end sm:gap-3">
                     {meta && <Badge tone={meta.tone}>{meta.label}</Badge>}
-                    {label !== "View" && <NoProductionButton scheduleId={s.id} />}
-                    <StartScheduleButton scheduleId={s.id} label={label} />
+                    {canCreate && label !== "View" && <NoProductionButton scheduleId={s.id} />}
+                    {(canCreate || label === "View") && <StartScheduleButton scheduleId={s.id} label={label} />}
                   </div>
                 </div>
               );

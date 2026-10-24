@@ -39,6 +39,7 @@ import {
   closeCorrectiveAction,
   startAdHocInspection,
   markNoProduction,
+  getOrCreateInspectionForSchedule,
   clearResponse,
   deletePhoto,
 } from "./inspections";
@@ -706,5 +707,70 @@ describe("facility-level checklists (generator, facility open/close) are open to
     m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "FACILITY_GENERATOR" } } });
     signIn("VIEWER", "v1");
     await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).resolves.toEqual({ ok: false, error: expect.stringMatching(/Forbidden/) });
+  });
+});
+
+describe("review fixes: who may start, reopen or close what", () => {
+  const bottling = { id: "bottling", sectionId: "prod", facilityId: "fac1" };
+  const capsule = { id: "capsule", sectionId: "prod", facilityId: "fac1" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, category: "POST_OPERATION_CLEANING", versions: [{ id: "ver1" }] });
+    m.db.area.findUnique.mockImplementation(async ({ where }: { where: { id: string } }) => ({ id: where.id, sectionId: "prod", section: { facilityId: "fac1" } }));
+    m.db.facility.findFirst.mockResolvedValue({ id: "fac1" });
+    m.db.inspection.findFirst.mockResolvedValue(null);
+    m.db.inspection.create.mockResolvedValue({ id: "new1" });
+    m.db.checklistSchedule.findUniqueOrThrow.mockResolvedValue({
+      id: "sch1", facilityId: "fac1", sectionId: "prod", areaId: "capsule", equipmentId: null, frequency: "DAILY", priority: "NORMAL",
+      checklist: { category: "POST_OPERATION_CLEANING", versions: [{ id: "ver1" }] },
+    });
+    m.db.inspectionResponse.findMany.mockResolvedValue([]);
+  });
+
+  it("an operator with no assigned area only reopens drafts that are unclaimed or their own", async () => {
+    signIn("OPERATOR", "new-op");
+    await startAdHocInspection({ checklistId: "ck1", areaId: "capsule" });
+    const where = m.db.inspection.findFirst.mock.calls[0][0].where;
+    expect(where.OR).toEqual([{ operatorId: null }, { operatorId: "new-op" }]);
+  });
+
+  it("a scoped operator cannot start a record for an area outside their scope", async () => {
+    signIn("OPERATOR", "bottling-op", { areas: [bottling] });
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "capsule" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/another section/) });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
+  it("a scoped operator can start one in their own area", async () => {
+    signIn("OPERATOR", "bottling-op", { areas: [bottling] });
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "bottling" });
+    expect(r).toEqual({ ok: true, inspectionId: "new1" });
+  });
+
+  it("facility-level checklists need no area scope", async () => {
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, category: "FACILITY_GENERATOR", versions: [{ id: "ver1" }] });
+    signIn("OPERATOR", "bottling-op", { areas: [bottling] });
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
+    expect(r).toEqual({ ok: true, inspectionId: "new1" });
+  });
+
+  it("an operator cannot close another section's scheduled task as 'no production'", async () => {
+    signIn("OPERATOR", "bottling-op", { areas: [bottling] });
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/another section/) });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
+  it("an operator in the schedule's own area can", async () => {
+    signIn("OPERATOR", "capsule-op", { areas: [capsule] });
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: true });
+  });
+
+  it("an operator cannot open (create) another section's scheduled record", async () => {
+    signIn("OPERATOR", "bottling-op", { areas: [bottling] });
+    const r = await getOrCreateInspectionForSchedule("sch1");
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/another section/) });
   });
 });

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import authConfig from "@/lib/auth.config";
 import { normalizeLoginId } from "@/lib/login-id";
+import { afterFailedLogin, DUMMY_PASSWORD_HASH, isLocked } from "@/lib/login-throttle";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -24,10 +25,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: entered.includes("@") ? { email: entered } : { loginId: entered },
           include: { assignedAreas: { select: { id: true, sectionId: true, section: { select: { facilityId: true } } } } },
         });
-        if (!user || !user.active) return null;
+        // Unknown, inactive or locked: still do a bcrypt comparison so the response time does not reveal which User IDs exist.
+        if (!user || !user.active || isLocked(user.lockedUntil)) {
+          await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+          return null;
+        }
 
         const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          await db.user.update({ where: { id: user.id }, data: afterFailedLogin(user.failedLogins) });
+          return null;
+        }
+        if (user.failedLogins > 0 || user.lockedUntil) {
+          await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
+        }
 
         await logAudit({ entityType: "User", entityId: user.id, action: "LOGIN", userId: user.id });
 

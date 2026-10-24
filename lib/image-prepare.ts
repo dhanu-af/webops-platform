@@ -29,9 +29,34 @@ async function drawToJpeg(bitmap: ImageBitmap, maxSide: number, quality: number)
 
 const jpegName = (name: string) => name.replace(/\.[^.]+$/, "") + ".jpg";
 
+// Older Safari versions reject createImageBitmap's options argument, and some
+// browsers can only decode through an <img>. Try each way before giving up.
+async function decode(file: File): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    // retry without the options argument
+  }
+  try {
+    return await createImageBitmap(file);
+  } catch {
+    // fall through to the <img> route
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await img.decode();
+    return await createImageBitmap(img);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export async function prepareImage(file: File): Promise<{ main: File; thumb: File | null }> {
   try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const bitmap = await decode(file);
     try {
       const thumbBlob = await drawToJpeg(bitmap, THUMB_MAX, THUMB_QUALITY);
       const thumb = thumbBlob ? new File([thumbBlob], "thumb-" + jpegName(file.name), { type: "image/jpeg" }) : null;

@@ -33,7 +33,7 @@ export async function getSchedulesByCategory(category: ChecklistCategory, scope:
 // Every active checklist in a category, for "start any" (no schedule needed),
 // plus the places it can be started for. The place a checklist is normally
 // scheduled for is offered as the default.
-export async function getOnDemandChecklists(category: ChecklistCategory) {
+export async function getOnDemandChecklists(category: ChecklistCategory, scope: UserScope = { scoped: false }) {
   const [checklists, areas] = await Promise.all([
     db.checklist.findMany({
       where: { category, active: true, versions: { some: { isCurrent: true } } },
@@ -46,7 +46,8 @@ export async function getOnDemandChecklists(category: ChecklistCategory) {
   ]);
 
   return {
-    areas: areas.map((a) => ({ id: a.id, label: `${a.section.name} / ${a.name}` })),
+    // An operator assigned to specific areas is only offered those (the server enforces it too).
+    areas: areas.filter((a) => !scope.scoped || scope.areaIds.includes(a.id)).map((a) => ({ id: a.id, label: `${a.section.name} / ${a.name}` })),
     checklists: checklists.map((c) => {
       const s = c.schedules[0];
       return {

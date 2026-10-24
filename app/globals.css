@@ -233,6 +233,11 @@ textarea {
   max-width: 100%;
 }
 
+/* Filter forms: the label sits above its field at every width. */
+form[method="GET" i] label {
+  display: block;
+}
+
 @media (max-width: 767px) {
   /* GET filter forms: one field per row, full width. */
   form[method="GET" i] > div {

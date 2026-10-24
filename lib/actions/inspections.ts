@@ -47,6 +47,19 @@ async function assertCanWork(inspection: RecordPlace & { id?: string }, user: Wo
   throw new UserFacingError("This record belongs to another section or operator. Only operators assigned to its area can work on it.");
 }
 
+// Scheduled tasks and on-demand starts: the same section rule as editing a record.
+// Facility-level checklists are open to every employee.
+function assertInScope(
+  place: { areaId: string | null; sectionId: string | null; facilityId: string },
+  category: string | undefined,
+  user: Worker
+) {
+  if (category && isFacilityLevelCategory(category)) return;
+  if (!canWorkOnRecord(scopeOf(user), user.id, { operatorId: null, ...place })) {
+    throw new UserFacingError("That task belongs to another section. Only operators assigned to its area can work on it.");
+  }
+}
+
 async function isFacilityLevelInspection(inspectionId: string): Promise<boolean> {
   const row = await db.inspection.findUnique({
     where: { id: inspectionId },
@@ -82,6 +95,7 @@ async function getOrCreateInspectionForSchedule__impl(scheduleId: string) {
   });
   if (existing) return existing.id;
 
+  assertInScope(schedule, schedule.checklist.category, user);
   const version = schedule.checklist.versions[0];
   const inspection = await db.inspection.create({
     data: {
@@ -808,19 +822,28 @@ export async function startAdHocInspection(input: {
       facilityId = area.section.facilityId;
       sectionId = area.sectionId;
       areaId = area.id;
+      assertInScope({ areaId, sectionId, facilityId }, checklist.category, user);
     } else {
       const facility = await db.facility.findFirst({ orderBy: { createdAt: "asc" } });
       if (!facility) throw new UserFacingError("No facility is set up yet.");
       facilityId = facility.id;
     }
 
+    // Only reopen a draft this person is allowed to edit: facility-level checklists are open to all,
+    // otherwise their own area's drafts (or, with no area assigned, unclaimed / their own).
+    const scope = scopeOf(user);
+    const visibleToUser = isFacilityLevelCategory(checklist.category)
+      ? {}
+      : scope.scoped
+        ? scopeWhere(scope)
+        : { OR: [{ operatorId: null }, { operatorId: user.id }] };
     const open = await db.inspection.findFirst({
       where: {
         checklistVersion: { checklistId: checklist.id },
         scheduleId: null,
         areaId,
         status: { in: EDITABLE_STATUSES },
-        ...scopeWhere(scopeOf(user)),
+        ...visibleToUser,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -867,6 +890,7 @@ export async function markNoProduction(input: { scheduleId: string; reason?: str
     });
     const version = schedule.checklist.versions[0];
     if (!version) throw new UserFacingError("That checklist has no published version yet.");
+    assertInScope(schedule, schedule.checklist.category, user);
 
     const reason = input.reason?.trim() || "No production";
     const timeZone = await getFacilityTimezone();
@@ -878,6 +902,7 @@ export async function markNoProduction(input: { scheduleId: string; reason?: str
     let inspectionId: string;
     if (existing) {
       if (existing.status === "NO_PRODUCTION") return;
+      await assertCanWork(existing, user);
       if (!EDITABLE_STATUSES.includes(existing.status)) throw new UserFacingError("This checklist has already been completed.");
       // An answer cleared with Undo leaves an empty row behind, so count only
       // rows that still hold a real value.

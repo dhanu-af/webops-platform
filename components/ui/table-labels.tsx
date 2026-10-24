@@ -25,7 +25,10 @@ export function TableLabels() {
     const run = () => document.querySelectorAll<HTMLTableElement>("table[data-stack]").forEach(label);
     run();
     let frame = 0;
-    const observer = new MutationObserver(() => {
+    const touchesTable = (n: Node) => n instanceof HTMLElement && (n.matches("table, thead, tbody, tr, td, th") || !!n.querySelector("table[data-stack]"));
+    const observer = new MutationObserver((mutations) => {
+      // Re-label only when table content was added; ignore every other DOM change.
+      if (!mutations.some((m) => [...m.addedNodes].some(touchesTable))) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(run);
     });
