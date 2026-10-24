@@ -9,6 +9,7 @@ const CATEGORIES: { value: ChecklistCategory; label: string }[] = [
   { value: "PRE_START", label: "Pre-Start" },
   { value: "LINE_CLEARANCE", label: "Line Clearance" },
   { value: "ALLERGEN_CHANGEOVER", label: "Allergen Changeover" },
+  { value: "FACILITY_GENERATOR", label: "Facility & Generator" },
   { value: "POST_OPERATION_CLEANING", label: "Post-Operation Cleaning" },
   { value: "FIVE_S", label: "5S Audit" },
   { value: "EQUIPMENT_CHECK", label: "Equipment Check" },

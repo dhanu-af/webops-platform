@@ -402,7 +402,7 @@ describe("startAdHocInspection (start any checklist without a schedule)", () => 
   beforeEach(() => {
     vi.clearAllMocks();
     signIn("OPERATOR", "op1");
-    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, versions: [{ id: "ver1" }] });
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, category: "POST_OPERATION_CLEANING", versions: [{ id: "ver1" }] });
     m.db.area.findUnique.mockResolvedValue({ id: "area1", sectionId: "sec1", section: { facilityId: "fac1" } });
     m.db.facility.findFirst.mockResolvedValue({ id: "fac1" });
     m.db.inspection.findFirst.mockResolvedValue(null);
@@ -418,7 +418,8 @@ describe("startAdHocInspection (start any checklist without a schedule)", () => 
     expect(m.db.inspection.create.mock.calls[0][0].data.scheduleId).toBeUndefined();
   });
 
-  it("supports facility-wide checklists (no area)", async () => {
+  it("supports facility-level checklists (generator, facility open/close) with no area", async () => {
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, category: "FACILITY_GENERATOR", versions: [{ id: "ver1" }] });
     const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
     expect(r).toEqual({ ok: true, inspectionId: "new1" });
     expect(m.db.inspection.create).toHaveBeenCalledWith({ data: expect.objectContaining({ facilityId: "fac1", sectionId: null, areaId: null }) });
@@ -438,8 +439,14 @@ describe("startAdHocInspection (start any checklist without a schedule)", () => 
     expect(m.db.inspection.create).not.toHaveBeenCalled();
   });
 
+  it("requires an area for area-based checklists", async () => {
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
+    expect(r).toEqual({ ok: false, error: "Select the area or line this checklist is for." });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
   it("refuses an inactive checklist", async () => {
-    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: false, versions: [{ id: "ver1" }] });
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: false, category: "FACILITY_GENERATOR", versions: [{ id: "ver1" }] });
     const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
     expect(r).toEqual({ ok: false, error: "That checklist is not available." });
   });

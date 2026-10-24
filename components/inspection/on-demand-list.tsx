@@ -14,7 +14,7 @@ const SELECT_CLASS =
 
 // Two dropdowns instead of a long list: choose the checklist, confirm the area
 // (pre-filled with where that checklist is normally used), then Start.
-export function OnDemandList({ checklists, areas }: { checklists: Item[]; areas: Area[] }) {
+export function OnDemandList({ checklists, areas, facilityLevel = false }: { checklists: Item[]; areas: Area[]; facilityLevel?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [checklistId, setChecklistId] = useState("");
@@ -52,7 +52,7 @@ export function OnDemandList({ checklists, areas }: { checklists: Item[]; areas:
         <div>
           <label className="text-xs font-medium text-muted-strong">Area</label>
           <select value={areaId} onChange={(e) => setAreaId(e.target.value)} disabled={!checklistId} className={SELECT_CLASS}>
-            <option value={FACILITY_WIDE}>Facility-wide</option>
+            <option value={FACILITY_WIDE}>{facilityLevel ? "Facility-wide" : "Select an area…"}</option>
             {areas.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.label}
@@ -63,7 +63,7 @@ export function OnDemandList({ checklists, areas }: { checklists: Item[]; areas:
       </div>
       {error && <p className="rounded-lg bg-status-critical-soft px-3 py-2 text-sm text-status-critical">{error}</p>}
       <Button
-        disabled={pending || !checklistId}
+        disabled={pending || !checklistId || (!facilityLevel && !areaId)}
         onClick={() =>
           startTransition(async () => {
             setError(null);

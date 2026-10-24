@@ -98,13 +98,20 @@ export function needsProductChangeover(category: string): boolean {
   return (CATEGORIES_NEEDING_PRODUCT_CHANGEOVER as readonly string[]).includes(category);
 }
 
+/** Categories that cover the whole facility, so a record need not name one area. */
+export const FACILITY_LEVEL_CATEGORIES = ["FACILITY_GENERATOR"] as const;
+
+export function isFacilityLevelCategory(category: string): boolean {
+  return (FACILITY_LEVEL_CATEGORIES as readonly string[]).includes(category);
+}
+
 /** Missing record-header fields for this category; empty when complete (URS-04, URS-05). */
 export function missingHeaderFields(
   category: string,
   header: { product: string | null; batchNumber: string | null; previousProduct: string | null; previousBatchNumber: string | null; areaId: string | null }
 ): string[] {
   const missing: string[] = [];
-  if (!header.areaId) missing.push("Area / line");
+  if (!header.areaId && !isFacilityLevelCategory(category)) missing.push("Area / line");
   if (needsProductChangeover(category)) {
     if (!header.previousProduct?.trim()) missing.push("Previous product");
     if (!header.previousBatchNumber?.trim()) missing.push("Previous batch");

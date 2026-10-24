@@ -5,7 +5,7 @@ import type { ChecklistCategory } from "@/app/generated/prisma/client";
 
 // "Start any": every checklist in the category, whether or not it is scheduled
 // today. Pick the place, fill it in and submit it for verification.
-export async function OnDemandChecklists({ category }: { category: ChecklistCategory }) {
+export async function OnDemandChecklists({ category, facilityLevel = false }: { category: ChecklistCategory; facilityLevel?: boolean }) {
   const { checklists, areas } = await getOnDemandChecklists(category);
 
   return (
@@ -20,7 +20,7 @@ export async function OnDemandChecklists({ category }: { category: ChecklistCate
         {checklists.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">No checklists of this type have been created yet.</p>
         ) : (
-          <OnDemandList checklists={checklists} areas={areas} />
+          <OnDemandList checklists={checklists} areas={areas} facilityLevel={facilityLevel} />
         )}
       </CardContent>
     </Card>

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "postinstall": "prisma generate",
     "seed": "tsx prisma/seed.ts",
-    "seed:allergen-changeover": "tsx prisma/seed-allergen-changeover.ts"
+    "seed:allergen-changeover": "tsx prisma/seed-allergen-changeover.ts",
+    "seed:facility-generator": "tsx prisma/seed-facility-generator.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",

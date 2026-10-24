@@ -11,6 +11,7 @@ import { APP_VERSION_STAMP } from "@/lib/app-version";
 import {
   changedFields,
   failuresMissingCorrectiveAction,
+  isFacilityLevelCategory,
   missingHeaderFields,
   numericVerdict,
   signatureMeaning,
@@ -767,6 +768,7 @@ export async function startAdHocInspection(input: {
     const version = checklist?.versions[0];
     if (!checklist || !checklist.active) throw new UserFacingError("That checklist is not available.");
     if (!version) throw new UserFacingError("That checklist has no published version yet.");
+    if (!input.areaId && !isFacilityLevelCategory(checklist.category)) throw new UserFacingError("Select the area or line this checklist is for.");
 
     let facilityId: string;
     let sectionId: string | null = null;

@@ -381,6 +381,9 @@ enum ChecklistCategory {
   // Allergen changeover clean & verification (URS-04c) -- needs the same
   // previous/next product capture as LINE_CLEARANCE, see lib/inspection-rules.ts.
   ALLERGEN_CHANGEOVER
+  // Generator on/off and production-facility open/close: facility-wide, so no
+  // single area is required (see lib/inspection-rules.ts).
+  FACILITY_GENERATOR
   CUSTOM
 }
 

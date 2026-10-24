@@ -64,6 +64,11 @@ describe("URS-05 required fields cannot be blank", () => {
     expect(missingHeaderFields("POST_OPERATION_CLEANING", blank)).toEqual([]);
     expect(missingHeaderFields("PRE_START", { ...blank, areaId: null })).toEqual(["Area / line"]);
   });
+
+  it("does not demand an area for facility-level checklists (generator, facility open/close)", () => {
+    const blank = { product: null, batchNumber: null, previousProduct: null, previousBatchNumber: null, areaId: null };
+    expect(missingHeaderFields("FACILITY_GENERATOR", blank)).toEqual([]);
+  });
 });
 
 describe("URS-07 / URS-08 failures need corrective action and release is blocked", () => {

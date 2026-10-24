@@ -25,7 +25,7 @@ import {
   TestTube,
   Beaker,
   Fan,
-  type LucideIcon, ShieldAlert, Printer } from "lucide-react";
+  type LucideIcon, ShieldAlert, Printer, Zap } from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -51,6 +51,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Line Clearance", href: "/line-clearance", icon: ClipboardX },
       { label: "Allergen Changeover", href: "/allergen-changeover", icon: ShieldAlert },
       { label: "Post-Op Cleaning", href: "/post-op", icon: SprayCan },
+      { label: "Facility & Generator", href: "/facility-generator", icon: Zap },
       { label: "5S Audits", href: "/five-s", icon: LayoutGrid },
       { label: "Production Staging", href: "/drying-room", icon: Fan },
     ],
