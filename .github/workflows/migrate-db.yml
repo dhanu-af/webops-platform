@@ -36,7 +36,8 @@ jobs:
           # Only the app's own schema: Neon manages its own neon_auth schema in each project.
           $PGBIN/pg_dump --format=custom --schema=public --no-owner --no-privileges --file=copy.dump "$OLD_URL"
           ls -l copy.dump
-          $PGBIN/pg_restore --no-owner --no-privileges --exit-on-error --dbname="$NEW_URL" copy.dump
+          # --clean --if-exists only replaces the (empty, just-checked) default public schema in the new database.
+          $PGBIN/pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error --dbname="$NEW_URL" copy.dump
           echo "restore finished"
 
       - name: Compare row counts, table by table
