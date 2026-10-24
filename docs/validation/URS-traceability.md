@@ -25,6 +25,23 @@ Release 0.2.0. "Test" = how to verify by hand; automated tests run with `npm tes
 | URS-19 App version in footer and on records | Y | `lib/app-version.ts`, `components/nav/app-footer.tsx`, `Inspection.appVersion`, `AuditLog.appVersion` | Footer shows `v0.2.0`; PDF header shows release. |
 | URS-20 Printable blank paper checklists | Y | `app/forms/page.tsx`, `app/forms/[id]/page.tsx` | Open `/forms`, pick a checklist, Print. Fields mirror the electronic form. |
 
+## Additional controls (independent GMP review, 2026-10-24)
+
+| Control | Where it is enforced | How it is tested |
+|---|---|---|
+| Live account on every action and download (deactivated / demoted users stop at once) | `requireLiveUser`, `liveSession` in `lib/session-user.ts` | `lib/actions/inspections.test.ts` (deactivated account), browser run |
+| No password hash ever reaches the browser | `SAFE_USER` selects, `lib/safe-user.ts` | `lib/safe-user.test.ts` scans the source |
+| Measured values judged by the server only | `saveResponse` (`numericVerdict`) | `inspections.test.ts` "measured values are judged by the server" |
+| Status change + signature + audit row are one transaction; a step can be signed once | `submitInspection`, `verifyInspection`, `closeCorrectiveAction` (`db.$transaction`, `updateMany where status`) | `inspections.test.ts`, browser run |
+| Segregation of duties: not the operator/any participant, Supervisor-step approver is not the QA approver, CA creator/owner cannot sign it off | `participantIds`, `verifierConflict`, `closeCorrectiveAction` | `inspections.test.ts` |
+| E-signature wrong passwords count toward lockout | `lib/signature.ts` | `lib/signature.test.ts` |
+| QC sample approval/rejection is signed, second-person, no FAIL | `approveSample`, `rejectSample` | browser run (`audit/modules.js`) |
+| Manufacturing sign-offs = signed-in user + server time; QA release QA-only; completed batch locked | `lib/mfg-signoff.ts`, `lib/actions/mfg-reconciliation.ts` | `lib/mfg-signoff.test.ts` |
+| QC decisions in the drying room are QA/Supervisor only | `updateBatchStage`, `updateTrolley` | browser run |
+| Database refuses: editing a signature, editing an answer on an approved/closed record, deleting a completed batch or a lab-tested QC sample | migration `20261024180000_record_protection_more` | local DB test, monthly restore drill checks the 9 triggers |
+| Deletions keep a full snapshot in the audit trail | mfg batch/dispatch, QC sample/attachment, drying batch, formulation | code review |
+| Health / uptime monitoring | `/api/health`, `.github/workflows/uptime-check.yml` | live probe |
+
 ## Items that need a person
 - Add the `BACKUP_DATABASE_URL` GitHub secret and run a restore drill (URS-17).
 - QA to confirm the placeholder ranges/items in the Allergen Changeover checklist (URS-04/08).
