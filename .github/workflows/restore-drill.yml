@@ -1,0 +1,92 @@
+# Restore drill (URS-17): proves the latest daily backup can actually be restored.
+# Downloads the newest successful backup artifact, restores it into a throwaway
+# PostgreSQL 18 container on the runner (never production), then checks the data
+# and that the database-level protections survived the restore.
+# Run it from Actions -> Restore drill -> Run workflow; it also runs monthly.
+name: Restore drill
+
+on:
+  schedule:
+    - cron: "43 20 1 * *" # 1st of each month
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: drill
+          POSTGRES_DB: scratch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PGPASSWORD: drill
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: scratch
+    steps:
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-18
+
+      - name: Download the latest successful backup
+        run: |
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow db-backup.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID" || { echo "No successful backup run found"; exit 1; }
+          echo "Using backup from run $RUN_ID"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --dir backup
+          ls -l backup/*
+
+      - name: Verify checksum
+        run: |
+          cd backup/*/
+          sha256sum -c *.sha256
+
+      - name: Restore into the scratch database
+        run: |
+          PGBIN=/usr/lib/postgresql/18/bin
+          $PGBIN/pg_restore --no-owner --no-privileges --exit-on-error --dbname=scratch backup/*/*.dump
+
+      - name: Check the restored data
+        run: |
+          PGBIN=/usr/lib/postgresql/18/bin
+          $PGBIN/psql -v ON_ERROR_STOP=1 <<'SQL'
+          select (select count(*) from "User")              as users,
+                 (select count(*) from "Inspection")        as inspections,
+                 (select count(*) from "InspectionResponse") as responses,
+                 (select count(*) from "AuditLog")          as audit_entries,
+                 (select count(*) from "ChecklistVersion")  as checklist_versions;
+          do $$
+          begin
+            if (select count(*) from "User") = 0 then raise exception 'restored database has no users'; end if;
+            if (select count(*) from "ChecklistVersion") = 0 then raise exception 'restored database has no checklist versions'; end if;
+          end $$;
+          SQL
+
+      - name: Check immutability protections survived
+        run: |
+          PGBIN=/usr/lib/postgresql/18/bin
+          N=$($PGBIN/psql -At -c "select count(*) from pg_trigger where not tgisinternal and tgname in ('Inspection_block_delete','InspectionResponse_block_delete','VerificationRecord_block_delete','CorrectiveAction_block_delete','AuditLog_block_change')")
+          echo "protection triggers restored: $N (expected 5)"
+          test "$N" = "5"
+          # The audit trail must still refuse to be edited.
+          if $PGBIN/psql -v ON_ERROR_STOP=1 -c 'delete from "AuditLog"' 2>/dev/null; then
+            echo "AuditLog delete was NOT blocked"; exit 1
+          fi
+          echo "AuditLog delete correctly refused"
