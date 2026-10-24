@@ -748,3 +748,77 @@ export async function verifyInspection(input: { inspectionId: string; action: Ve
 export async function resubmitReturnedInspection(inspectionId: string, reason?: string): Promise<ActionResult> {
   return runAction(() => resubmitReturnedInspectionImpl(inspectionId, reason));
 }
+
+// On-demand start (no schedule needed): anyone with permission picks any active
+// checklist and the place it is for, then fills and submits it for verification
+// like a scheduled one. If this person already has an unfinished on-demand
+// record for the same checklist and place, it is reopened instead of duplicated.
+export async function startAdHocInspection(input: {
+  checklistId: string;
+  areaId: string | null;
+}): Promise<{ ok: true; inspectionId: string } | { ok: false; error: string }> {
+  try {
+    const user = await requireUserWithPermission("inspection.create");
+
+    const checklist = await db.checklist.findUnique({
+      where: { id: input.checklistId },
+      include: { versions: { where: { isCurrent: true }, take: 1 } },
+    });
+    const version = checklist?.versions[0];
+    if (!checklist || !checklist.active) throw new UserFacingError("That checklist is not available.");
+    if (!version) throw new UserFacingError("That checklist has no published version yet.");
+
+    let facilityId: string;
+    let sectionId: string | null = null;
+    let areaId: string | null = null;
+    if (input.areaId) {
+      const area = await db.area.findUnique({ where: { id: input.areaId }, include: { section: true } });
+      if (!area) throw new UserFacingError("That area no longer exists.");
+      facilityId = area.section.facilityId;
+      sectionId = area.sectionId;
+      areaId = area.id;
+    } else {
+      const facility = await db.facility.findFirst({ orderBy: { createdAt: "asc" } });
+      if (!facility) throw new UserFacingError("No facility is set up yet.");
+      facilityId = facility.id;
+    }
+
+    const open = await db.inspection.findFirst({
+      where: {
+        checklistVersion: { checklistId: checklist.id },
+        scheduleId: null,
+        areaId,
+        status: { in: EDITABLE_STATUSES },
+        OR: [{ operatorId: null }, { operatorId: user.id }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (open) return { ok: true, inspectionId: open.id };
+
+    const inspection = await db.inspection.create({
+      data: {
+        checklistVersionId: version.id,
+        facilityId,
+        sectionId,
+        areaId,
+        frequency: "AD_HOC",
+        status: "NOT_STARTED",
+        dueAt: new Date(),
+        operatorId: user.role === "OPERATOR" || user.role === "TEAM_LEADER" ? user.id : null,
+        appVersion: APP_VERSION_STAMP,
+      },
+    });
+    await logAudit({
+      entityType: "Inspection",
+      entityId: inspection.id,
+      inspectionId: inspection.id,
+      action: "CREATED",
+      userId: user.id,
+      reason: "Started on demand (not from a schedule)",
+    });
+    return { ok: true, inspectionId: inspection.id };
+  } catch (e) {
+    if (e instanceof UserFacingError) return { ok: false, error: e.message };
+    throw e;
+  }
+}

@@ -16,6 +16,9 @@ const m = vi.hoisted(() => ({
     verificationRecord: { create: vi.fn() },
     areaRelease: { upsert: vi.fn() },
     auditLog: { create: vi.fn() },
+    checklist: { findUnique: vi.fn() },
+    area: { findUnique: vi.fn() },
+    facility: { findFirst: vi.fn() },
   },
 }));
 
@@ -32,6 +35,7 @@ import {
   verifyInspection,
   resubmitReturnedInspection,
   closeCorrectiveAction,
+  startAdHocInspection,
 } from "./inspections";
 
 type Role = "OPERATOR" | "SUPERVISOR" | "QA" | "VIEWER" | "ADMIN";
@@ -391,5 +395,52 @@ describe("URS-11 / URS-12 edits after submission keep the original and are fully
     expect(m.db.finding.delete).not.toHaveBeenCalled();
     // The "when" is the database's createdAt default -- the app never supplies it.
     for (const e of entries) expect(e).not.toHaveProperty("createdAt");
+  });
+});
+
+describe("startAdHocInspection (start any checklist without a schedule)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    signIn("OPERATOR", "op1");
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, versions: [{ id: "ver1" }] });
+    m.db.area.findUnique.mockResolvedValue({ id: "area1", sectionId: "sec1", section: { facilityId: "fac1" } });
+    m.db.facility.findFirst.mockResolvedValue({ id: "fac1" });
+    m.db.inspection.findFirst.mockResolvedValue(null);
+    m.db.inspection.create.mockResolvedValue({ id: "new1" });
+  });
+
+  it("creates a draft for the chosen checklist and area, with no schedule", async () => {
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "area1" });
+    expect(r).toEqual({ ok: true, inspectionId: "new1" });
+    expect(m.db.inspection.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ checklistVersionId: "ver1", facilityId: "fac1", sectionId: "sec1", areaId: "area1", frequency: "AD_HOC", status: "NOT_STARTED", operatorId: "op1" }),
+    });
+    expect(m.db.inspection.create.mock.calls[0][0].data.scheduleId).toBeUndefined();
+  });
+
+  it("supports facility-wide checklists (no area)", async () => {
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
+    expect(r).toEqual({ ok: true, inspectionId: "new1" });
+    expect(m.db.inspection.create).toHaveBeenCalledWith({ data: expect.objectContaining({ facilityId: "fac1", sectionId: null, areaId: null }) });
+  });
+
+  it("reopens the person's unfinished record instead of creating a duplicate", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "open1" });
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "area1" });
+    expect(r).toEqual({ ok: true, inspectionId: "open1" });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a role that cannot create inspections, with a readable message", async () => {
+    signIn("VIEWER", "v1");
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "area1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/cannot perform/i) });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an inactive checklist", async () => {
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: false, versions: [{ id: "ver1" }] });
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
+    expect(r).toEqual({ ok: false, error: "That checklist is not available." });
   });
 });

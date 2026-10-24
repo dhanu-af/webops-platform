@@ -29,3 +29,32 @@ export async function getSchedulesByCategory(category: ChecklistCategory, scope:
   // uses to decide which days a schedule is really due on.
   return schedules.filter((s) => scheduleAppliesOnDay(s, today));
 }
+
+// Every active checklist in a category, for "start any" (no schedule needed),
+// plus the places it can be started for. The place a checklist is normally
+// scheduled for is offered as the default.
+export async function getOnDemandChecklists(category: ChecklistCategory) {
+  const [checklists, areas] = await Promise.all([
+    db.checklist.findMany({
+      where: { category, active: true, versions: { some: { isCurrent: true } } },
+      include: {
+        schedules: { where: { active: true }, include: { area: true, section: true }, take: 1, orderBy: { createdAt: "asc" } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    db.area.findMany({ where: { archived: false }, include: { section: true }, orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }] }),
+  ]);
+
+  return {
+    areas: areas.map((a) => ({ id: a.id, label: `${a.section.name} / ${a.name}` })),
+    checklists: checklists.map((c) => {
+      const s = c.schedules[0];
+      return {
+        id: c.id,
+        name: c.name,
+        defaultAreaId: s?.areaId ?? null,
+        group: s?.area?.name ?? s?.section?.name ?? "Facility-wide / other",
+      };
+    }),
+  };
+}

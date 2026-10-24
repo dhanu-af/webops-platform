@@ -3,6 +3,7 @@ import { getUserScope } from "@/lib/scope";
 import { getSchedulesByCategory } from "@/lib/data/by-category";
 import { getFiveSLeaderboards } from "@/lib/data/five-s";
 import { ScheduleList } from "@/components/inspection/schedule-list";
+import { OnDemandChecklists } from "@/components/inspection/on-demand-checklists";
 import { FiveSLeaderboard } from "@/components/five-s/five-s-leaderboard";
 
 export default async function FiveSPage() {
@@ -21,6 +22,7 @@ export default async function FiveSPage() {
       </div>
       <FiveSLeaderboard data={leaderboards} />
       <ScheduleList schedules={schedules} emptyLabel="No 5S audits scheduled yet." />
+      <OnDemandChecklists category="FIVE_S" />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { getUserScope } from "@/lib/scope";
 import { getSchedulesByCategory } from "@/lib/data/by-category";
 import { ScheduleList } from "@/components/inspection/schedule-list";
+import { OnDemandChecklists } from "@/components/inspection/on-demand-checklists";
 
 export default async function PreStartPage() {
   const session = await auth();
@@ -15,6 +16,7 @@ export default async function PreStartPage() {
         <p className="text-sm text-muted">Scan → Select → Check → Photo → Submit.</p>
       </div>
       <ScheduleList schedules={schedules} emptyLabel="No pre-start checklists scheduled yet." />
+      <OnDemandChecklists category="PRE_START" />
     </div>
   );
 }
