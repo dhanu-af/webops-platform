@@ -858,8 +858,18 @@ export async function markNoProduction(input: { scheduleId: string; reason?: str
     if (existing) {
       if (existing.status === "NO_PRODUCTION") return;
       if (!EDITABLE_STATUSES.includes(existing.status)) throw new UserFacingError("This checklist has already been completed.");
-      const answers = await db.inspectionResponse.count({ where: { inspectionId: existing.id } });
-      if (answers > 0) throw new UserFacingError("This checklist already has answers. Submit it instead of marking no production.");
+      // An answer cleared with Undo leaves an empty row behind, so count only
+      // rows that still hold a real value.
+      const rows = await db.inspectionResponse.findMany({
+        where: { inspectionId: existing.id },
+        select: { passFail: true, numericValue: true, textValue: true, choiceValue: true },
+      });
+      const answers = rows.filter((r) => r.passFail !== null || r.numericValue !== null || !!r.textValue?.trim() || !!r.choiceValue?.trim()).length;
+      if (answers > 0) {
+        throw new UserFacingError(
+          `This checklist has ${answers} answer${answers === 1 ? "" : "s"}. Open it and use "Undo answer" on each, or submit it instead of marking no production.`
+        );
+      }
       await db.inspection.update({
         where: { id: existing.id },
         data: { status: "NO_PRODUCTION", noProductionReason: reason, operatorId: existing.operatorId ?? user.id, startedAt: existing.startedAt ?? now },

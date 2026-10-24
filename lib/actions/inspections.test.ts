@@ -10,7 +10,7 @@ const m = vi.hoisted(() => ({
     user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn() },
     inspection: { findUniqueOrThrow: vi.fn(), update: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     checklistItem: { findUniqueOrThrow: vi.fn() },
-    inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn(), update: vi.fn() },
+    inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     photoEvidence: { findUnique: vi.fn(), delete: vi.fn() },
     checklistSchedule: { findUniqueOrThrow: vi.fn() },
     finding: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn(), delete: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
@@ -484,7 +484,7 @@ describe("markNoProduction (close a scheduled task when nothing was produced)", 
     m.db.checklistSchedule.findUniqueOrThrow.mockResolvedValue(schedule);
     m.db.inspection.findFirst.mockResolvedValue(null);
     m.db.inspection.create.mockResolvedValue({ id: "new1" });
-    m.db.inspectionResponse.count.mockResolvedValue(0);
+    m.db.inspectionResponse.findMany.mockResolvedValue([]);
   });
 
   it("creates a closed NO_PRODUCTION record with the reason, who and an audit entry", async () => {
@@ -513,10 +513,25 @@ describe("markNoProduction (close a scheduled task when nothing was produced)", 
 
   it("refuses when the checklist already has answers", async () => {
     m.db.inspection.findFirst.mockResolvedValue({ id: "draft1", status: "IN_PROGRESS", operatorId: "op1", startedAt: FIXED_NOW });
-    m.db.inspectionResponse.count.mockResolvedValue(3);
+    m.db.inspectionResponse.findMany.mockResolvedValue([
+      { passFail: "PASS", numericValue: null, textValue: null, choiceValue: null },
+      { passFail: null, numericValue: 5, textValue: null, choiceValue: null },
+      { passFail: null, numericValue: null, textValue: null, choiceValue: null },
+    ]);
     const r = await markNoProduction({ scheduleId: "sch1" });
-    expect(r).toEqual({ ok: false, error: expect.stringMatching(/already has answers/) });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/has 2 answers/) });
     expect(m.db.inspection.update).not.toHaveBeenCalled();
+  });
+
+  it("ignores answers that were cleared with Undo (empty rows are not answers)", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "draft1", status: "IN_PROGRESS", operatorId: "op1", startedAt: FIXED_NOW });
+    m.db.inspectionResponse.findMany.mockResolvedValue([
+      { passFail: null, numericValue: null, textValue: null, choiceValue: null },
+      { passFail: null, numericValue: null, textValue: "  ", choiceValue: "" },
+    ]);
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: true });
+    expect(m.db.inspection.update).toHaveBeenCalledWith({ where: { id: "draft1" }, data: expect.objectContaining({ status: "NO_PRODUCTION" }) });
   });
 
   it("refuses when the checklist was already submitted", async () => {
