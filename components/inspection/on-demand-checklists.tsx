@@ -11,11 +11,11 @@ export async function OnDemandChecklists({ category }: { category: ChecklistCate
   return (
     <Card>
       <CardHeader>
-        <CardTitle>All checklists — start any</CardTitle>
+        <CardTitle>Start any checklist</CardTitle>
       </CardHeader>
       <CardContent className="pt-2">
         <p className="mb-3 text-xs text-muted">
-          Choose the checklist you need and the area it is for, then fill it in and submit it for verification. Anything you started but did not finish opens where you left off.
+          Select the checklist you need and the area it is for, then press Start. Fill it in and submit it for verification. Anything you started but did not finish opens where you left off.
         </p>
         {checklists.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">No checklists of this type have been created yet.</p>
