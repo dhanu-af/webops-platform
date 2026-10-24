@@ -435,6 +435,8 @@ model ChecklistVersion {
   createdById   String
   createdBy     User      @relation(fields: [createdById], references: [id])
   isCurrent     Boolean   @default(true)
+  // Controlled-form header (document number, revision, cleaning agents ...), see lib/doc-control.ts.
+  docControl    Json?
 
   items       ChecklistItem[]
   inspections Inspection[]

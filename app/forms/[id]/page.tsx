@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { APP_VERSION_STAMP } from "@/lib/app-version";
 import { needsProductChangeover } from "@/lib/inspection-rules";
 import { PrintButton } from "../print-button";
+import { parseDocControl } from "@/lib/doc-control";
+import { ControlledFormHeader, ControlledFormFooter } from "@/components/inspection/controlled-form-header";
 
 // Blank paper version of a checklist (URS-20). Standalone page (no app chrome)
 // so it prints cleanly on A4. Every electronic field has a paper equivalent:
@@ -34,6 +36,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
   const changeover = needsProductChangeover(checklist.category);
   const organization = (await db.systemSettings.findFirst({ select: { organizationName: true } }))?.organizationName;
   const steps = (checklist.workflow?.steps ?? []).filter((s) => s.role !== "OPERATOR");
+  const docControl = parseDocControl(version.docControl);
 
   const answerCell = (it: (typeof version.items)[number]) => {
     switch (it.type) {
@@ -91,6 +94,12 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
         <PrintButton />
       </div>
 
+      {docControl ? (
+        <header className="mb-3">
+          <ControlledFormHeader doc={docControl} variant="paper" />
+          <p className="mt-1 text-[9px]">System release {APP_VERSION_STAMP} · Template v{version.versionNumber} · PAPER FALLBACK FORM — enter into the system when it is available</p>
+        </header>
+      ) : (
       <header className="mb-3 border-b-2 border-black pb-2">
         <p className="text-[10px] font-bold uppercase tracking-widest">{organization ?? "GMP record"}</p>
         <h1 className="text-lg font-bold">{checklist.name}</h1>
@@ -98,6 +107,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
           {checklist.category.replace(/_/g, " ")} · Template v{version.versionNumber} · System release {APP_VERSION_STAMP} · PAPER FALLBACK FORM — enter into the system when it is available
         </p>
       </header>
+      )}
 
       <table className="mb-3 w-full border-collapse text-[11px]">
         <tbody>
@@ -177,6 +187,36 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
         <p className="mt-1 text-[10px]">Line is NOT released until every corrective action above is signed off.</p>
       </section>
 
+      {docControl ? (
+        <section className="break-inside-avoid">
+          <h2 className="px-1.5 py-0.5 text-sm font-bold">C. VERIFICATION &amp; SIGN-OFF</h2>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                {["Role", "Name", "Signature", "Date"].map((h) => (
+                  <th key={h} className="border border-black bg-neutral-100 p-1 text-left text-[10px]">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(docControl.signOffRoles.length ? docControl.signOffRoles : ["Operator", "Supervisor"]).map((role) => (
+                <tr key={role}>
+                  <td className="w-[34%] border border-black p-1.5">{role}</td>
+                  <td className="h-9 border border-black" />
+                  <td className="border border-black" />
+                  <td className="border border-black" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-2">
+            <ControlledFormFooter doc={docControl} variant="paper" />
+          </div>
+          <p className="mt-1 text-[9px]">Form: {checklist.name} · v{version.versionNumber} · {id}</p>
+        </section>
+      ) : (
       <section className="break-inside-avoid">
         <h2 className="bg-neutral-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">Sign-off</h2>
         <table className="w-full border-collapse">
@@ -212,6 +252,7 @@ export default async function PaperForm({ params }: { params: Promise<{ id: stri
           Verifier must not be the person who completed the checklist. Corrections: single line through the entry, initial and date — never obscure the original. Form: {checklist.name} · v{version.versionNumber} · {id}
         </p>
       </section>
+      )}
     </div>
   );
 }

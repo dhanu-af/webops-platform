@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { isAnswered } from "@/lib/inspection-rules";
 import { canWorkOnRecord, getUserScope } from "@/lib/scope";
-import { formatDateTimeInTimeZone } from "@/lib/timezone";
+import { parseDocControl } from "@/lib/doc-control";
+import { ControlledFormHeader, ControlledFormFooter } from "@/components/inspection/controlled-form-header";
+import { formatDateTimeInTimeZone, formatDateSlashInTimeZone } from "@/lib/timezone";
 import { auth } from "@/lib/auth";
 import { getFacilityTimezone } from "@/lib/timezone";
 import { getInspection } from "@/lib/actions/inspections";
@@ -39,6 +41,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
     canWorkOnRecord(getUserScope(session.user), session.user.id, inspection);
   const status = recordStatus(inspection.status);
   const noProduction = inspection.status === "NO_PRODUCTION";
+  const docControl = parseDocControl(inspection.checklistVersion.docControl);
 
   const responseByItem = new Map(inspection.responses.map((r) => [r.checklistItemId, r]));
   const items = inspection.checklistVersion.items;
@@ -91,6 +94,11 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           </a>
           {inspection.appVersion && <span className="text-muted">Release {inspection.appVersion}</span>}
         </p>
+        {docControl && (
+          <div className="rounded-[var(--radius)] border border-border bg-surface p-4">
+            <ControlledFormHeader doc={docControl} dateText={formatDateSlashInTimeZone(inspection.startedAt ?? inspection.createdAt, timeZone)} />
+          </div>
+        )}
         {inspection.returnedReason && inspection.status === "RETURNED" && (
           <div className="rounded-lg bg-status-critical-soft px-3 py-2 text-sm text-status-critical">
             Returned: {inspection.returnedReason}
@@ -186,6 +194,8 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           />
         </div>
       ) : null}
+
+      {docControl && <ControlledFormFooter doc={docControl} />}
 
       {editable && <SubmitBar inspectionId={inspection.id} answered={answered} total={total} />}
     </div>

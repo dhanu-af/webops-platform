@@ -1,6 +1,7 @@
 import "dotenv/config";
-import { PrismaClient, type ItemType, type Frequency, type ChecklistCategory } from "../app/generated/prisma/client";
+import { PrismaClient, Prisma, type ItemType, type Frequency, type ChecklistCategory } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { DocControl } from "../lib/doc-control";
 
 // Adds the two controlled gummy-line forms WITHOUT touching any other data,
 // unlike prisma/seed.ts which wipes the database. Safe against a live database:
@@ -99,7 +100,43 @@ const REFERENCE =
   "Cleaning agents per C-REG-001 Rev 07: CHM-011 detergent + CHM-021 Pure IPA sanitiser; CHM-022 Sledge for monthly kettle CIP. " +
   "Verification: ATP swab per C.103 — QA-MGR risk-based spot check. Controlled form revision V1 — Draft.";
 
-const FORMS: Array<{ name: string; category: ChecklistCategory; frequency: Frequency; description: string; items: Item[] }> = [
+// Controlled-form header, as printed on the Word masters.
+const COMMON_DOC = {
+  organisation: "EAGLE LABS AUSTRALIA",
+  docType: "Controlled Form / Cleaning Checklist",
+  series: "C — Plant, Premises & Grounds",
+  parentSchedule: "C-FORM-002 — Facility Cleaning Schedule",
+  cleaningAgents: "Per C-REG-001 Rev 07 — CHM-011 detergent + CHM-021 Pure IPA sanitiser; CHM-022 Sledge for monthly kettle CIP",
+  verification: "ATP swab per C.103 — QA-MGR risk-based spot check",
+  revision: "V1 — Draft",
+  signOffRoles: ["Cleaned by (Production Operator)", "Checked by (PROD-SUP / PROD-TL) — per A-REG-003"],
+  note:
+    "Note: QA-MGR performs risk-based spot checks of cleaning records and ATP verification per C.103 — not on every individual form. PROD-SUP / PROD-TL (or zone-equivalent supervisor per A-REG-003) is the authorising signatory for each cleaning event.",
+  footerNotice: "This document is a controlled document of Eagle Labs Australia Pty Ltd. Printed or downloaded copies are uncontrolled.",
+} satisfies Partial<DocControl>;
+
+const DOC_PRE: DocControl = {
+  ...COMMON_DOC,
+  formTitle: "C-FORM-002C1 — Pre-Operational Release Check — Gummy Line",
+  subtitle: "Zone: GREEN — Gummy Line  |  Cadence: Per-Batch (Pre-Op)  |  Per C.101 § 9.1",
+  docNumber: "C-FORM-002C1",
+  docTitle: "Pre-Operational Release Check — Gummy Line",
+  implementsRef: "C.101 (Per-Batch (Pre-Op) execution)",
+  intro:
+    "Pre-Operational Release Check is completed at the start of each production batch / product changeover on the gummy line. Line is NOT released for production until this checklist is signed off by both Operator and PROD-SUP.",
+};
+
+const DOC_POST: DocControl = {
+  ...COMMON_DOC,
+  formTitle: "C-FORM-002C2 — Post-Production Cleaning Check — Gummy Line",
+  subtitle: "Zone: GREEN — Gummy Line  |  Cadence: Per-Batch (Post-Prod)  |  Per C.101 § 9.1",
+  docNumber: "C-FORM-002C2",
+  docTitle: "Post-Production Cleaning Check — Gummy Line",
+  implementsRef: "C.101 (Per-Batch (Post-Prod) execution)",
+  intro: "Post-Production Cleaning Check is completed at the end of each production batch / end of shift on the gummy line.",
+};
+
+const FORMS: Array<{ name: string; category: ChecklistCategory; frequency: Frequency; description: string; doc: DocControl; items: Item[] }> = [
   {
     name: "C-FORM-002C1 Pre-Operational Release Check — Gummy Line 1",
     category: "PRE_START",
@@ -107,6 +144,7 @@ const FORMS: Array<{ name: string; category: ChecklistCategory; frequency: Frequ
     description:
       "Completed at the start of each production batch / product changeover on the gummy line. The line is NOT released for production until signed off by both the Operator and PROD-SUP. " +
       REFERENCE,
+    doc: DOC_PRE,
     items: PRE_OP,
   },
   {
@@ -114,6 +152,7 @@ const FORMS: Array<{ name: string; category: ChecklistCategory; frequency: Frequ
     category: "POST_OPERATION_CLEANING",
     frequency: "AFTER_PRODUCTION",
     description: "Completed at the end of each production batch / end of shift on the gummy line. " + REFERENCE,
+    doc: DOC_POST,
     items: POST_PROD,
   },
 ];
@@ -130,14 +169,18 @@ async function main() {
   if (!workflow) console.warn('Workflow "Operator → Supervisor" not found -- created with no workflow; assign one in Admin → Checklists.');
 
   for (const def of FORMS) {
-    if (await db.checklist.findFirst({ where: { name: def.name } })) {
-      console.log(`"${def.name}" already exists -- skipped.`);
+    const existing = await db.checklist.findFirst({ where: { name: def.name } });
+    if (existing) {
+      // Already created earlier: just make sure its current version carries the
+      // controlled-form header (never overwrites a header someone has edited).
+      const filled = await db.checklistVersion.updateMany({ where: { checklistId: existing.id, isCurrent: true, docControl: { equals: Prisma.DbNull } }, data: { docControl: def.doc } });
+      console.log(`"${def.name}" already exists -- ${filled.count ? "controlled-form header added" : "nothing to do"}.`);
       continue;
     }
     const checklist = await db.checklist.create({
       data: { name: def.name, category: def.category, workflowId: workflow?.id, description: def.description },
     });
-    const version = await db.checklistVersion.create({ data: { checklistId: checklist.id, versionNumber: "1.0", createdById: creator.id } });
+    const version = await db.checklistVersion.create({ data: { checklistId: checklist.id, versionNumber: "1.0", createdById: creator.id, docControl: def.doc } });
     await db.checklistItem.createMany({
       data: def.items.map((it, i) => ({
         checklistVersionId: version.id,

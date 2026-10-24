@@ -84,7 +84,13 @@ export async function saveChecklistVersion(input: {
       await tx.checklistVersion.update({ where: { id: current.id }, data: { isCurrent: false } });
     }
     const version = await tx.checklistVersion.create({
-      data: { checklistId: input.checklistId, versionNumber: nextVersionNumber, createdById: user.id, isCurrent: true },
+      data: {
+        checklistId: input.checklistId,
+        versionNumber: nextVersionNumber,
+        createdById: user.id,
+        isCurrent: true,
+        docControl: current?.docControl ?? undefined,
+      },
     });
     for (let i = 0; i < input.items.length; i++) {
       const item = input.items[i];
@@ -138,7 +144,7 @@ export async function cloneChecklist(id: string) {
       },
     });
     const newVersion = await tx.checklistVersion.create({
-      data: { checklistId: newChecklist.id, versionNumber: "1.0", createdById: user.id },
+      data: { checklistId: newChecklist.id, versionNumber: "1.0", createdById: user.id, docControl: currentVersion.docControl ?? undefined },
     });
     for (const item of currentVersion.items) {
       await tx.checklistItem.create({

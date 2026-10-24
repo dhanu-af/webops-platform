@@ -3,6 +3,7 @@ import { formatDateTimeInTimeZone } from "@/lib/timezone";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 import { recordStatus } from "@/lib/record-status";
 import type { InspectionRecord } from "@/lib/data/inspection-record";
+import { docControlRows, parseDocControl } from "@/lib/doc-control";
 
 // A complete, printable GMP record (URS-15): header, every answer, failures and
 // corrective actions, all electronic signatures, and the full audit trail.
@@ -24,6 +25,10 @@ const s = StyleSheet.create({
   tr: { flexDirection: "row" },
   th: { padding: 3.5, backgroundColor: COLORS.head, fontFamily: "Helvetica-Bold", borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: COLORS.border },
   td: { padding: 3.5, borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: COLORS.border },
+  center: { textAlign: "center" },
+  docOrg: { fontSize: 15, fontFamily: "Helvetica-Bold", color: "#1f5c99", textAlign: "center" },
+  docTitle: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#c55a11", textAlign: "center", marginTop: 2 },
+  docSub: { fontSize: 8, fontFamily: "Helvetica-Oblique", color: COLORS.muted, textAlign: "center", marginTop: 2 },
   footer: { position: "absolute", bottom: 20, left: 30, right: 30, flexDirection: "row", justifyContent: "space-between", fontSize: 7.5, color: COLORS.muted },
 });
 
@@ -112,15 +117,39 @@ export function InspectionRecordDocument({
   ];
 
   const findings = i.responses.filter((r) => r.finding);
+  const doc = parseDocControl(i.checklistVersion.docControl);
 
   return (
     <Document title={`${i.checklistVersion.checklist.name} — ${i.id}`}>
       <Page size="A4" style={s.page}>
-        <Text style={s.org}>{(organizationName ?? "GMP RECORD").toUpperCase()}</Text>
-        <Text style={s.title}>{i.checklistVersion.checklist.name}</Text>
-        <Text style={s.sub}>
-          Record {i.id} · printed {when(generatedAt)} by {generatedBy}
-        </Text>
+        {doc ? (
+          <View>
+            <Text style={s.docOrg}>{doc.organisation}</Text>
+            <Text style={[s.docSub, { fontFamily: "Helvetica", fontSize: 9 }]}>Controlled Form</Text>
+            <Text style={s.docTitle}>{doc.formTitle}</Text>
+            <Text style={s.docSub}>{doc.subtitle}</Text>
+            <View style={[s.kv, { marginTop: 8 }]}>
+              {docControlRows(doc).flatMap(([a, b]) => [a, b]).map(([k, v], idx) => (
+                <View key={idx} style={s.kvCell}>
+                  <Text style={s.kvKey}>{k}</Text>
+                  <Text style={s.kvVal}>{v}</Text>
+                </View>
+              ))}
+            </View>
+            {doc.intro ? <Text style={[s.sub, { marginTop: 6, fontFamily: "Helvetica-Oblique" }]}>{doc.intro}</Text> : null}
+            <Text style={s.sub}>
+              {i.checklistVersion.checklist.name} · record {i.id} · printed {when(generatedAt)} by {generatedBy}
+            </Text>
+          </View>
+        ) : (
+          <View>
+            <Text style={s.org}>{(organizationName ?? "GMP RECORD").toUpperCase()}</Text>
+            <Text style={s.title}>{i.checklistVersion.checklist.name}</Text>
+            <Text style={s.sub}>
+              Record {i.id} · printed {when(generatedAt)} by {generatedBy}
+            </Text>
+          </View>
+        )}
 
         <View style={s.kv}>
           {header.map(([k, v]) => (
@@ -192,6 +221,13 @@ export function InspectionRecordDocument({
             }))}
           />
         )}
+
+        {doc && (doc.note || doc.footerNotice) ? (
+          <View style={{ marginTop: 8 }}>
+            {doc.note ? <Text style={{ fontSize: 7.5, color: COLORS.muted }}>{doc.note}</Text> : null}
+            {doc.footerNotice ? <Text style={{ fontSize: 7.5, color: COLORS.muted, fontFamily: "Helvetica-Oblique", marginTop: 2 }}>{doc.footerNotice}</Text> : null}
+          </View>
+        ) : null}
 
         <Text style={s.h2}>Audit trail (read-only)</Text>
         <Table
