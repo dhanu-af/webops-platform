@@ -16,7 +16,7 @@ Neon also keeps a rolling history window (length depends on the plan). It restor
 ## Restore procedure (tested path)
 Always restore into a **scratch** database first, check it, and only then decide what to do with production.
 
-1. Create an empty scratch database (a new Neon branch/database, or local Postgres 17).
+1. Create an empty scratch database (a new Neon branch/database, or local Postgres 18 (restore needs a server and client at least as new as Neon's, currently 18)).
 2. Download the dump and its `.sha256` from the Actions run.
 3. Run:
    ```bash

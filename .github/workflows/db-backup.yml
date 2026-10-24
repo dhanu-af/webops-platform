@@ -19,12 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Install PostgreSQL 17 client
+      - name: Install PostgreSQL 18 client (must be >= the Neon server version)
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y -qq postgresql-client-17
+          sudo apt-get install -y -qq postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Dump database
         env:
@@ -32,9 +33,10 @@ jobs:
         run: |
           test -n "$BACKUP_DATABASE_URL" || { echo "BACKUP_DATABASE_URL secret is not set"; exit 1; }
           STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-          pg_dump --format=custom --no-owner --no-privileges --file="webops-$STAMP.dump" "$BACKUP_DATABASE_URL"
+          PGBIN=/usr/lib/postgresql/18/bin
+          $PGBIN/pg_dump --format=custom --no-owner --no-privileges --file="webops-$STAMP.dump" "$BACKUP_DATABASE_URL"
           # Prove the file is a readable archive before we trust it.
-          pg_restore --list "webops-$STAMP.dump" > "webops-$STAMP.toc"
+          $PGBIN/pg_restore --list "webops-$STAMP.dump" > "webops-$STAMP.toc"
           test -s "webops-$STAMP.toc"
           sha256sum "webops-$STAMP.dump" > "webops-$STAMP.dump.sha256"
           ls -l
