@@ -10,7 +10,8 @@ const m = vi.hoisted(() => ({
     user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn() },
     inspection: { findUniqueOrThrow: vi.fn(), update: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     checklistItem: { findUniqueOrThrow: vi.fn() },
-    inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn() },
+    inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn() },
+    checklistSchedule: { findUniqueOrThrow: vi.fn() },
     finding: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn(), delete: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
     correctiveAction: { create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     verificationRecord: { create: vi.fn() },
@@ -36,6 +37,7 @@ import {
   resubmitReturnedInspection,
   closeCorrectiveAction,
   startAdHocInspection,
+  markNoProduction,
 } from "./inspections";
 
 type Role = "OPERATOR" | "SUPERVISOR" | "QA" | "VIEWER" | "ADMIN";
@@ -449,5 +451,80 @@ describe("startAdHocInspection (start any checklist without a schedule)", () => 
     m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: false, category: "FACILITY_GENERATOR", versions: [{ id: "ver1" }] });
     const r = await startAdHocInspection({ checklistId: "ck1", areaId: null });
     expect(r).toEqual({ ok: false, error: "That checklist is not available." });
+  });
+});
+
+describe("markNoProduction (close a scheduled task when nothing was produced)", () => {
+  const schedule = {
+    id: "sch1",
+    facilityId: "fac1",
+    sectionId: "sec1",
+    areaId: "area1",
+    equipmentId: null,
+    frequency: "DAILY",
+    priority: "NORMAL",
+    checklist: { versions: [{ id: "ver1" }] },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    signIn("OPERATOR", "op1");
+    m.db.checklistSchedule.findUniqueOrThrow.mockResolvedValue(schedule);
+    m.db.inspection.findFirst.mockResolvedValue(null);
+    m.db.inspection.create.mockResolvedValue({ id: "new1" });
+    m.db.inspectionResponse.count.mockResolvedValue(0);
+  });
+
+  it("creates a closed NO_PRODUCTION record with the reason, who and an audit entry", async () => {
+    const r = await markNoProduction({ scheduleId: "sch1", reason: "  Machine under maintenance " });
+    expect(r).toEqual({ ok: true });
+    expect(m.db.inspection.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ scheduleId: "sch1", status: "NO_PRODUCTION", noProductionReason: "Machine under maintenance", operatorId: "op1", areaId: "area1" }),
+    });
+    expect(m.db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "CLOSED", reason: "No production: Machine under maintenance", userId: "op1" }) })
+    );
+  });
+
+  it("defaults the reason to 'No production'", async () => {
+    await markNoProduction({ scheduleId: "sch1" });
+    expect(m.db.inspection.create.mock.calls[0][0].data.noProductionReason).toBe("No production");
+  });
+
+  it("closes an existing untouched draft instead of creating a second record", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "draft1", status: "NOT_STARTED", operatorId: null, startedAt: null });
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: true });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+    expect(m.db.inspection.update).toHaveBeenCalledWith({ where: { id: "draft1" }, data: expect.objectContaining({ status: "NO_PRODUCTION", operatorId: "op1" }) });
+  });
+
+  it("refuses when the checklist already has answers", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "draft1", status: "IN_PROGRESS", operatorId: "op1", startedAt: FIXED_NOW });
+    m.db.inspectionResponse.count.mockResolvedValue(3);
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/already has answers/) });
+    expect(m.db.inspection.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the checklist was already submitted", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "done1", status: "AWAITING_SUPERVISOR", operatorId: "op1", startedAt: FIXED_NOW });
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: false, error: "This checklist has already been completed." });
+  });
+
+  it("does nothing if it is already marked no production", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "np1", status: "NO_PRODUCTION", operatorId: "op1", startedAt: FIXED_NOW });
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: true });
+    expect(m.db.inspection.update).not.toHaveBeenCalled();
+    expect(m.db.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a role that cannot create inspections", async () => {
+    signIn("VIEWER", "v1");
+    const r = await markNoProduction({ scheduleId: "sch1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/cannot perform/i) });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
   });
 });

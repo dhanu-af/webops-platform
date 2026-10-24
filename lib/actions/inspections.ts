@@ -824,3 +824,69 @@ export async function startAdHocInspection(input: {
     throw e;
   }
 }
+
+// "No production today": closes a scheduled task without a checklist, e.g. a
+// room that was not used. Creates (or finishes) today's record for the
+// schedule with status NO_PRODUCTION; who, when and why are kept on the record
+// and in the audit trail. Refused once real answers exist -- submit those instead.
+export async function markNoProduction(input: { scheduleId: string; reason?: string }): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await requireUserWithPermission("inspection.create");
+    const schedule = await db.checklistSchedule.findUniqueOrThrow({
+      where: { id: input.scheduleId },
+      include: { checklist: { include: { versions: { where: { isCurrent: true }, take: 1 } } } },
+    });
+    const version = schedule.checklist.versions[0];
+    if (!version) throw new UserFacingError("That checklist has no published version yet.");
+
+    const reason = input.reason?.trim() || "No production";
+    const timeZone = await getFacilityTimezone();
+    const now = new Date();
+    const existing = await db.inspection.findFirst({
+      where: { scheduleId: schedule.id, createdAt: { gte: startOfDayInTimeZone(timeZone, now), lte: endOfDayInTimeZone(timeZone, now) } },
+    });
+
+    let inspectionId: string;
+    if (existing) {
+      if (existing.status === "NO_PRODUCTION") return;
+      if (!EDITABLE_STATUSES.includes(existing.status)) throw new UserFacingError("This checklist has already been completed.");
+      const answers = await db.inspectionResponse.count({ where: { inspectionId: existing.id } });
+      if (answers > 0) throw new UserFacingError("This checklist already has answers. Submit it instead of marking no production.");
+      await db.inspection.update({
+        where: { id: existing.id },
+        data: { status: "NO_PRODUCTION", noProductionReason: reason, operatorId: existing.operatorId ?? user.id, startedAt: existing.startedAt ?? now },
+      });
+      inspectionId = existing.id;
+    } else {
+      const created = await db.inspection.create({
+        data: {
+          checklistVersionId: version.id,
+          scheduleId: schedule.id,
+          facilityId: schedule.facilityId,
+          sectionId: schedule.sectionId,
+          areaId: schedule.areaId,
+          equipmentId: schedule.equipmentId,
+          frequency: schedule.frequency,
+          priority: schedule.priority,
+          status: "NO_PRODUCTION",
+          noProductionReason: reason,
+          dueAt: now,
+          startedAt: now,
+          operatorId: user.id,
+          appVersion: APP_VERSION_STAMP,
+        },
+      });
+      inspectionId = created.id;
+    }
+
+    await logAudit({
+      entityType: "Inspection",
+      entityId: inspectionId,
+      inspectionId,
+      action: "CLOSED",
+      userId: user.id,
+      reason: `No production: ${reason}`,
+    });
+    revalidatePath("/today");
+  });
+}

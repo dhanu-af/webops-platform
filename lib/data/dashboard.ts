@@ -24,7 +24,7 @@ export async function getDashboardKpis(scope: UserScope = { scoped: false }) {
   ] = await Promise.all([
     db.inspection.count({ where: { dueAt: { gte: todayStart, lte: todayEnd }, ...scopeFilter } }),
     db.inspection.count({
-      where: { dueAt: { gte: todayStart, lte: todayEnd }, status: { in: ["SUPERVISOR_APPROVED", "QA_APPROVED", "CLOSED", "SUBMITTED", "AWAITING_SUPERVISOR", "AWAITING_QA"] }, ...scopeFilter },
+      where: { dueAt: { gte: todayStart, lte: todayEnd }, status: { in: ["SUPERVISOR_APPROVED", "QA_APPROVED", "CLOSED", "SUBMITTED", "AWAITING_SUPERVISOR", "AWAITING_QA", "NO_PRODUCTION"] }, ...scopeFilter },
     }),
     db.inspection.count({ where: { status: "OVERDUE", ...scopeFilter } }),
     db.inspection.count({ where: { status: "AWAITING_SUPERVISOR", ...scopeFilter } }),
@@ -34,7 +34,7 @@ export async function getDashboardKpis(scope: UserScope = { scoped: false }) {
       where: { status: { in: ["QA_APPROVED", "CLOSED"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) }, ...scopeFilter },
     }),
     db.inspection.count({
-      where: { status: { notIn: ["NOT_STARTED", "IN_PROGRESS"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) }, ...scopeFilter },
+      where: { status: { notIn: ["NOT_STARTED", "IN_PROGRESS", "NO_PRODUCTION"] }, createdAt: { gte: new Date(now.getTime() - 30 * 86400000) }, ...scopeFilter },
     }),
     db.inspectionResponse.findMany({
       where: {
@@ -150,7 +150,7 @@ export async function getEquipmentCalibrationSummary(scope: UserScope = { scoped
 
 export type OpsTrendPoint = { key: string; label: string; completed: number; inProgress: number; pending: number };
 
-const COMPLETED_STATUSES = new Set(["QA_APPROVED", "CLOSED"]);
+const COMPLETED_STATUSES = new Set(["QA_APPROVED", "CLOSED", "NO_PRODUCTION"]);
 const IN_PROGRESS_STATUSES = new Set(["IN_PROGRESS", "SUBMITTED", "AWAITING_SUPERVISOR", "SUPERVISOR_APPROVED", "AWAITING_QA", "RETURNED"]);
 // Everything else (NOT_STARTED, OVERDUE, REJECTED) buckets as "pending" --
 // work that still needs someone to act on it.

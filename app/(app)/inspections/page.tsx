@@ -128,7 +128,7 @@ export default async function InspectionsHistoryPage({
                 className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
               >
                 <option value="">Any</option>
-                {["Draft", "Submitted", "Verified", "Rejected"].map((s) => (
+                {["Draft", "Submitted", "Verified", "Rejected", "No production"].map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>

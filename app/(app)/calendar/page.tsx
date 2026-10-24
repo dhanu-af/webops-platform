@@ -20,6 +20,7 @@ const LEGEND_STATUSES = [
   "AWAITING_SUPERVISOR",
   "AWAITING_QA",
   "CLOSED",
+  "NO_PRODUCTION",
 ] as const;
 
 // `month` values here are always a UTC-midnight "label" (see

@@ -37,7 +37,7 @@ export type CalendarEntry = {
   frequency: Frequency;
   dueTime: string | null;
   inspectionId: string | null;
-  status: "SCHEDULED" | "DUE" | "OVERDUE" | "NOT_STARTED" | "IN_PROGRESS" | "AWAITING_SUPERVISOR" | "AWAITING_QA" | "RETURNED" | "REJECTED" | "CLOSED";
+  status: "SCHEDULED" | "DUE" | "OVERDUE" | "NOT_STARTED" | "IN_PROGRESS" | "AWAITING_SUPERVISOR" | "AWAITING_QA" | "RETURNED" | "REJECTED" | "CLOSED" | "NO_PRODUCTION";
 };
 
 export async function getCalendarMonth(monthDate: Date, filters: { areaId?: string; frequency?: string } = {}, scope: UserScope = { scoped: false }) {

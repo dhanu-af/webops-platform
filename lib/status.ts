@@ -18,6 +18,7 @@ export const INSPECTION_STATUS_META: Record<
   RETURNED: { label: "Returned", tone: "critical" },
   REJECTED: { label: "Rejected", tone: "critical" },
   OVERDUE: { label: "Overdue", tone: "critical" },
+  NO_PRODUCTION: { label: "No Production", tone: "neutral" },
 };
 
 export const AREA_RELEASE_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {

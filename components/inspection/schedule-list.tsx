@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 import { StartScheduleButton } from "@/components/inspection/start-schedule-button";
+import { NoProductionButton } from "@/components/inspection/no-production-button";
 
 type Schedule = {
   id: string;
@@ -78,8 +79,9 @@ export function ScheduleList({
                       {s.dueTime ? ` · due ${s.dueTime}` : ""}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-3">
                     {meta && <Badge tone={meta.tone}>{meta.label}</Badge>}
+                    {label !== "View" && <NoProductionButton scheduleId={s.id} />}
                     <StartScheduleButton scheduleId={s.id} label={label} />
                   </div>
                 </div>

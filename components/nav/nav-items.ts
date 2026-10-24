@@ -41,6 +41,11 @@ export type NavGroup = {
 
 const ADMIN_ROLES: UserRole[] = ["SUPER_ADMIN", "ADMIN"];
 
+// Records and planning screens are kept out of the sidebar for Operators and
+// Viewers. This only hides the menu entry: operators still reach the record
+// they are filling in (Start / Continue opens it directly).
+const NOT_OPERATOR_OR_VIEWER: UserRole[] = ["SUPER_ADMIN", "ADMIN", "TEAM_LEADER", "SUPERVISOR", "QA", "MANAGEMENT"];
+
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
@@ -59,12 +64,12 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Records",
     items: [
-      { label: "Paper Forms", href: "/forms", icon: Printer },
-      { label: "Inspections", href: "/inspections", icon: History },
+      { label: "Paper Forms", href: "/forms", icon: Printer, roles: NOT_OPERATOR_OR_VIEWER },
+      { label: "Inspections", href: "/inspections", icon: History, roles: NOT_OPERATOR_OR_VIEWER },
       { label: "Corrective Actions", href: "/corrective-actions", icon: Wrench },
       { label: "Evidence Gallery", href: "/evidence", icon: Images },
-      { label: "Equipment Calibration", href: "/calibration", icon: Gauge },
-      { label: "Manufacturing Reconciliation", href: "/mfg-reconciliation", icon: FlaskConical },
+      { label: "Equipment Calibration", href: "/calibration", icon: Gauge, roles: NOT_OPERATOR_OR_VIEWER },
+      { label: "Manufacturing Reconciliation", href: "/mfg-reconciliation", icon: FlaskConical, roles: NOT_OPERATOR_OR_VIEWER },
       {
         label: "Formulation Manager",
         href: "/formulations",
@@ -89,7 +94,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Planning",
     items: [
       { label: "Calendar", href: "/calendar", icon: CalendarDays },
-      { label: "Checklists", href: "/checklists", icon: ListChecks },
+      { label: "Checklists", href: "/checklists", icon: ListChecks, roles: NOT_OPERATOR_OR_VIEWER },
       // Same roles as reports.view (Reports/Analytics/Audit Trail below) --
       // this is a production-planning calculator, not a floor task.
       { label: "Calculation", href: "/calculation", icon: Calculator, roles: ["SUPER_ADMIN", "ADMIN", "MANAGEMENT", "QA", "SUPERVISOR"] },

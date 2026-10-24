@@ -4,6 +4,7 @@ import { Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } fro
 import { Badge } from "@/components/ui/badge";
 import { INSPECTION_STATUS_META } from "@/lib/status";
 import { StartScheduleButton } from "@/components/inspection/start-schedule-button";
+import { NoProductionButton } from "@/components/inspection/no-production-button";
 import type { getTodaySchedules } from "@/lib/data/inspections";
 
 type Schedule = Awaited<ReturnType<typeof getTodaySchedules>>[number];
@@ -51,7 +52,10 @@ export function TodaysOperationsTable({ schedules }: { schedules: Schedule[] }) 
                     </TableCell>
                     <TableCell className="font-mono-tabular text-xs text-muted">{s.dueTime ?? "—"}</TableCell>
                     <TableCell>
-                      <StartScheduleButton scheduleId={s.id} label={label} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        {label !== "View" && <NoProductionButton scheduleId={s.id} />}
+                        <StartScheduleButton scheduleId={s.id} label={label} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

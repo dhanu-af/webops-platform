@@ -107,6 +107,7 @@ export function InspectionRecordDocument({
     ["Checklist template version", `v${i.checklistVersion.versionNumber}`],
     ["Application release", i.appVersion ?? "—"],
     ["Record status", `${recordStatus(i.status)} (${INSPECTION_STATUS_META[i.status]?.label ?? i.status})`],
+    ...(i.noProductionReason ? ([["No production", i.noProductionReason]] as Array<[string, string]>) : []),
     ["Line release", i.areaRelease ? `${i.areaRelease.status.replace(/_/g, " ")}${i.areaRelease.releasedAt ? ` — ${when(i.areaRelease.releasedAt)}` : ""}` : "n/a"],
   ];
 

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formatDateTimeInTimeZone } from "@/lib/timezone";
 import { auth } from "@/lib/auth";
 import { getFacilityTimezone } from "@/lib/timezone";
 import { getInspection } from "@/lib/actions/inspections";
@@ -35,6 +36,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
     can(session.user.role, "inspection.submit") &&
     (!inspection.operatorId || inspection.operatorId === session.user.id);
   const status = recordStatus(inspection.status);
+  const noProduction = inspection.status === "NO_PRODUCTION";
 
   const responseByItem = new Map(inspection.responses.map((r) => [r.checklistItemId, r]));
   const items = inspection.checklistVersion.items;
@@ -98,8 +100,19 @@ export default async function InspectionDetailPage({ params }: { params: Promise
         )}
       </div>
 
+      {noProduction && (
+        <div className="rounded-[var(--radius)] border border-border bg-surface px-4 py-3 text-sm">
+          <p className="font-medium text-foreground">No production — task closed</p>
+          <p className="mt-1 text-muted">
+            {inspection.noProductionReason}
+            {inspection.operator ? ` · ${inspection.operator.name}` : ""} · {formatDateTimeInTimeZone(inspection.updatedAt, timeZone)}
+          </p>
+        </div>
+      )}
+
       {inspection.status === "RETURNED" && can(session.user.role, "inspection.submit") && <ResubmitButton inspectionId={inspection.id} />}
 
+      {!noProduction && (
       <RecordDetailsForm
         inspectionId={inspection.id}
         editable={editable}
@@ -111,7 +124,9 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           previousBatchNumber: inspection.previousBatchNumber ?? "",
         }}
       />
+      )}
 
+      {!noProduction && (
       <div className="space-y-6">
         {Array.from(groups.entries()).map(([groupLabel, groupItems]) => (
           <div key={groupLabel} className="space-y-3">
@@ -153,6 +168,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           </div>
         ))}
       </div>
+      )}
 
       {(canActSupervisor || canActQa) && <VerificationActions inspectionId={inspection.id} stage={canActSupervisor ? "SUPERVISOR" : "QA"} signerName={session.user.name ?? "You"} />}
 
