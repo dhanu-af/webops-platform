@@ -1,0 +1,64 @@
+# ONE-OFF: copy the production database to the new Sydney Neon database, then compare
+# every table's row count. Delete this workflow once the move is done.
+#
+# Secrets: BACKUP_DATABASE_URL (current database), NEW_DATABASE_URL (Sydney, direct/non-pooled).
+name: Migrate database (one-off)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-18
+
+      - name: Dump the current database and restore it into Sydney
+        env:
+          OLD_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          NEW_URL: ${{ secrets.NEW_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$OLD_URL" && test -n "$NEW_URL"
+          PGBIN=/usr/lib/postgresql/18/bin
+          # Never restore on top of existing data.
+          EXISTING=$($PGBIN/psql "$NEW_URL" -At -c "select count(*) from information_schema.tables where table_schema='public'")
+          test "$EXISTING" = "0" || { echo "Target database is not empty ($EXISTING tables) - refusing to continue"; exit 1; }
+          $PGBIN/pg_dump --format=custom --no-owner --no-privileges --file=copy.dump "$OLD_URL"
+          ls -l copy.dump
+          $PGBIN/pg_restore --no-owner --no-privileges --exit-on-error --dbname="$NEW_URL" copy.dump
+          echo "restore finished"
+
+      - name: Compare row counts, table by table
+        env:
+          OLD_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          NEW_URL: ${{ secrets.NEW_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          PGBIN=/usr/lib/postgresql/18/bin
+          count_all() {
+            local url="$1"
+            for t in $($PGBIN/psql "$url" -At -c "select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE' order by 1"); do
+              echo "$t $($PGBIN/psql "$url" -At -c "select count(*) from \"$t\"")"
+            done
+          }
+          count_all "$OLD_URL" > old.txt
+          count_all "$NEW_URL" > new.txt
+          echo "tables compared: $(wc -l < old.txt)"
+          if diff old.txt new.txt; then
+            echo "ALL TABLE ROW COUNTS MATCH"
+          else
+            echo "ROW COUNT MISMATCH (lines above: < current, > Sydney)"; exit 1
+          fi
+          echo "--- largest tables"; sort -k2 -n -r new.txt | head -8
+          echo "--- triggers restored (expect the 5 record-protection triggers):"
+          $PGBIN/psql "$NEW_URL" -At -c "select count(*) from pg_trigger where not tgisinternal and tgname like '%block%'"
