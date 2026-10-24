@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { changePassword } from "@/lib/actions/users";
 import { validatePassword } from "@/lib/password-policy";
 
-export function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
+export function ChangePasswordForm({
+  onSuccess,
+  loginId,
+  name,
+}: { onSuccess?: () => void; loginId?: string; name?: string } = {}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -21,11 +25,12 @@ export function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {
         setError(null);
         setSuccess(false);
         if (!currentPassword) return setError("Enter your current password.");
-        { const problems = validatePassword(newPassword); if (problems.length) return setError(problems.join(" ")); }
+        { const problems = validatePassword(newPassword, { loginId, name }); if (problems.length) return setError(problems.join(" ")); }
         if (newPassword !== confirmPassword) return setError("New passwords do not match.");
         startTransition(async () => {
           try {
-            await changePassword({ currentPassword, newPassword });
+            const result = await changePassword({ currentPassword, newPassword });
+            if (!result.ok) return setError(result.error);
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");

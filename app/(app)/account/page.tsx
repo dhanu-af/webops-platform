@@ -41,7 +41,7 @@ export default async function AccountPage() {
           <CardTitle>Change Password</CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
-          <ChangePasswordForm />
+          <ChangePasswordForm loginId={user.loginId} name={user.name} />
         </CardContent>
       </Card>
     </div>

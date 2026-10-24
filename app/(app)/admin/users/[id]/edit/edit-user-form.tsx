@@ -61,7 +61,7 @@ export function EditUserForm({
         setError(null);
         startTransition(async () => {
           try {
-            await updateUser(userId, {
+            const result = await updateUser(userId, {
               loginId,
               role,
               employeeId: employeeId.trim() || undefined,
@@ -69,6 +69,7 @@ export function EditUserForm({
               areaIds,
               jobTitle: jobTitle.trim() || undefined,
             });
+            if (result && !result.ok) setError(result.error);
           } catch (err) {
             if (err instanceof Error && err.message !== "NEXT_REDIRECT") setError(err.message);
           }

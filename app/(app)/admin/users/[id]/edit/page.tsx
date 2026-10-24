@@ -50,7 +50,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
       ) : (
         <div>
           <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Reset Password</h2>
-          <ResetPasswordForm userId={user.id} />
+          <ResetPasswordForm userId={user.id} loginId={user.loginId} name={user.name} />
         </div>
       )}
     </div>

@@ -55,7 +55,7 @@ export function NewUserForm({
         { const problems = validatePassword(password, { loginId: normalizeLoginId(loginId), name }); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
-            await createUser({
+            const result = await createUser({
               name: name.trim(),
               loginId,
               email: email.trim() || undefined,
@@ -67,6 +67,8 @@ export function NewUserForm({
               areaIds,
               jobTitle: jobTitle.trim() || undefined,
             });
+            // On success the action redirects, so a returned value is always a refusal.
+            if (result && !result.ok) setError(result.error);
           } catch (err) {
             if (err instanceof Error && err.message !== "NEXT_REDIRECT") setError(err.message);
           }

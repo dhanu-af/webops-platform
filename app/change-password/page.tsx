@@ -30,7 +30,7 @@ export default async function ChangePasswordPage() {
           <CardTitle>New password</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 pt-2">
-          <ForcedChangePasswordForm />
+          <ForcedChangePasswordForm loginId={user.loginId} name={user.name} />
           <p className="text-xs text-muted">{PASSWORD_POLICY_HINT}</p>
         </CardContent>
       </Card>
