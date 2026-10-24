@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isAnswered } from "@/lib/inspection-rules";
+import { isAnswered, isFacilityLevelCategory } from "@/lib/inspection-rules";
 import { canWorkOnRecord, getUserScope } from "@/lib/scope";
 import { parseDocControl } from "@/lib/doc-control";
 import { ControlledFormHeader, ControlledFormFooter } from "@/components/inspection/controlled-form-header";
@@ -38,7 +38,8 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const editable =
     (inspection.status === "NOT_STARTED" || inspection.status === "IN_PROGRESS" || inspection.status === "RETURNED") &&
     can(session.user.role, "inspection.submit") &&
-    canWorkOnRecord(getUserScope(session.user), session.user.id, inspection);
+    (canWorkOnRecord(getUserScope(session.user), session.user.id, inspection) ||
+      isFacilityLevelCategory(inspection.checklistVersion.checklist.category));
   const status = recordStatus(inspection.status);
   const noProduction = inspection.status === "NO_PRODUCTION";
   const docControl = parseDocControl(inspection.checklistVersion.docControl);

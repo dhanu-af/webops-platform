@@ -8,7 +8,7 @@ const m = vi.hoisted(() => ({
   session: { current: null as null | { user: { id: string } } },
   db: {
     user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn() },
-    inspection: { findUniqueOrThrow: vi.fn(), update: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
+    inspection: { findUniqueOrThrow: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     checklistItem: { findUniqueOrThrow: vi.fn() },
     inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     photoEvidence: { findUnique: vi.fn(), delete: vi.fn() },
@@ -43,7 +43,7 @@ import {
   deletePhoto,
 } from "./inspections";
 
-type Role = "OPERATOR" | "SUPERVISOR" | "QA" | "VIEWER" | "ADMIN";
+type Role = "OPERATOR" | "SUPERVISOR" | "QA" | "VIEWER" | "ADMIN" | "SUPER_ADMIN";
 
 function signIn(role: Role, id: string, opts: { active?: boolean; name?: string; areas?: Array<{ id: string; sectionId: string; facilityId: string }> } = {}) {
   m.session.current = { user: { id } };
@@ -666,5 +666,45 @@ describe("operators in the same section can work on each other's records", () =>
     // Verification conflict rules are unchanged: see the URS-02 tests above.
     signIn("OPERATOR", "bottling-op", { areas: [bottlingArea] });
     await expect(verifyInspection({ inspectionId: "insp1", action: "APPROVE", password: "x" })).resolves.toEqual({ ok: false, error: expect.any(String) });
+  });
+});
+
+describe("facility-level checklists (generator, facility open/close) are open to every employee", () => {
+  const record = (over: Record<string, unknown> = {}) => ({ id: "insp1", status: "IN_PROGRESS", operatorId: "bottling-op", areaId: null, sectionId: null, facilityId: "fac1", equipmentId: null, submittedAt: null, reopenReason: null, ...over });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.db.inspectionResponse.upsert.mockResolvedValue({ id: "resp1" });
+    m.db.inspectionResponse.findUnique.mockResolvedValue(null);
+    m.db.finding.findUnique.mockResolvedValue(null);
+    m.db.checklistItem.findUniqueOrThrow.mockResolvedValue(checklistItem());
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(record());
+  });
+
+  it("any employee can answer a facility-level record another employee started", async () => {
+    m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "FACILITY_GENERATOR" } } });
+    signIn("SUPER_ADMIN", "dhanu");
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" });
+    expect(m.db.inspectionResponse.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ respondedById: "dhanu" }) }));
+  });
+
+  it("an operator assigned to a different area can too", async () => {
+    m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "FACILITY_GENERATOR" } } });
+    signIn("OPERATOR", "capsule-op", { areas: [{ id: "capsule", sectionId: "prod", facilityId: "fac1" }] });
+    await saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" });
+    expect(m.db.inspectionResponse.upsert).toHaveBeenCalled();
+  });
+
+  it("an ordinary area checklist stays limited", async () => {
+    m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "POST_OPERATION_CLEANING" } } });
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(record({ areaId: "bottling", sectionId: "prod" }));
+    signIn("SUPER_ADMIN", "dhanu");
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/another section or operator/);
+  });
+
+  it("still enforces the role: a viewer cannot fill it in", async () => {
+    m.db.inspection.findUnique.mockResolvedValue({ checklistVersion: { checklist: { category: "FACILITY_GENERATOR" } } });
+    signIn("VIEWER", "v1");
+    await expect(saveResponse({ inspectionId: "insp1", checklistItemId: "item1", passFail: "PASS" })).rejects.toThrow(/Forbidden/);
   });
 });
