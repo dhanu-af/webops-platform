@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
+import { auditDiff } from "@/lib/audit-diff";
+import { verifySignaturePassword } from "@/lib/signature";
 import { formatSampleId } from "@/lib/qc-sample-defaults";
 import type { QcSampleType, QcProductCategory, QcTestResult } from "@/app/generated/prisma/client";
 
@@ -96,6 +98,12 @@ async function updateQcSample__impl(id: string, data: NewQcSample) {
     throw new UserFacingError("Product, batch number, sample type, and unit are required");
   }
 
+  const before = await db.qcSample.findUniqueOrThrow({ where: { id } });
+  const FINAL_STATES = ["APPROVED", "REJECTED", "RETENTION", "EXPIRED", "DISPOSED"];
+  if (FINAL_STATES.includes(before.status)) {
+    throw new UserFacingError(`Sample ${before.sampleId} has been ${before.status === "APPROVED" || before.status === "REJECTED" ? before.status.toLowerCase() : "decided"}, so its details are locked.`);
+  }
+
   const sample = await db.qcSample.update({
     where: { id },
     data: {
@@ -124,6 +132,24 @@ async function updateQcSample__impl(id: string, data: NewQcSample) {
     action: "EDITED",
     userId: actor.id,
     reason: `Updated sample ${sample.sampleId}`,
+    ...auditDiff(before, {
+      productName: sample.productName,
+      batchNumber: sample.batchNumber,
+      mfgBatchId: sample.mfgBatchId,
+      manufacturingDate: sample.manufacturingDate,
+      expiryDate: sample.expiryDate,
+      sampleType: sample.sampleType,
+      productCategory: sample.productCategory,
+      quantity: sample.quantity,
+      unit: sample.unit,
+      collectionDate: sample.collectionDate,
+      collectionTime: sample.collectionTime,
+      productionRoom: sample.productionRoom,
+      sampleStorageLocation: sample.sampleStorageLocation,
+      storageTemperature: sample.storageTemperature,
+      storageCondition: sample.storageCondition,
+      remarks: sample.remarks,
+    }),
   });
 
   revalidatePath(BASE_PATH);
@@ -239,6 +265,8 @@ async function recordLabTestResults__impl(id: string, items: LabTestItemInput[])
     throw new UserFacingError("Set a Product Category on the sample record before recording test results");
   }
 
+  const previousItems = await db.qcLabTestItem.findMany({ where: { labTest: { sampleId: id } }, orderBy: { sortOrder: "asc" }, select: { section: true, parameter: true, result: true, details: true } });
+
   await db.$transaction(async (tx) => {
     const labTest = await tx.qcLabTest.upsert({
       where: { sampleId: id },
@@ -264,35 +292,49 @@ async function recordLabTestResults__impl(id: string, items: LabTestItemInput[])
     entityId: id,
     action: "QC_RESULTS_RECORDED",
     userId: actor.id,
-    reason: `Lab test results recorded for sample ${sample.sampleId}`,
+    // Every save replaces the table of results, so what was there before is kept here.
+    oldValue: previousItems.length ? { results: previousItems.map((r) => `${r.section} / ${r.parameter}: ${r.result ?? "-"}${r.details ? ` (${r.details})` : ""}`) } : undefined,
+    newValue: { results: items.map((r) => `${r.section} / ${r.parameter}: ${r.result ?? "-"}${r.details ? ` (${r.details})` : ""}`) },
+    reason: `Lab test results recorded for sample ${sample.sampleId}${previousItems.length ? " (replacing earlier results)" : ""}`,
   });
 
   revalidatePath(BASE_PATH);
 }
 
-async function approveSample__impl(id: string) {
+async function approveSample__impl(id: string, password?: string) {
   const actor = await requireLabAccess();
-  const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
+  const sample = await db.qcSample.findUniqueOrThrow({ where: { id }, include: { labTest: { include: { items: true } } } });
   if (sample.status !== "WAITING_RESULTS") throw new UserFacingError("Sample is not awaiting a result");
 
-  await db.qcSample.update({ where: { id }, data: { status: "APPROVED" } });
+  // Release is a second-person decision on complete, passing results.
+  if (sample.labTest?.testedById === actor.id) throw new UserFacingError("You recorded these results, so someone else must approve the sample.");
+  const items = sample.labTest?.items ?? [];
+  if (items.length === 0) throw new UserFacingError("There are no test results to approve.");
+  const missing = items.filter((i) => i.result === null).length;
+  if (missing > 0) throw new UserFacingError(`${missing} test result${missing === 1 ? " is" : "s are"} still blank. Complete every result before approving.`);
+  if (items.some((i) => i.result === "FAIL")) throw new UserFacingError("One or more results are FAIL, so this sample cannot be approved. Reject it and investigate.");
+
+  await verifySignaturePassword(actor.id, password, `approval of QC sample ${sample.sampleId}`);
+  const claimed = await db.qcSample.updateMany({ where: { id, status: "WAITING_RESULTS" }, data: { status: "APPROVED" } });
+  if (claimed.count !== 1) throw new UserFacingError("This sample was just decided by someone else. Refresh the page.");
 
   await logAudit({
     entityType: "QcSample",
     entityId: id,
     action: "QC_APPROVED",
     userId: actor.id,
-    reason: `Sample ${sample.sampleId} approved`,
+    reason: `Sample ${sample.sampleId} approved - signed by ${actor.name} (${actor.role})`,
   });
 
   revalidatePath(BASE_PATH);
 }
 
-async function rejectSample__impl(id: string, reason: string) {
+async function rejectSample__impl(id: string, reason: string, password?: string) {
   const actor = await requireLabAccess();
-  if (!reason) throw new UserFacingError("A rejection reason is required");
+  if (!reason?.trim()) throw new UserFacingError("A rejection reason is required");
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
   if (sample.status !== "WAITING_RESULTS") throw new UserFacingError("Sample is not awaiting a result");
+  await verifySignaturePassword(actor.id, password, `rejection of QC sample ${sample.sampleId}`);
 
   await db.qcSample.update({
     where: { id },
@@ -304,7 +346,7 @@ async function rejectSample__impl(id: string, reason: string) {
     entityId: id,
     action: "REJECTED",
     userId: actor.id,
-    reason: `Sample ${sample.sampleId} rejected: ${reason}`,
+    reason: `Sample ${sample.sampleId} rejected: ${reason} - signed by ${actor.name} (${actor.role})`,
   });
 
   revalidatePath(BASE_PATH);
@@ -426,23 +468,25 @@ async function markDisposed__impl(id: string) {
 async function deleteQcSample__impl(id: string) {
   const actor = await requireManageAccess();
   const sample = await db.qcSample.findUniqueOrThrow({ where: { id } });
-  const isForce = actor.role === "SUPER_ADMIN";
 
-  if (!isForce && sample.status !== "WAITING_COLLECTION" && sample.status !== "COLLECTED") {
-    throw new UserFacingError("Can't delete — this sample already has lab or retention history. A Super Admin can force-delete it.");
+  // A sample that has gone to the lab is a GMP record and is kept, whoever asks.
+  if (sample.status !== "WAITING_COLLECTION" && sample.status !== "COLLECTED") {
+    throw new UserFacingError("Can't delete — this sample already has lab or retention history, so the record is kept.");
   }
 
-  await db.qcSample.delete({ where: { id } });
-
-  await logAudit({
-    entityType: "QcSample",
-    entityId: id,
-    action: "DELETED",
-    userId: actor.id,
-    reason:
-      isForce && sample.status !== "WAITING_COLLECTION" && sample.status !== "COLLECTED"
-        ? `Force-deleted sample ${sample.sampleId} (${sample.status}) — lab/retention history removed`
-        : `Deleted sample ${sample.sampleId} (never sent to lab)`,
+  await db.$transaction(async (tx) => {
+    await tx.qcSample.delete({ where: { id } });
+    await logAudit(
+      {
+        entityType: "QcSample",
+        entityId: id,
+        action: "DELETED",
+        userId: actor.id,
+        oldValue: JSON.parse(JSON.stringify(sample)),
+        reason: `Deleted sample ${sample.sampleId} (never sent to lab)`,
+      },
+      tx
+    );
   });
 
   revalidatePath(BASE_PATH);

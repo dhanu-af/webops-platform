@@ -64,6 +64,7 @@ async function deleteQcSampleAttachment__impl(id: string) {
     entityId: attachment.sampleId,
     action: "QC_ATTACHMENT_REMOVED",
     userId: actor.id,
+    oldValue: { kind: attachment.kind, fileName: attachment.fileName, url: attachment.url },
     reason: `Removed ${attachment.kind.replace("_", " ").toLowerCase()} "${attachment.fileName}" from sample ${attachment.sample.sampleId}`,
   });
 

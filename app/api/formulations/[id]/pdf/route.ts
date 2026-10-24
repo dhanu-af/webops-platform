@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { liveSession } from "@/lib/session-user";
+import { formatDateTimeInTimeZone, getFacilityTimezone } from "@/lib/timezone";
 import { getFormulationDetail } from "@/lib/data/formulations";
 import { canConvertUnit } from "@/lib/formulation-calc";
 import { FormulationDocument } from "@/lib/pdf/formulation-document";
@@ -16,9 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const search = request.nextUrl.searchParams;
   const batchSize = Number(search.get("batchSize") ?? formulation.baseBatchSize);
   const batchNumber = search.get("batchNumber") ?? "";
-  const enteredBy = search.get("enteredBy") ?? "";
-  const checkedBy = search.get("checkedBy") ?? "";
-  const calcDate = search.get("calcDate") ?? "";
+  // Who prepared the worksheet and when come from the signed-in user and the server clock, not from the link.
+  // "Checked by" is left blank for the second person to sign on the printout.
+  const enteredBy = session.user.name;
+  const checkedBy = "";
+  const calcDate = formatDateTimeInTimeZone(new Date(), await getFacilityTimezone());
 
   const requestedUnit = (search.get("unit") ?? formulation.baseUnit).trim().toLowerCase();
   const calcUnit = canConvertUnit(formulation.baseUnit) && canConvertUnit(requestedUnit) ? requestedUnit : formulation.baseUnit;

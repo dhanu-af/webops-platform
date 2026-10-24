@@ -115,14 +115,22 @@ async function createBatch__impl(
 async function deleteBatch__impl(batchId: string) {
   const session = await requireManageAccess();
 
-  const batch = await db.dryingBatch.delete({ where: { id: batchId } });
+  const batch = await db.dryingBatch.findUniqueOrThrow({ where: { id: batchId }, include: { trolleys: true } });
 
-  await logAudit({
-    entityType: "DryingBatch",
-    entityId: batchId,
-    action: "DELETED",
-    userId: session.user.id,
-    reason: `Removed batch ${batch.productName} · ${batch.batchNumber}`,
+  await db.$transaction(async (tx) => {
+    await tx.dryingBatch.delete({ where: { id: batchId } });
+    // The record, with its trolleys, is kept in the audit trail so a mistaken removal can be reconstructed.
+    await logAudit(
+      {
+        entityType: "DryingBatch",
+        entityId: batchId,
+        action: "DELETED",
+        userId: session.user.id,
+        oldValue: JSON.parse(JSON.stringify(batch)),
+        reason: `Removed batch ${batch.productName} · ${batch.batchNumber}`,
+      },
+      tx
+    );
   });
 
   revalidatePath(BASE_PATH);

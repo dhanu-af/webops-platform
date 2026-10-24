@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "./samples-tab";
 import type { QcSampleRow, QcLabTestItemRow, MfgBatchOption } from "./qc-samples-client";
+import { todayLocalInput } from "@/lib/utils";
 
 const SAMPLE_TYPES: QcSampleType[] = ["FINISHED_PRODUCT", "STABILITY", "RETENTION", "INVESTIGATION", "COMPLAINT"];
 const PRODUCT_CATEGORIES: QcProductCategory[] = ["CAPSULE", "GUMMY"];
@@ -56,20 +57,22 @@ export function SampleDetailModal({
   mfgBatches,
   canManage,
   canRunLabTesting,
-  isSuperAdmin,
   onClose,
 }: {
   sample: QcSampleRow;
   mfgBatches: MfgBatchOption[];
   canManage: boolean;
   canRunLabTesting: boolean;
-  isSuperAdmin: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
+  // Approving or rejecting is an electronic signature: the signer re-enters their own password.
+  const [signing, setSigning] = useState<null | "approve" | "reject">(null);
+  const [signPassword, setSignPassword] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
   const [audit, setAudit] = useState<{ id: string; actorName: string; summary: string; createdAt: string }[] | null>(null);
 
   useEffect(() => {
@@ -99,7 +102,7 @@ export function SampleDetailModal({
     remarks: sample.remarks ?? "",
   });
 
-  const [sentDate, setSentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [sentDate, setSentDate] = useState(() => todayLocalInput());
   const [courier, setCourier] = useState("");
   const [laboratoryName, setLaboratoryName] = useState("");
   const [laboratoryLocation, setLaboratoryLocation] = useState("");
@@ -168,18 +171,19 @@ export function SampleDetailModal({
     });
   }
 
-  function reject() {
-    const reason = prompt("Reason for rejecting this sample:");
-    if (!reason) return;
-    run(() => rejectSample(sample.id, reason));
+  function confirmSignature() {
+    const password = signPassword;
+    const action = signing === "approve" ? () => approveSample(sample.id, password) : () => rejectSample(sample.id, rejectReason.trim(), password);
+    run(async () => {
+      await action();
+      setSigning(null);
+      setSignPassword("");
+      setRejectReason("");
+    });
   }
 
   function remove() {
-    const message =
-      isSuperAdmin && sample.status !== "WAITING_COLLECTION" && sample.status !== "COLLECTED"
-        ? `"${sample.sampleId}" already has lab/retention history — deleting it will permanently erase that record. Continue?`
-        : `Delete sample ${sample.sampleId}? This cannot be undone.`;
-    if (!confirm(message)) return;
+    if (!confirm(`Delete sample ${sample.sampleId}? It has not gone to the lab yet. The deletion is recorded in the audit trail.`)) return;
     run(async () => {
       await deleteQcSample(sample.id);
       onClose();
@@ -202,7 +206,7 @@ export function SampleDetailModal({
     run(() => deleteQcSampleAttachment(id));
   }
 
-  const canDelete = isSuperAdmin || sample.status === "WAITING_COLLECTION" || sample.status === "COLLECTED";
+  const canDelete = sample.status === "WAITING_COLLECTION" || sample.status === "COLLECTED";
   const inLabPhase = sample.status === "IN_LABORATORY" || sample.status === "TESTING";
   const statusMeta = QC_SAMPLE_STATUS_META[sample.status];
 
@@ -392,15 +396,52 @@ export function SampleDetailModal({
                     Start Testing
                   </Button>
                 )}
-                {sample.status === "WAITING_RESULTS" && canRunLabTesting && (
+                {sample.status === "WAITING_RESULTS" && canRunLabTesting && !signing && (
                   <>
-                    <Button size="sm" variant="pass" onClick={() => run(() => approveSample(sample.id))} disabled={pending}>
+                    <Button size="sm" variant="pass" onClick={() => setSigning("approve")} disabled={pending}>
                       Approve
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={reject} disabled={pending}>
+                    <Button size="sm" variant="destructive" onClick={() => setSigning("reject")} disabled={pending}>
                       Reject
                     </Button>
                   </>
+                )}
+                {sample.status === "WAITING_RESULTS" && canRunLabTesting && signing && (
+                  <div className="w-full space-y-2 rounded-md border border-border bg-surface p-3">
+                    <p className="text-xs text-muted-strong">
+                      {signing === "approve" ? "Approve this sample" : "Reject this sample"}. Re-enter your password to sign.
+                    </p>
+                    {signing === "reject" && (
+                      <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={2}
+                        placeholder="Reason for rejecting this sample"
+                        className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-accent"
+                      />
+                    )}
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={signPassword}
+                      onChange={(e) => setSignPassword(e.target.value)}
+                      placeholder="Your password"
+                      className="w-full rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-accent"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={signing === "approve" ? "pass" : "destructive"}
+                        onClick={confirmSignature}
+                        disabled={pending || !signPassword || (signing === "reject" && !rejectReason.trim())}
+                      >
+                        {pending ? "Signing…" : signing === "approve" ? "Sign and approve" : "Sign and reject"}
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => { setSigning(null); setSignPassword(""); }} disabled={pending}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 {sample.status === "RETENTION" && canManage && (
                   <>

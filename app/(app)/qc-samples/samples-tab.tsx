@@ -11,6 +11,7 @@ import { Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } fro
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { QcSampleRow, MfgBatchOption } from "./qc-samples-client";
+import { todayLocalInput } from "@/lib/utils";
 
 const SAMPLE_TYPES: QcSampleType[] = ["FINISHED_PRODUCT", "STABILITY", "RETENTION", "INVESTIGATION", "COMPLAINT"];
 const PRODUCT_CATEGORIES: QcProductCategory[] = ["CAPSULE", "GUMMY"];
@@ -56,7 +57,7 @@ function initialSampleState(): NewSampleState {
     productCategory: "",
     quantity: "",
     unit: "",
-    collectionDate: new Date().toISOString().slice(0, 10),
+    collectionDate: todayLocalInput(),
     collectionTime: new Date().toTimeString().slice(0, 5),
     productionRoom: "",
     sampleStorageLocation: "",

@@ -94,14 +94,12 @@ export function QcSamplesClient({
   canCollect,
   canManage,
   canRunLabTesting,
-  isSuperAdmin,
 }: {
   samples: QcSampleRow[];
   mfgBatches: MfgBatchOption[];
   canCollect: boolean;
   canManage: boolean;
   canRunLabTesting: boolean;
-  isSuperAdmin: boolean;
 }) {
   const [tab, setTab] = useState<TabKey>("dashboard");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -160,7 +158,6 @@ export function QcSamplesClient({
           mfgBatches={mfgBatches}
           canManage={canManage}
           canRunLabTesting={canRunLabTesting}
-          isSuperAdmin={isSuperAdmin}
           onClose={() => setSelectedId(null)}
         />
       )}

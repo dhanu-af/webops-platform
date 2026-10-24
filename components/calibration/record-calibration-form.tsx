@@ -12,6 +12,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { recordCalibration } from "@/lib/actions-client/calibration";
+import { todayLocalInput } from "@/lib/utils";
 
 export function RecordCalibrationForm({
   equipmentId,
@@ -70,7 +71,7 @@ export function RecordCalibrationForm({
                 type="date"
                 name="calibratedDate"
                 required
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                defaultValue={todayLocalInput()}
                 className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
               />
             </div>

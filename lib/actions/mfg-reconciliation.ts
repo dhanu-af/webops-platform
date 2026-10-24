@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireLiveUser } from "@/lib/session-user";
 import { can } from "@/lib/permissions";
+import { auditDiff } from "@/lib/audit-diff";
+import { assertBatchOpen, checkOff, signOff } from "@/lib/mfg-signoff";
 import { logAudit } from "@/lib/audit";
 import { DEFAULT_PACKAGING_ISSUE_LINES, DEFAULT_PACKAGING_MATERIAL_LINES, canEditMfgStage, type MfgStageKey } from "@/lib/mfg-reconciliation";
 import { getUserAreaNames } from "@/lib/data/mfg-reconciliation";
@@ -12,45 +14,7 @@ import type { MfgMaterialGroup, MfgPackagingMaterialType } from "@/app/generated
 
 const BASE_PATH = "/mfg-reconciliation";
 
-type Actor = { id: string; name: string; role: Parameters<typeof can>[0] };
-
-// A completed batch record is locked: its stages can no longer be edited.
-function assertBatchOpen(batch: { status: string; batchNumber: string }) {
-  if (batch.status === "COMPLETED") throw new UserFacingError(`Batch ${batch.batchNumber} is completed and locked, so this stage can no longer be changed.`);
-}
-
-// The name and time beside a sign-off ("completed by", "blended by", ...) are always the signed-in user
-// and the server clock, never text typed into the form. The first sign-off stands: later saves keep it,
-// and it cannot be erased or handed to someone else from the form.
-function signOff(actor: Actor, existing: { name: string | null; at: Date | null } | null, typedName: string | null | undefined) {
-  if (!typedName?.trim()) return { name: existing?.name ?? null, at: existing?.at ?? null };
-  if (existing?.name) return { name: existing.name, at: existing.at };
-  return { name: actor.name, at: new Date() };
-}
-
-// "Checked by" is a second person: a Supervisor/QA-level role, and not the person who did the work.
-function checkOff(actor: Actor, existing: { name: string | null; at: Date | null } | null, typedName: string | null | undefined, doneByName: string | null) {
-  if (!typedName?.trim() || existing?.name) return signOff(actor, existing, typedName);
-  if (!can(actor.role, "mfg.manage")) throw new UserFacingError("Only a Supervisor or QA can check this stage.");
-  if (doneByName && doneByName === actor.name) throw new UserFacingError("The person who completed this stage cannot also check it.");
-  return signOff(actor, existing, typedName);
-}
-
-// What changed in a stage save, field by field, for the audit trail (dates compared as ISO strings).
-function stageDiff(before: Record<string, unknown> | null, after: Record<string, unknown>) {
-  const norm = (v: unknown) => (v instanceof Date ? v.toISOString() : v === undefined || v === "" ? null : v);
-  const oldValue: Record<string, string | number | boolean | null> = {};
-  const newValue: Record<string, string | number | boolean | null> = {};
-  for (const [field, next] of Object.entries(after)) {
-    if (field === "mfgBatchId" || field === "id") continue;
-    const prev = norm(before?.[field]);
-    if (prev !== norm(next)) {
-      oldValue[field] = prev as string | number | boolean | null;
-      newValue[field] = norm(next) as string | number | boolean | null;
-    }
-  }
-  return Object.keys(newValue).length ? { oldValue, newValue } : null;
-}
+const stageDiff = auditDiff;
 
 // Batch-level actions (create/delete/mark completed) stay restricted to the
 // full mfg.manage tier -- an operator who can edit their own section's

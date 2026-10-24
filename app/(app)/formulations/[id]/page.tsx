@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getFormulationDetail } from "@/lib/data/formulations";
 import FormulationDetailClient from "./formulation-detail-client";
+import { formatDateInTimeZone, getFacilityTimezone } from "@/lib/timezone";
 
 export default async function FormulationDetailPage({
   params,
@@ -15,7 +16,7 @@ export default async function FormulationDetailPage({
   const formulation = await getFormulationDetail(id);
   if (!formulation) notFound();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateInTimeZone(new Date(), await getFacilityTimezone());
 
   return (
     <FormulationDetailClient

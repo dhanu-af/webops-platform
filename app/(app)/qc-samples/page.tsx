@@ -81,7 +81,6 @@ export default async function QcSamplesPage() {
       canCollect={can(session!.user.role, "qc.collect")}
       canManage={can(session!.user.role, "qc.manage")}
       canRunLabTesting={can(session!.user.role, "qc.lab")}
-      isSuperAdmin={session!.user.role === "SUPER_ADMIN"}
       />
     </Suspense>
   );

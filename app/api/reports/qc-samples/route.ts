@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { liveSession } from "@/lib/session-user";
+import { endOfDayInTimeZone, getFacilityTimezone, startOfDayInTimeZone } from "@/lib/timezone";
 import { db } from "@/lib/db";
 import { SAMPLE_TYPE_LABEL, IN_LAB_STATUSES } from "@/lib/qc-sample-defaults";
 import { QC_SAMPLE_STATUS_META } from "@/lib/status";
@@ -68,10 +69,12 @@ export async function GET(request: NextRequest) {
 
   if (type === "daily-collection") {
     const dateParam = request.nextUrl.searchParams.get("date");
-    const day = dateParam ? new Date(dateParam) : new Date();
-    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-    const end = new Date(start.getTime() + 86_400_000);
-    const rows = await db.qcSample.findMany({ where: { collectionDate: { gte: start, lt: end } }, include: SAMPLE_INCLUDE, orderBy: { collectionDate: "asc" } });
+    // "That day" is the facility's calendar day, not the server's (UTC).
+    const timeZone = await getFacilityTimezone();
+    const day = dateParam ? new Date(`${dateParam}T12:00:00Z`) : new Date();
+    const start = startOfDayInTimeZone(timeZone, day);
+    const end = endOfDayInTimeZone(timeZone, day);
+    const rows = await db.qcSample.findMany({ where: { collectionDate: { gte: start, lte: end } }, include: SAMPLE_INCLUDE, orderBy: { collectionDate: "asc" } });
     return csvResponse("daily-collection", [toRow(SAMPLE_HEADER), ...rows.map((r) => toRow(baseRow(r)))]);
   }
 

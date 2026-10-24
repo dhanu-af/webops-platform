@@ -5,6 +5,7 @@ import { createBatch } from "@/lib/actions-client/drying-room-actions";
 import { Button } from "@/components/ui/button";
 import { Field, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import type { Employee } from "./drying-room-client";
+import { todayLocalInput } from "@/lib/utils";
 
 export default function AddBatchModal({ bayId, employees, onClose, onCreated }: { bayId: string; employees: Employee[]; onClose: () => void; onCreated: () => void }) {
   const [pending, startTransition] = useTransition();
@@ -15,7 +16,7 @@ export default function AddBatchModal({ bayId, employees, onClose, onCreated }: 
   const [batchSizeUnit, setBatchSizeUnit] = useState("kg");
   const [numberOfTrolleys, setNumberOfTrolleys] = useState(1);
   const [trayCount, setTrayCount] = useState(0);
-  const [dateEnteredDryingRoom, setDateEnteredDryingRoom] = useState(new Date().toISOString().slice(0, 10));
+  const [dateEnteredDryingRoom, setDateEnteredDryingRoom] = useState(todayLocalInput());
   const [assignedEmployeeId, setAssignedEmployeeId] = useState("");
   const [priorityRank, setPriorityRank] = useState("");
 

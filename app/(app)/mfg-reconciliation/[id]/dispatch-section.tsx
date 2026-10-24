@@ -7,6 +7,7 @@ import { Field, MFG_INPUT_CLASS } from "@/components/mfg/field";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { todayLocalInput } from "@/lib/utils";
 
 export type DispatchEventData = {
   id: string;
@@ -32,7 +33,7 @@ export function DispatchSection({ batchId, events, canManage }: { batchId: strin
   const [expiryDate, setExpiryDate] = useState("");
   const [casesDispatched, setCasesDispatched] = useState("");
   const [bottlesDispatched, setBottlesDispatched] = useState("");
-  const [dispatchDate, setDispatchDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dispatchDate, setDispatchDate] = useState(todayLocalInput());
   const [remainingStockAfter, setRemainingStockAfter] = useState("");
   const [remarks, setRemarks] = useState("");
 
@@ -43,7 +44,7 @@ export function DispatchSection({ batchId, events, canManage }: { batchId: strin
     setExpiryDate("");
     setCasesDispatched("");
     setBottlesDispatched("");
-    setDispatchDate(new Date().toISOString().slice(0, 10));
+    setDispatchDate(todayLocalInput());
     setRemainingStockAfter("");
     setRemarks("");
   }

@@ -82,9 +82,9 @@ jobs:
       - name: Check immutability protections survived
         run: |
           PGBIN=/usr/lib/postgresql/18/bin
-          N=$($PGBIN/psql -At -c "select count(*) from pg_trigger where not tgisinternal and tgname in ('Inspection_block_delete','InspectionResponse_block_delete','VerificationRecord_block_delete','CorrectiveAction_block_delete','AuditLog_block_change')")
-          echo "protection triggers restored: $N (expected 5)"
-          test "$N" = "5"
+          N=$($PGBIN/psql -At -c "select count(*) from pg_trigger where not tgisinternal and tgname in ('Inspection_block_delete','InspectionResponse_block_delete','VerificationRecord_block_delete','CorrectiveAction_block_delete','AuditLog_block_change','VerificationRecord_block_update','InspectionResponse_block_closed_update','MfgBatch_block_completed_delete','QcSample_block_lab_delete')")
+          echo "protection triggers restored: $N (expected 9)"
+          test "$N" = "9"
           # The audit trail must still refuse to be edited.
           if $PGBIN/psql -v ON_ERROR_STOP=1 -c 'delete from "AuditLog"' 2>/dev/null; then
             echo "AuditLog delete was NOT blocked"; exit 1

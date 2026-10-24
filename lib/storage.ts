@@ -71,9 +71,17 @@ const ALLOWED_PHOTO_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
 // check then rejects a perfectly real photo straight from the camera. Fall
 // back to the file extension rather than trust file.type alone.
 export function isAllowedPhotoFile(file: File): boolean {
-  if (ALLOWED_PHOTO_TYPES.includes(file.type)) return true;
+  return fileMatches(file, ALLOWED_PHOTO_TYPES, ALLOWED_PHOTO_EXTENSIONS);
+}
+
+// The extension must always be an allowed one, and a MIME type, when the browser supplies one, must be
+// allowed too. (An empty or generic type is tolerated because phones send that for real HEIC photos.)
+// Either check alone could be satisfied by lying about the other, e.g. "page.html" declared as image/jpeg.
+function fileMatches(file: File, types: string[], extensions: string[]): boolean {
   const ext = file.name.split(".").pop()?.toLowerCase();
-  return !!ext && ALLOWED_PHOTO_EXTENSIONS.includes(ext);
+  if (!ext || !extensions.includes(ext)) return false;
+  const generic = file.type === "" || file.type === "application/octet-stream";
+  return generic || types.includes(file.type);
 }
 
 // Admin-configurable via /admin/settings — falls back to the default above
@@ -100,9 +108,7 @@ const ALLOWED_CERTIFICATE_TYPES = ["application/pdf", "image/jpeg", "image/png"]
 const ALLOWED_CERTIFICATE_EXTENSIONS = ["pdf", "jpg", "jpeg", "png"];
 
 export function isAllowedCertificateFile(file: File): boolean {
-  if (ALLOWED_CERTIFICATE_TYPES.includes(file.type)) return true;
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  return !!ext && ALLOWED_CERTIFICATE_EXTENSIONS.includes(ext);
+  return fileMatches(file, ALLOWED_CERTIFICATE_TYPES, ALLOWED_CERTIFICATE_EXTENSIONS);
 }
 
 export async function storeCalibrationCertificate(file: File): Promise<{ url: string; sizeBytes: number }> {
@@ -149,9 +155,7 @@ const ALLOWED_QC_ATTACHMENT_EXTENSIONS = Object.keys(QC_ATTACHMENT_EXTENSION_CON
 // file.type (see isAllowedPhotoFile above) -- fall back to the extension
 // rather than trust file.type alone.
 export function isAllowedQcAttachmentFile(file: File): boolean {
-  if (Object.values(QC_ATTACHMENT_EXTENSION_CONTENT_TYPES).includes(file.type)) return true;
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  return !!ext && ALLOWED_QC_ATTACHMENT_EXTENSIONS.includes(ext);
+  return fileMatches(file, Object.values(QC_ATTACHMENT_EXTENSION_CONTENT_TYPES), ALLOWED_QC_ATTACHMENT_EXTENSIONS);
 }
 
 export async function storeQcAttachment(file: File): Promise<{ url: string; sizeBytes: number }> {

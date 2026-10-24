@@ -139,11 +139,13 @@ function SectionHeader({ text }: { text: string }) {
   );
 }
 
-const dateAU = (d: Date | null) => (d ? d.toLocaleDateString("en-AU") : "—");
 
 type BatchDetail = NonNullable<Awaited<ReturnType<typeof getMfgBatchDetail>>>;
 
-export function MfgReconciliationDocument({ batch, generatedAt }: { batch: BatchDetail; generatedAt: Date }) {
+export function MfgReconciliationDocument({ batch, generatedAt, timeZone }: { batch: BatchDetail; generatedAt: Date; timeZone: string }) {
+  // Date-only fields (issue, expiry, dispatch) are stored as UTC midnight; sign-off times are real instants shown in facility time.
+  const dateAU = (d: Date | null) => (d ? d.toLocaleDateString("en-AU", { timeZone: "UTC" }) : "—");
+  const stampAU = (d: Date | null) => (d ? d.toLocaleString("en-AU", { timeZone }) : "—");
   const checks = computeFinalReconciliationChecks(batch.blending, batch.encapsulation, batch.bottling);
 
   return (
@@ -160,7 +162,7 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
             ["Product", batch.productName],
             ["Status", MFG_BATCH_STATUS_LABEL[batch.status]],
             ["Formulation/BOM Reference", batch.formulationReference ?? "—"],
-            ["Report Generated", generatedAt.toLocaleString("en-AU")],
+            ["Report Generated", stampAU(generatedAt)],
             ...(batch.remarks ? ([["Remarks", batch.remarks]] as [string, string][]) : []),
           ]}
         />
@@ -230,7 +232,7 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
                 return y !== null ? `${y.toFixed(1)}%` : "—";
               })()],
               ["Blended By", batch.blending.blendedByName ?? "—"],
-              ["Blended At", dateAU(batch.blending.blendedAt)],
+              ["Blended At", stampAU(batch.blending.blendedAt)],
               ...(batch.blending.remarks ? ([["Remarks", batch.blending.remarks]] as [string, string][]) : []),
             ]}
           />
@@ -261,9 +263,9 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
                   ["Theoretical No. of Capsules", formatCount(theoreticalCapsules)],
                   ["No. of Capsules Produced", formatCount(capsulesProduced)],
                   ["Completed By", e.completedByName ?? "—"],
-                  ["Completed Date", dateAU(e.completedAt)],
+                  ["Completed Date", stampAU(e.completedAt)],
                   ["Checked By", e.checkedByName ?? "—"],
-                  ["Checked Date", dateAU(e.checkedAt)],
+                  ["Checked Date", stampAU(e.checkedAt)],
                   ...(e.comments ? ([["Comments", e.comments]] as [string, string][]) : []),
                 ]}
               />
@@ -287,9 +289,9 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
               ["Desiccants Used", batch.bottling.desiccantsUsed?.toString() ?? "—"],
               ["Caps Used", batch.bottling.capsUsed?.toString() ?? "—"],
               ["Completed By", batch.bottling.completedByName ?? "—"],
-              ["Completed Date", dateAU(batch.bottling.completedAt)],
+              ["Completed Date", stampAU(batch.bottling.completedAt)],
               ["Checked By", batch.bottling.checkedByName ?? "—"],
-              ["Checked Date", dateAU(batch.bottling.checkedAt)],
+              ["Checked Date", stampAU(batch.bottling.checkedAt)],
               ...(batch.bottling.comments ? ([["Comments", batch.bottling.comments]] as [string, string][]) : []),
             ]}
           />
@@ -316,7 +318,7 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
               ["Reject — Missing Cap", batch.xrayInspection.rejectMissingCap?.toString() ?? "—"],
               ["Reject — Missing Desiccant", batch.xrayInspection.rejectMissingDesiccant?.toString() ?? "—"],
               ["Inspected By", batch.xrayInspection.inspectedByName ?? "—"],
-              ["Inspected At", dateAU(batch.xrayInspection.inspectedAt)],
+              ["Inspected At", stampAU(batch.xrayInspection.inspectedAt)],
               ...(batch.xrayInspection.remarks ? ([["Remarks", batch.xrayInspection.remarks]] as [string, string][]) : []),
             ]}
           />
@@ -333,7 +335,7 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
                 ["Cartons Produced", batch.packaging.cartonsProduced?.toString() ?? "—"],
                 ["Cases Produced", batch.packaging.casesProduced?.toString() ?? "—"],
                 ["Packed By", batch.packaging.packedByName ?? "—"],
-                ["Packed At", dateAU(batch.packaging.packedAt)],
+                ["Packed At", stampAU(batch.packaging.packedAt)],
                 ...(batch.packaging.remarks ? ([["Remarks", batch.packaging.remarks]] as [string, string][]) : []),
               ]}
             />
@@ -369,7 +371,7 @@ export function MfgReconciliationDocument({ batch, generatedAt }: { batch: Batch
               ["Finished Goods Received", batch.finishedGoodsWarehouse.finishedGoodsReceived?.toString() ?? "—"],
               ["QA Released", batch.finishedGoodsWarehouse.qaReleased ? "Yes" : "No"],
               ["QA Released By", batch.finishedGoodsWarehouse.qaReleasedByName ?? "—"],
-              ["QA Released At", dateAU(batch.finishedGoodsWarehouse.qaReleasedAt)],
+              ["QA Released At", stampAU(batch.finishedGoodsWarehouse.qaReleasedAt)],
               ["Storage Location", batch.finishedGoodsWarehouse.storageLocation ?? "—"],
               ["Warehouse Balance", batch.finishedGoodsWarehouse.warehouseBalance?.toString() ?? "—"],
               ["Batch Number", batch.finishedGoodsWarehouse.batchNumber ?? "—"],

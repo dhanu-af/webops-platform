@@ -127,6 +127,8 @@ async function updateFormulation__impl(
 
   const baseBatchSize = data.ingredients.reduce((s, i) => s + (Number(i.baseQty) || 0), 0);
 
+  const before = await db.formulation.findUniqueOrThrow({ where: { id }, include: { ingredients: { orderBy: { order: "asc" } } } });
+
   // Rows are always fully re-submitted from the form, so replacing them
   // wholesale in a transaction is the simplest correct approach -- no need
   // to diff against what's already stored.
@@ -157,11 +159,16 @@ async function updateFormulation__impl(
     }),
   ]);
 
+  // The master formulation is edited in place, so the full previous content is kept here: this trail is its version history.
+  const after = await db.formulation.findUniqueOrThrow({ where: { id }, include: { ingredients: { orderBy: { order: "asc" } } } });
   await logAudit({
     entityType: "Formulation",
     entityId: id,
     action: "EDITED",
     userId: session.user.id,
+    oldValue: JSON.parse(JSON.stringify(before)),
+    newValue: JSON.parse(JSON.stringify(after)),
+    reason: `Master formulation ${after.productName} edited`,
   });
 
   revalidatePath(BASE_PATH);
@@ -170,14 +177,14 @@ async function updateFormulation__impl(
 
 async function deleteFormulation__impl(id: string) {
   const session = await requireEditor();
+  const doomed = await db.formulation.findUniqueOrThrow({ where: { id }, include: { ingredients: { orderBy: { order: "asc" } } } });
 
-  await db.formulation.delete({ where: { id } });
-
-  await logAudit({
-    entityType: "Formulation",
-    entityId: id,
-    action: "DELETED",
-    userId: session.user.id,
+  await db.$transaction(async (tx) => {
+    await tx.formulation.delete({ where: { id } });
+    await logAudit(
+      { entityType: "Formulation", entityId: id, action: "DELETED", userId: session.user.id, oldValue: JSON.parse(JSON.stringify(doomed)), reason: `Deleted formulation ${doomed.productName}` },
+      tx
+    );
   });
 
   revalidatePath(BASE_PATH);

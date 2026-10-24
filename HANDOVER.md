@@ -1,3 +1,34 @@
+# Go-live hardening — independent GMP / data-integrity review (2026-10-24) — read this first
+
+An independent read-only review of the code (ALCOA+, SQF Ed.10) found 25 issues; everything below is fixed, tested (unit + local production-build browser runs) and deployed unless listed under "Not done".
+
+Fixed
+- **Password hashes were sent to the browser** on the record page (whole `User` row via `respondedBy/operator/...: true`). All user relations now use `SAFE_USER` (`lib/safe-user.ts`); `lib/safe-user.test.ts` fails the build if anyone writes a whole-user include again.
+- **Deactivated / demoted users kept working** in module actions and downloads: ~14 action guards and 8 API routes trusted the JWT. They now go through `requireLiveUser` / `liveSession` (`lib/session-user.ts`: live role, active flag, areas, temporary-password check).
+- **Inspections:** numeric verdict is computed only on the server (a client `PASS` can no longer hide an out-of-range number); every answer change is audited with old/new value (also before submission); answers taken over by another user keep the earlier author as a *participant* who cannot verify; Supervisor-step approver cannot also give the QA approval; corrective action records its creator (`CorrectiveAction.createdById`, migration `20261024170000`), creator/responsible person cannot sign it off, a closed CA cannot be signed twice; finding changes/deletions audited; submit, verify and CA sign-off now write status + signature + audit row in ONE transaction (`logAudit(params, tx)`), verification claims the step atomically (`updateMany where status`), duplicate Start of a scheduled check is serialised with an advisory lock.
+- **E-signature:** wrong passwords now count towards the 8-attempt lockout; signing is refused while locked.
+- **Admin:** only a Super Admin can create/edit/reset a Super Admin; admin-set passwords are always temporary (admin must never know the password a person signs with).
+- **QC samples:** approve/reject need password re-entry (UI panel), approver must not be the tester, blank or FAIL results block approval, edits locked after approve/reject/retention, field-level audit, replaced lab results kept in the audit, no force-delete once a sample went to the lab.
+- **Manufacturing reconciliation:** every "done/checked/released by" name + time is the signed-in user and server clock (`lib/mfg-signoff.ts`, first sign-off stands); "checked by" needs Supervisor/QA and a different person; QA release/withdraw only for QA (`area.release`); stages lock when the batch is COMPLETED; stage saves audit old/new values; batch delete refused once completed and keeps a full snapshot in the audit.
+- **Drying room:** QC Approved/QC Hold stages and a trolley's QC result are QA/Supervisor only (UI hides them from operators too); trolley field changes audited; deletes keep a snapshot.
+- **Formulations:** edits/deletes keep the full previous content in the audit (this is the version history); the worksheet PDF takes "entered by"/date from the session, not the link.
+- **Checklist builder:** a numeric item with no limit typed no longer gets an invented 0–5 range (it used to fail every freezer/oven reading); min>max rejected; template publish/clone/archive/delete/schedule changes audited.
+- **Database protections** (migration `20261024180000_record_protection_more`, also checked by the monthly restore drill = 9 triggers): signatures can never be updated; answers on QA_APPROVED/CLOSED records can never be updated; a COMPLETED manufacturing batch and a QC sample that went to the lab can never be deleted. Same `webops.allow_record_delete` test switch as before.
+- **Dates/time zones:** drying-room, formulation and manufacturing PDFs and the QC daily export use the facility time zone; date inputs default to the device's local day (not UTC); upload checks need BOTH an allowed extension and an allowed MIME type.
+- **Operations:** `GET /api/health` (+`?deep=1` for the database) and `.github/workflows/uptime-check.yml` (every 15 min; GitHub emails on failure). Daily backup + restore drill run against the Sydney database.
+
+Not done (known, deliberate — decide before/after go-live)
+- Optimistic locking for two people saving the same mfg table at once (last write wins, both are audited).
+- QA approval of a *published checklist version* (publishing is Admin-only and audited, not signed by QA).
+- Formulation versions are the audit-trail snapshots, not first-class versions with e-signature approval.
+- The mfg form still shows name/date boxes; whatever is typed is replaced by the signed-in user/server time on save.
+- Photos/COAs are public Blob URLs without a content hash; access to them is not audited.
+- The Neon Free plan scales to zero; the first request after a quiet period is slower. Paid plan recommended for production.
+
+Local testing note: the local database is PGlite (one connection at a time). Write test fixtures with the app stopped, then start the app (`scratchpad/audit/run-modules.sh` does this).
+
+---
+
 # Full audit — mobile / iPad / speed / bugs (2026-10-24) — read this first
 
 What changed (all in `master`, deploys run `prisma migrate deploy`: 3 additive migrations — performance indexes, login lockout, login-ID/must-change already shipped earlier):

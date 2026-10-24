@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { liveSession } from "@/lib/session-user";
+import { getFacilityTimezone } from "@/lib/timezone";
 import { getMfgBatchDetail } from "@/lib/data/mfg-reconciliation";
 import { MfgReconciliationDocument } from "@/lib/pdf/mfg-reconciliation-document";
 
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
   const batch = await getMfgBatchDetail(id);
   if (!batch) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
 
-  const buffer = await renderToBuffer(MfgReconciliationDocument({ batch, generatedAt: new Date() }));
+  const buffer = await renderToBuffer(MfgReconciliationDocument({ batch, generatedAt: new Date(), timeZone: await getFacilityTimezone() }));
 
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
