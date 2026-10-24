@@ -20,6 +20,14 @@ import { SAFE_USER } from "@/lib/safe-user";
 
 const requireUserManager = () => requireUserWithPermission("users.manage");
 
+// Only a Super Admin may create, promote, edit or reset another Super Admin; otherwise an Admin could
+// give themselves (or a friend) the most privileged role, or take over that account.
+function assertMayManageRole(actorRole: UserRole, targetRole: UserRole) {
+  if (targetRole === "SUPER_ADMIN" && actorRole !== "SUPER_ADMIN") {
+    throw new UserFacingError("Only a Super Admin can create or change a Super Admin account.");
+  }
+}
+
 function checkPassword(password: string) {
   const problems = validatePassword(password);
   if (problems.length) throw new UserFacingError(`Password not accepted. ${problems.join(" ")}`);
@@ -40,6 +48,7 @@ export async function createUser(input: {
 }): Promise<ActionResult> {
   const result = await runAction(async () => {
     const actor = await requireUserManager();
+    assertMayManageRole(actor.role, input.role);
 
     const loginId = normalizeLoginId(input.loginId);
     const idProblem = validateLoginId(loginId);
@@ -59,7 +68,7 @@ export async function createUser(input: {
         loginId,
         email,
         passwordHash,
-        mustChangePassword: !!input.temporaryPassword,
+        mustChangePassword: true, // an admin-chosen password is always temporary: the admin knows it, so it must never be the user's e-signature credential
         role: input.role,
         employeeId: input.employeeId || undefined,
         sectionId: input.sectionId || undefined,
@@ -130,6 +139,8 @@ export async function updateUser(
     const actor = await requireUserManager();
 
     const before = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { assignedAreas: { select: { id: true } } } });
+    assertMayManageRole(actor.role, before.role);
+    assertMayManageRole(actor.role, input.role);
 
     // Changing your own role could lock you out of the permission that let you
     // get here (e.g. demoting yourself out of SUPER_ADMIN) — block that specific
@@ -206,22 +217,23 @@ export async function setUserActive(userId: string, active: boolean): Promise<Ac
 // For a user who's forgotten their password entirely (self-service change
 // requires knowing the *current* password, so it can't help here) — an admin
 // sets a new one directly, no email/reset-token infra needed.
-export async function adminResetPassword(userId: string, newPassword: string, temporary = true): Promise<ActionResult> {
+export async function adminResetPassword(userId: string, newPassword: string): Promise<ActionResult> {
   return runAction(async () => {
     const actor = await requireUserManager();
 
-    await db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true } });
+    const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, role: true } });
+    assertMayManageRole(actor.role, target.role);
     checkPassword(newPassword);
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     // a reset also unlocks an account locked by repeated wrong passwords
-    await db.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: temporary, failedLogins: 0, lockedUntil: null } });
+    await db.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true, failedLogins: 0, lockedUntil: null } });
     await logAudit({
       entityType: "User",
       entityId: userId,
       action: "EDITED",
       userId: actor.id,
-      reason: temporary ? "Password reset by admin (temporary - user must change it at next sign-in)" : "Password reset by admin",
+      reason: "Password reset by admin (temporary - user must change it at next sign-in)",
     });
 
     revalidatePath("/admin/users");

@@ -132,9 +132,9 @@ export function NewUserForm({
           </Button>
         </div>
         <label className="mt-2 flex items-start gap-2 text-sm text-foreground">
-          <input type="checkbox" className="mt-0.5" checked={temporary} onChange={(e) => setTemporary(e.target.checked)} />
+          <input type="checkbox" className="mt-0.5" checked={temporary} disabled onChange={(e) => setTemporary(e.target.checked)} />
           <span>
-            Temporary password — the user must choose their own password the first time they sign in.
+            Temporary password — always required: the user must choose their own password the first time they sign in, so only they know the password they sign records with.
             <span className="block text-xs text-muted">Give them the User ID and this password in person; it is not shown again after you save.</span>
           </span>
         </label>

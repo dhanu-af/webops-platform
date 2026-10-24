@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireLiveUser } from "@/lib/session-user";
 import { logAudit } from "@/lib/audit";
 import { STAGE_LABEL } from "@/lib/drying-room-defaults";
+import { changedFields } from "@/lib/inspection-rules";
 import type { DryingBayPurpose, DryingStage, TrolleyQcStatus } from "@/app/generated/prisma/client";
 
 const BASE_PATH = "/drying-room";
@@ -176,8 +177,14 @@ async function updateBatchRemarks__impl(batchId: string, remarks: string | null)
  * per-stage timestamps by reading it back out, so a batch's stage history
  * doesn't need its own dedicated table.
  */
+// A QC decision is not the operator's to make: approving or holding a batch, and moving a batch that is on
+// QC hold, needs a QA/Supervisor role (drying.manage). Everything else stays open to the floor.
+const QC_DECISION_STAGES: DryingStage[] = ["QC_APPROVED", "QC_HOLD"];
+
 async function updateBatchStage__impl(batchId: string, stage: DryingStage) {
-  const session = await requireUpdateAccess();
+  const previous = await db.dryingBatch.findUniqueOrThrow({ where: { id: batchId }, select: { currentStage: true } });
+  const isQcDecision = QC_DECISION_STAGES.includes(stage) || previous.currentStage === "QC_HOLD";
+  const session = isQcDecision ? await requireManageAccess() : await requireUpdateAccess();
 
   await db.dryingBatch.update({
     where: { id: batchId },
@@ -194,6 +201,7 @@ async function updateBatchStage__impl(batchId: string, stage: DryingStage) {
     entityId: batchId,
     action: "DRYING_STAGE_CHANGED",
     userId: session.user.id,
+    oldValue: { stage: previous.currentStage },
     newValue: { stage },
     reason: `Set batch to ${STAGE_LABEL[stage]}`,
   });
@@ -213,11 +221,28 @@ async function updateTrolley__impl(
     remarks: string | null;
   }
 ) {
-  const session = await requireUpdateAccess();
+  const before = await db.dryingTrolley.findUniqueOrThrow({ where: { id: trolleyId } });
+  // The QC result on a trolley is a QC decision: only QA/Supervisor roles may change it.
+  const session = data.qcStatus !== before.qcStatus ? await requireManageAccess() : await requireUpdateAccess();
 
   await db.dryingTrolley.update({ where: { id: trolleyId }, data });
 
-  await logAudit({ entityType: "DryingTrolley", entityId: trolleyId, action: "EDITED", userId: session.user.id, reason: "Updated trolley" });
+  const changes = changedFields(before, data);
+  if (changes.length === 0) {
+    await logAudit({ entityType: "DryingTrolley", entityId: trolleyId, action: "EDITED", userId: session.user.id, reason: "Trolley saved with no change" });
+  }
+  for (const c of changes) {
+    await logAudit({
+      entityType: "DryingTrolley",
+      entityId: trolleyId,
+      action: "EDITED",
+      userId: session.user.id,
+      fieldName: c.field,
+      oldValue: { value: c.oldValue as string | number | boolean | null },
+      newValue: { value: c.newValue as string | number | boolean | null },
+      reason: `Trolley ${before.trolleyNumber}: ${c.field} changed`,
+    });
+  }
 
   revalidatePath(BASE_PATH);
 }

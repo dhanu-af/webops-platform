@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 const m = vi.hoisted(() => ({
   session: { current: null as null | { user: { id: string } } },
   db: {
-    user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn() },
+    user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn(), update: vi.fn() },
     inspection: { findUniqueOrThrow: vi.fn(), findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     checklistItem: { findUniqueOrThrow: vi.fn() },
     inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn(), update: vi.fn(), findMany: vi.fn() },

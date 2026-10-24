@@ -24,7 +24,7 @@ export function ResetPasswordForm({ userId }: { userId: string }) {
         { const problems = validatePassword(newPassword); if (problems.length) return setError(problems.join(" ")); }
         startTransition(async () => {
           try {
-            const result = await adminResetPassword(userId, newPassword, temporary);
+            const result = await adminResetPassword(userId, newPassword);
             if (!result.ok) return setError(result.error);
             setNewPassword("");
             setDone(true);
@@ -60,8 +60,8 @@ export function ResetPasswordForm({ userId }: { userId: string }) {
           </Button>
         </div>
         <label className="mt-2 flex items-start gap-2 text-sm text-foreground">
-          <input type="checkbox" className="mt-0.5" checked={temporary} onChange={(e) => setTemporary(e.target.checked)} />
-          <span>Temporary — the user must choose a new password at their next sign-in.</span>
+          <input type="checkbox" className="mt-0.5" checked={temporary} disabled onChange={(e) => setTemporary(e.target.checked)} />
+          <span>Temporary (always) — the user must choose a new password at their next sign-in, so only they know it.</span>
         </label>
         <p className="mt-1.5 text-xs text-muted">
           For a user who&apos;s completely locked out — sets their password directly, no current password needed. Tell them the new password

@@ -4,12 +4,53 @@ import { UserFacingError, guard } from "@/lib/user-error";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireLiveUser } from "@/lib/session-user";
+import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { DEFAULT_PACKAGING_ISSUE_LINES, DEFAULT_PACKAGING_MATERIAL_LINES, canEditMfgStage, type MfgStageKey } from "@/lib/mfg-reconciliation";
 import { getUserAreaNames } from "@/lib/data/mfg-reconciliation";
 import type { MfgMaterialGroup, MfgPackagingMaterialType } from "@/app/generated/prisma/client";
 
 const BASE_PATH = "/mfg-reconciliation";
+
+type Actor = { id: string; name: string; role: Parameters<typeof can>[0] };
+
+// A completed batch record is locked: its stages can no longer be edited.
+function assertBatchOpen(batch: { status: string; batchNumber: string }) {
+  if (batch.status === "COMPLETED") throw new UserFacingError(`Batch ${batch.batchNumber} is completed and locked, so this stage can no longer be changed.`);
+}
+
+// The name and time beside a sign-off ("completed by", "blended by", ...) are always the signed-in user
+// and the server clock, never text typed into the form. The first sign-off stands: later saves keep it,
+// and it cannot be erased or handed to someone else from the form.
+function signOff(actor: Actor, existing: { name: string | null; at: Date | null } | null, typedName: string | null | undefined) {
+  if (!typedName?.trim()) return { name: existing?.name ?? null, at: existing?.at ?? null };
+  if (existing?.name) return { name: existing.name, at: existing.at };
+  return { name: actor.name, at: new Date() };
+}
+
+// "Checked by" is a second person: a Supervisor/QA-level role, and not the person who did the work.
+function checkOff(actor: Actor, existing: { name: string | null; at: Date | null } | null, typedName: string | null | undefined, doneByName: string | null) {
+  if (!typedName?.trim() || existing?.name) return signOff(actor, existing, typedName);
+  if (!can(actor.role, "mfg.manage")) throw new UserFacingError("Only a Supervisor or QA can check this stage.");
+  if (doneByName && doneByName === actor.name) throw new UserFacingError("The person who completed this stage cannot also check it.");
+  return signOff(actor, existing, typedName);
+}
+
+// What changed in a stage save, field by field, for the audit trail (dates compared as ISO strings).
+function stageDiff(before: Record<string, unknown> | null, after: Record<string, unknown>) {
+  const norm = (v: unknown) => (v instanceof Date ? v.toISOString() : v === undefined || v === "" ? null : v);
+  const oldValue: Record<string, string | number | boolean | null> = {};
+  const newValue: Record<string, string | number | boolean | null> = {};
+  for (const [field, next] of Object.entries(after)) {
+    if (field === "mfgBatchId" || field === "id") continue;
+    const prev = norm(before?.[field]);
+    if (prev !== norm(next)) {
+      oldValue[field] = prev as string | number | boolean | null;
+      newValue[field] = norm(next) as string | number | boolean | null;
+    }
+  }
+  return Object.keys(newValue).length ? { oldValue, newValue } : null;
+}
 
 // Batch-level actions (create/delete/mark completed) stay restricted to the
 // full mfg.manage tier -- an operator who can edit their own section's
@@ -69,16 +110,26 @@ async function createMfgBatch__impl(data: { batchNumber: string; productName: st
 
 async function deleteMfgBatch__impl(id: string) {
   const actor = await requireAccess();
-  const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id } });
+  const batch = await db.mfgBatch.findUniqueOrThrow({
+    where: { id },
+    include: { warehouseIssue: { include: { lines: true } }, blending: true, encapsulation: true, bottling: true, xrayInspection: true, packaging: { include: { lines: true } }, finishedGoodsWarehouse: true, dispatchEvents: true },
+  });
+  if (batch.status === "COMPLETED") throw new UserFacingError(`Batch ${batch.batchNumber} is completed. A completed batch record is kept and cannot be deleted.`);
 
-  await db.mfgBatch.delete({ where: { id } });
-
-  await logAudit({
-    entityType: "MfgBatch",
-    entityId: id,
-    action: "DELETED",
-    userId: actor.id,
-    reason: `Deleted manufacturing batch ${batch.batchNumber}`,
+  await db.$transaction(async (tx) => {
+    await tx.mfgBatch.delete({ where: { id } });
+    // The whole record is kept in the audit trail so a mistaken delete can be reconstructed.
+    await logAudit(
+      {
+        entityType: "MfgBatch",
+        entityId: id,
+        action: "DELETED",
+        userId: actor.id,
+        oldValue: JSON.parse(JSON.stringify(batch)),
+        reason: `Deleted manufacturing batch ${batch.batchNumber}`,
+      },
+      tx
+    );
   });
 
   revalidatePath(BASE_PATH);
@@ -121,12 +172,15 @@ async function saveWarehouseIssue__impl(
 ) {
   const actor = await requireStageAccess("warehouseIssue");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  assertBatchOpen(batch);
+  const prior = await db.mfgWarehouseIssue.findUnique({ where: { mfgBatchId: batchId } });
+  const issuedBy = signOff(actor, prior ? { name: prior.issuedByName, at: null } : null, header.issuedByName);
 
   await db.$transaction(async (tx) => {
     const issue = await tx.mfgWarehouseIssue.upsert({
       where: { mfgBatchId: batchId },
-      create: { mfgBatchId: batchId, issuedByName: header.issuedByName, issueDate: header.issueDate ? new Date(header.issueDate) : null, remarks: header.remarks },
-      update: { issuedByName: header.issuedByName, issueDate: header.issueDate ? new Date(header.issueDate) : null, remarks: header.remarks },
+      create: { mfgBatchId: batchId, issuedByName: issuedBy.name, issueDate: header.issueDate ? new Date(header.issueDate) : null, remarks: header.remarks },
+      update: { issuedByName: issuedBy.name, issueDate: header.issueDate ? new Date(header.issueDate) : null, remarks: header.remarks },
     });
     await tx.mfgMaterialIssueLine.deleteMany({ where: { warehouseIssueId: issue.id } });
     await tx.mfgMaterialIssueLine.createMany({
@@ -172,11 +226,14 @@ type BlendingInput = {
 async function saveBlending__impl(batchId: string, data: BlendingInput) {
   const actor = await requireStageAccess("blending");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  assertBatchOpen(batch);
+  const prior = await db.mfgBlending.findUnique({ where: { mfgBatchId: batchId } });
+  const blended = signOff(actor, prior ? { name: prior.blendedByName, at: prior.blendedAt } : null, data.blendedByName);
 
-  const values = { ...data, blendedAt: data.blendedAt ? new Date(data.blendedAt) : null };
+  const values = { ...data, blendedByName: blended.name, blendedAt: blended.at };
   await db.mfgBlending.upsert({ where: { mfgBatchId: batchId }, create: { mfgBatchId: batchId, ...values }, update: values });
 
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Blending stage saved for batch ${batch.batchNumber}` });
+  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Blending stage saved for batch ${batch.batchNumber}`, ...stageDiff(prior, values) });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
@@ -205,11 +262,15 @@ type EncapsulationInput = {
 async function saveEncapsulation__impl(batchId: string, data: EncapsulationInput) {
   const actor = await requireStageAccess("encapsulation");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  assertBatchOpen(batch);
+  const prior = await db.mfgEncapsulation.findUnique({ where: { mfgBatchId: batchId } });
+  const completed = signOff(actor, prior ? { name: prior.completedByName, at: prior.completedAt } : null, data.completedByName);
+  const checked = checkOff(actor, prior ? { name: prior.checkedByName, at: prior.checkedAt } : null, data.checkedByName, completed.name);
 
-  const values = { ...data, completedAt: data.completedAt ? new Date(data.completedAt) : null, checkedAt: data.checkedAt ? new Date(data.checkedAt) : null };
+  const values = { ...data, completedByName: completed.name, completedAt: completed.at, checkedByName: checked.name, checkedAt: checked.at };
   await db.mfgEncapsulation.upsert({ where: { mfgBatchId: batchId }, create: { mfgBatchId: batchId, ...values }, update: values });
 
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Encapsulation stage saved for batch ${batch.batchNumber}` });
+  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Encapsulation stage saved for batch ${batch.batchNumber}`, ...stageDiff(prior, values) });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
@@ -235,11 +296,15 @@ type BottlingInput = {
 async function saveBottling__impl(batchId: string, data: BottlingInput) {
   const actor = await requireStageAccess("bottling");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  assertBatchOpen(batch);
+  const prior = await db.mfgBottling.findUnique({ where: { mfgBatchId: batchId } });
+  const completed = signOff(actor, prior ? { name: prior.completedByName, at: prior.completedAt } : null, data.completedByName);
+  const checked = checkOff(actor, prior ? { name: prior.checkedByName, at: prior.checkedAt } : null, data.checkedByName, completed.name);
 
-  const values = { ...data, completedAt: data.completedAt ? new Date(data.completedAt) : null, checkedAt: data.checkedAt ? new Date(data.checkedAt) : null };
+  const values = { ...data, completedByName: completed.name, completedAt: completed.at, checkedByName: checked.name, checkedAt: checked.at };
   await db.mfgBottling.upsert({ where: { mfgBatchId: batchId }, create: { mfgBatchId: batchId, ...values }, update: values });
 
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Bottling stage saved for batch ${batch.batchNumber}` });
+  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Bottling stage saved for batch ${batch.batchNumber}`, ...stageDiff(prior, values) });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
@@ -266,11 +331,14 @@ type XrayInspectionInput = {
 async function saveXrayInspection__impl(batchId: string, data: XrayInspectionInput) {
   const actor = await requireStageAccess("xray");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  assertBatchOpen(batch);
+  const prior = await db.mfgXrayInspection.findUnique({ where: { mfgBatchId: batchId } });
+  const inspected = signOff(actor, prior ? { name: prior.inspectedByName, at: prior.inspectedAt } : null, data.inspectedByName);
 
-  const values = { ...data, inspectedAt: data.inspectedAt ? new Date(data.inspectedAt) : null };
+  const values = { ...data, inspectedByName: inspected.name, inspectedAt: inspected.at };
   await db.mfgXrayInspection.upsert({ where: { mfgBatchId: batchId }, create: { mfgBatchId: batchId, ...values }, update: values });
 
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `X-Ray/Metal Detection stage saved for batch ${batch.batchNumber}` });
+  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `X-Ray/Metal Detection stage saved for batch ${batch.batchNumber}`, ...stageDiff(prior, values) });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
@@ -283,18 +351,22 @@ async function savePackaging__impl(
 ) {
   const actor = await requireStageAccess("packaging");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  assertBatchOpen(batch);
+  const prior = await db.mfgPackaging.findUnique({ where: { mfgBatchId: batchId } });
+  const packed = signOff(actor, prior ? { name: prior.packedByName, at: prior.packedAt } : null, header.packedByName);
+  const headerValues = { ...header, packedByName: packed.name, packedAt: packed.at };
 
   await db.$transaction(async (tx) => {
     const packaging = await tx.mfgPackaging.upsert({
       where: { mfgBatchId: batchId },
-      create: { mfgBatchId: batchId, ...header, packedAt: header.packedAt ? new Date(header.packedAt) : null },
-      update: { ...header, packedAt: header.packedAt ? new Date(header.packedAt) : null },
+      create: { mfgBatchId: batchId, ...headerValues },
+      update: headerValues,
     });
     await tx.mfgPackagingMaterialLine.deleteMany({ where: { packagingId: packaging.id } });
     await tx.mfgPackagingMaterialLine.createMany({ data: lines.map((line, i) => ({ packagingId: packaging.id, ...line, sortOrder: i })) });
   });
 
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Packaging stage saved for batch ${batch.batchNumber}` });
+  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Packaging stage saved for batch ${batch.batchNumber}`, ...stageDiff(prior, headerValues) });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
@@ -313,11 +385,24 @@ type FinishedGoodsWarehouseInput = {
 async function saveFinishedGoodsWarehouse__impl(batchId: string, data: FinishedGoodsWarehouseInput) {
   const actor = await requireStageAccess("fgWarehouse");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  const prior = await db.mfgFinishedGoodsWarehouse.findUnique({ where: { mfgBatchId: batchId } });
 
-  const values = { ...data, qaReleasedAt: data.qaReleasedAt ? new Date(data.qaReleasedAt) : null, expiryDate: data.expiryDate ? new Date(data.expiryDate) : null };
+  // QA release is a QA decision: only QA can set or withdraw it, the name is the signed-in QA user and the
+  // time is the server clock, whatever the form sent.
+  let qaReleased = prior?.qaReleased ?? false;
+  let qaReleasedByName = prior?.qaReleasedByName ?? null;
+  let qaReleasedAt = prior?.qaReleasedAt ?? null;
+  if (data.qaReleased !== qaReleased) {
+    if (!can(actor.role, "area.release")) throw new UserFacingError("Only QA can release or withdraw the release of finished goods.");
+    qaReleased = data.qaReleased;
+    qaReleasedByName = qaReleased ? actor.name : null;
+    qaReleasedAt = qaReleased ? new Date() : null;
+  }
+
+  const values = { ...data, qaReleased, qaReleasedByName, qaReleasedAt, expiryDate: data.expiryDate ? new Date(data.expiryDate) : null };
   await db.mfgFinishedGoodsWarehouse.upsert({ where: { mfgBatchId: batchId }, create: { mfgBatchId: batchId, ...values }, update: values });
 
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Finished Goods Warehouse stage saved for batch ${batch.batchNumber}` });
+  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "EDITED", userId: actor.id, reason: `Finished Goods Warehouse stage saved for batch ${batch.batchNumber}${prior?.qaReleased !== qaReleased ? (qaReleased ? " - QA released" : " - QA release withdrawn") : ""}`, ...stageDiff(prior, values) });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 
@@ -361,10 +446,16 @@ async function addDispatchEvent__impl(batchId: string, data: DispatchEventInput)
 async function deleteDispatchEvent__impl(batchId: string, dispatchEventId: string) {
   const actor = await requireStageAccess("dispatch");
   const batch = await db.mfgBatch.findUniqueOrThrow({ where: { id: batchId } });
+  const event = await db.mfgDispatchEvent.findUniqueOrThrow({ where: { id: dispatchEventId } });
+  if (event.mfgBatchId !== batchId) throw new UserFacingError("That dispatch entry does not belong to this batch.");
 
-  await db.mfgDispatchEvent.delete({ where: { id: dispatchEventId } });
-
-  await logAudit({ entityType: "MfgBatch", entityId: batchId, action: "DELETED", userId: actor.id, reason: `Dispatch event removed for batch ${batch.batchNumber}` });
+  await db.$transaction(async (tx) => {
+    await tx.mfgDispatchEvent.delete({ where: { id: dispatchEventId } });
+    await logAudit(
+      { entityType: "MfgBatch", entityId: batchId, action: "DELETED", userId: actor.id, oldValue: JSON.parse(JSON.stringify(event)), reason: `Dispatch event removed for batch ${batch.batchNumber}` },
+      tx
+    );
+  });
   revalidatePath(`${BASE_PATH}/${batchId}`);
 }
 

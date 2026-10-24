@@ -3,6 +3,7 @@
 import { UserFacingError, guard } from "@/lib/user-error";
 import { SAFE_USER } from "@/lib/safe-user";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import { requireLiveUser } from "@/lib/session-user";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -63,6 +64,11 @@ async function saveChecklistVersion__impl(input: {
 }) {
   const user = await requireAdmin();
   if (input.items.length === 0) throw new UserFacingError("Add at least one item before publishing.");
+  for (const item of input.items) {
+    if (item.type === "NUMERIC" && item.minValue != null && item.maxValue != null && item.minValue > item.maxValue) {
+      throw new UserFacingError(`"${item.prompt}": the minimum (${item.minValue}) is higher than the maximum (${item.maxValue}).`);
+    }
+  }
 
   const checklist = await db.checklist.findUniqueOrThrow({
     where: { id: input.checklistId },
@@ -103,12 +109,26 @@ async function saveChecklistVersion__impl(input: {
           required: item.required,
           requiresPhotoOnFail: item.requiresPhotoOnFail,
           criticalFailure: item.criticalFailure,
-          minValue: item.type === "NUMERIC" ? item.minValue ?? 0 : undefined,
-          maxValue: item.type === "NUMERIC" ? item.maxValue ?? 5 : undefined,
+          // No limit typed means no limit: never invent one (an invented 0-5 range would fail every freezer or oven reading).
+          minValue: item.type === "NUMERIC" ? item.minValue ?? null : undefined,
+          maxValue: item.type === "NUMERIC" ? item.maxValue ?? null : undefined,
           choices: item.type === "MULTIPLE_CHOICE" ? item.choices ?? [] : undefined,
         },
       });
     }
+    await logAudit(
+      {
+        entityType: "ChecklistVersion",
+        entityId: version.id,
+        action: current ? "EDITED" : "CREATED",
+        userId: user.id,
+        fieldName: "version",
+        oldValue: { checklist: checklist.name, versionNumber: current?.versionNumber ?? null },
+        newValue: { checklist: input.name, versionNumber: nextVersionNumber, items: input.items.length },
+        reason: `Published ${input.name} version ${nextVersionNumber}`,
+      },
+      tx
+    );
   });
 
   revalidatePath(`/admin/checklists/${input.checklistId}`);
@@ -162,6 +182,7 @@ async function cloneChecklist__impl(id: string) {
         },
       });
     }
+    await logAudit({ entityType: "Checklist", entityId: newChecklist.id, action: "CREATED", userId: user.id, newValue: { name: newChecklist.name }, reason: `Copied from ${source.name}` }, tx);
     return newChecklist;
   });
 
@@ -170,8 +191,10 @@ async function cloneChecklist__impl(id: string) {
 }
 
 async function setChecklistActive__impl(id: string, active: boolean) {
-  await requireAdmin();
+  const user = await requireAdmin();
+  const before = await db.checklist.findUniqueOrThrow({ where: { id }, select: { name: true, active: true } });
   await db.checklist.update({ where: { id }, data: { active } });
+  await logAudit({ entityType: "Checklist", entityId: id, action: "EDITED", userId: user.id, fieldName: "active", oldValue: { checklist: before.name, active: before.active }, newValue: { checklist: before.name, active }, reason: active ? "Checklist restored" : "Checklist archived" });
   revalidatePath("/admin/checklists");
   revalidatePath("/checklists");
 }
@@ -182,7 +205,8 @@ async function setChecklistActive__impl(id: string, active: boolean) {
 // this checklist: once real inspection data exists, that's audit history and
 // must go through Archive instead, never deletion.
 async function deleteChecklist__impl(id: string) {
-  await requireAdmin();
+  const user = await requireAdmin();
+  const doomed = await db.checklist.findUniqueOrThrow({ where: { id }, select: { name: true, category: true } });
 
   const inspectionCount = await db.inspection.count({
     where: { checklistVersion: { checklistId: id } },
@@ -194,6 +218,7 @@ async function deleteChecklist__impl(id: string) {
   }
 
   await db.checklist.delete({ where: { id } });
+  await logAudit({ entityType: "Checklist", entityId: id, action: "DELETED", userId: user.id, oldValue: { name: doomed.name, category: doomed.category }, reason: "Checklist with no inspection history deleted" });
   revalidatePath("/admin/checklists");
   revalidatePath("/checklists");
 }
@@ -210,8 +235,8 @@ async function createSchedule__impl(input: {
   priority: Priority;
   photoRequired: boolean;
 }) {
-  await requireAdmin();
-  await db.checklistSchedule.create({
+  const user = await requireAdmin();
+  const schedule = await db.checklistSchedule.create({
     data: {
       checklistId: input.checklistId,
       frequency: input.frequency,
@@ -226,13 +251,16 @@ async function createSchedule__impl(input: {
       photoRequired: input.photoRequired,
     },
   });
+  await logAudit({ entityType: "ChecklistSchedule", entityId: schedule.id, action: "CREATED", userId: user.id, newValue: { checklistId: input.checklistId, frequency: input.frequency, areaId: input.areaId ?? null, dueTime: input.dueTime ?? null } });
   revalidatePath(`/admin/checklists/${input.checklistId}`);
   revalidatePath("/today");
 }
 
 async function setScheduleActive__impl(scheduleId: string, active: boolean, checklistId: string) {
-  await requireAdmin();
+  const user = await requireAdmin();
+  const before = await db.checklistSchedule.findUniqueOrThrow({ where: { id: scheduleId }, select: { active: true } });
   await db.checklistSchedule.update({ where: { id: scheduleId }, data: { active } });
+  await logAudit({ entityType: "ChecklistSchedule", entityId: scheduleId, action: "EDITED", userId: user.id, fieldName: "active", oldValue: { active: before.active }, newValue: { active }, reason: active ? "Schedule switched on" : "Schedule switched off" });
   revalidatePath(`/admin/checklists/${checklistId}`);
   revalidatePath("/today");
 }

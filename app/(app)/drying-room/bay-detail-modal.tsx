@@ -11,6 +11,7 @@ import AddBatchModal from "./add-batch-modal";
 import type { Bay, Batch, Trolley, Employee } from "./drying-room-client";
 
 const PURPOSE_OPTIONS: DryingBayPurpose[] = ["EMPTY", "DRYING", "WAITING_QC", "READY_FOR_POUCHING", "READY_FOR_PRODUCTION", "CLEANING_REQUIRED", "RND", "STORAGE", "SERVICE", "QUARANTINE"];
+const QC_DECISION_STAGES: DryingStage[] = ["QC_APPROVED", "QC_HOLD"];
 const STAGE_OPTIONS: DryingStage[] = ["RECEIVING", "DRYING", "ROTATION_REQUIRED", "CONTINUE_DRYING", "QC_SAMPLING", "QC_PENDING", "QC_APPROVED", "QC_HOLD", "WRAPPING", "READY_FOR_POUCHING", "POUCHING", "COMPLETE"];
 
 export default function BayDetailModal({
@@ -254,7 +255,11 @@ function BatchCard({
   const [moveTarget, setMoveTarget] = useState("");
   const [stageTarget, setStageTarget] = useState("");
   const [remarksDraft, setRemarksDraft] = useState(batch.remarks ?? "");
-  const actions = STAGE_ACTIONS[batch.currentStage] ?? [];
+  // QC approval/hold is a QA decision (enforced on the server too): operators don't see those moves,
+  // and a batch on QC hold can only be moved by QA/Supervisor.
+  const qcLocked = !canManage && batch.currentStage === "QC_HOLD";
+  const actions = qcLocked ? [] : (STAGE_ACTIONS[batch.currentStage] ?? []).filter((a) => canManage || !QC_DECISION_STAGES.includes(a.target));
+  const stageOptions = qcLocked ? [] : STAGE_OPTIONS.filter((s) => canManage || !QC_DECISION_STAGES.includes(s));
   const alerts = computeBatchAlerts(batch);
   const days = daysSinceProduction(batch.dateEnteredDryingRoom);
 
@@ -323,7 +328,7 @@ function BatchCard({
         <div className="mt-2 flex items-center gap-1.5">
           <select value={stageTarget} onChange={(e) => setStageTarget(e.target.value)} className={`${MFG_INPUT_CLASS} py-1 text-[11px]`}>
             <option value="">Move to stage...</option>
-            {STAGE_OPTIONS.map((s) => (
+            {stageOptions.map((s) => (
               <option key={s} value={s}>
                 {STAGE_LABEL[s]}
               </option>
@@ -387,7 +392,7 @@ function BatchCard({
       {showTrolleys && (
         <div className="mt-2 space-y-1.5">
           {batch.trolleys.map((t) => (
-            <TrolleyRow key={t.id} trolley={t} employees={employees} canUpdate={canUpdate} onSaved={onRefresh} />
+            <TrolleyRow key={t.id} trolley={t} employees={employees} canUpdate={canUpdate} canManage={canManage} onSaved={onRefresh} />
           ))}
         </div>
       )}
@@ -395,7 +400,7 @@ function BatchCard({
   );
 }
 
-function TrolleyRow({ trolley, employees, canUpdate, onSaved }: { trolley: Trolley; employees: Employee[]; canUpdate: boolean; onSaved: () => void }) {
+function TrolleyRow({ trolley, employees, canUpdate, canManage, onSaved }: { trolley: Trolley; employees: Employee[]; canUpdate: boolean; canManage: boolean; onSaved: () => void }) {
   const [pending, startTransition] = useTransition();
   const [quantity, setQuantity] = useState<number | "">(trolley.quantity ?? "");
   const [trayCount, setTrayCount] = useState<number | "">(trolley.trayCount ?? "");
@@ -453,7 +458,7 @@ function TrolleyRow({ trolley, employees, canUpdate, onSaved }: { trolley: Troll
           placeholder="Trays"
           className={`${MFG_INPUT_CLASS} py-1 text-[11px]`}
         />
-        <select value={qcStatus} onChange={(e) => setQcStatus(e.target.value as TrolleyQcStatus)} disabled={!canUpdate} className={`${MFG_INPUT_CLASS} py-1 text-[11px]`}>
+        <select value={qcStatus} onChange={(e) => setQcStatus(e.target.value as TrolleyQcStatus)} disabled={!canManage} title={canManage ? undefined : "QC result is set by QA or a Supervisor"} className={`${MFG_INPUT_CLASS} py-1 text-[11px]`}>
           <option value="PENDING">QC Pending</option>
           <option value="PASSED">QC Passed</option>
           <option value="FAILED">QC Failed</option>
