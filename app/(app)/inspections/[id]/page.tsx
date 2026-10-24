@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { isAnswered } from "@/lib/inspection-rules";
 import { formatDateTimeInTimeZone } from "@/lib/timezone";
 import { auth } from "@/lib/auth";
 import { getFacilityTimezone } from "@/lib/timezone";
@@ -45,11 +46,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   // "answered / total" tally shown in the SubmitBar, matching how it renders
   // as a single row — answered as soon as any one of the three is set, not
   // only once all three are.
-  const isItemAnswered = (i: (typeof items)[number]) => {
-    const r = responseByItem.get(i.id);
-    if (!r) return false;
-    return i.type === "ACKNOWLEDGEMENT" ? r.choiceValue === "DONE" || r.choiceValue === "NA" : true;
-  };
+  const isItemAnswered = (i: (typeof items)[number]) => isAnswered(i, responseByItem.get(i.id));
   const renderRows = buildChecklistRenderRows(items);
   const total = renderRows.length;
   const answered = renderRows.filter((row) => (row.kind === "equipment-triplet" ? row.items.some(isItemAnswered) : isItemAnswered(row.item))).length;
@@ -158,6 +155,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
                     key={row.item.id}
                     inspectionId={inspection.id}
                     editable={editable}
+                    canUndo={editable && !inspection.submittedAt}
                     timeZone={timeZone}
                     item={row.item}
                     response={responseByItem.get(row.item.id) ?? null}

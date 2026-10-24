@@ -1,5 +1,5 @@
-import { put } from "@vercel/blob";
-import { writeFile, mkdir } from "fs/promises";
+import { put, del } from "@vercel/blob";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import { db } from "@/lib/db";
 
@@ -47,6 +47,19 @@ export async function storePhoto(file: File): Promise<{ url: string; sizeBytes: 
   await mkdir(uploadsDir, { recursive: true });
   await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes));
   return { url: `/uploads/${filename}`, sizeBytes: file.size };
+}
+
+// Removes the stored file behind a photo that was deleted from a draft record.
+// Best effort: the database row is the source of truth, so a failure here
+// leaves an unreferenced file, never a broken record.
+export async function deletePhotoFile(storagePath: string): Promise<void> {
+  if (/^https?:\/\//.test(storagePath)) {
+    if (process.env.BLOB_READ_WRITE_TOKEN) await del(storagePath);
+    return;
+  }
+  if (storagePath.startsWith("/uploads/")) {
+    await unlink(path.join(process.cwd(), "public", "uploads", path.basename(storagePath)));
+  }
 }
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;

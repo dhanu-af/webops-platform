@@ -10,7 +10,8 @@ const m = vi.hoisted(() => ({
     user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), findMany: vi.fn() },
     inspection: { findUniqueOrThrow: vi.fn(), update: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     checklistItem: { findUniqueOrThrow: vi.fn() },
-    inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn() },
+    inspectionResponse: { findUnique: vi.fn(), upsert: vi.fn(), count: vi.fn(), update: vi.fn() },
+    photoEvidence: { findUnique: vi.fn(), delete: vi.fn() },
     checklistSchedule: { findUniqueOrThrow: vi.fn() },
     finding: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn(), delete: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
     correctiveAction: { create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
@@ -26,7 +27,7 @@ const m = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ db: m.db, withDbRetry: (f: () => unknown) => f() }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => m.session.current) }));
 vi.mock("@/lib/notifications", () => ({ notify: vi.fn().mockResolvedValue(undefined), notifyUsers: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("@/lib/storage", () => ({ storePhoto: vi.fn(), getMaxPhotoBytes: vi.fn(), isAllowedPhotoFile: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ storePhoto: vi.fn(), getMaxPhotoBytes: vi.fn(), isAllowedPhotoFile: vi.fn(), deletePhotoFile: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/timezone", () => ({ getFacilityTimezone: vi.fn(), startOfDayInTimeZone: vi.fn(), endOfDayInTimeZone: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -38,6 +39,8 @@ import {
   closeCorrectiveAction,
   startAdHocInspection,
   markNoProduction,
+  clearResponse,
+  deletePhoto,
 } from "./inspections";
 
 type Role = "OPERATOR" | "SUPERVISOR" | "QA" | "VIEWER" | "ADMIN";
@@ -526,5 +529,79 @@ describe("markNoProduction (close a scheduled task when nothing was produced)", 
     const r = await markNoProduction({ scheduleId: "sch1" });
     expect(r).toEqual({ ok: false, error: expect.stringMatching(/cannot perform/i) });
     expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("clearResponse / deletePhoto (undo before submit)", () => {
+  const draft = () => openInspection({ submittedAt: null, status: "IN_PROGRESS", operatorId: "op1" });
+  const answered = (over: Record<string, unknown> = {}) => ({ id: "resp1", passFail: "PASS", numericValue: null, textValue: null, choiceValue: null, finding: null, ...over });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    signIn("OPERATOR", "op1");
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(draft());
+    m.db.checklistItem.findUniqueOrThrow.mockResolvedValue(checklistItem());
+    m.db.inspectionResponse.findUnique.mockResolvedValue(answered());
+  });
+
+  it("empties the answer (row kept) and audits the old value", async () => {
+    const r = await clearResponse({ inspectionId: "insp1", checklistItemId: "item1" });
+    expect(r).toEqual({ ok: true });
+    expect(m.db.inspectionResponse.update).toHaveBeenCalledWith({
+      where: { id: "resp1" },
+      data: { passFail: null, numericValue: null, textValue: null, choiceValue: null, comment: null },
+    });
+    expect(m.db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "EDITED", fieldName: "answer", reason: "Answer cleared (undo)", userId: "op1" }) })
+    );
+  });
+
+  it("removes a bare finding left behind by an undone FAIL", async () => {
+    m.db.inspectionResponse.findUnique.mockResolvedValue(answered({ passFail: "FAIL", finding: { id: "f1", correctiveAction: null, photoEvidence: [] } }));
+    await clearResponse({ inspectionId: "insp1", checklistItemId: "item1" });
+    expect(m.db.finding.delete).toHaveBeenCalledWith({ where: { id: "f1" } });
+  });
+
+  it("refuses to undo a failure that already has a corrective action", async () => {
+    m.db.inspectionResponse.findUnique.mockResolvedValue(answered({ passFail: "FAIL", finding: { id: "f1", correctiveAction: { id: "ca1" }, photoEvidence: [] } }));
+    const r = await clearResponse({ inspectionId: "insp1", checklistItemId: "item1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/corrective action/) });
+    expect(m.db.inspectionResponse.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses to undo once the record has been submitted", async () => {
+    m.db.inspection.findUniqueOrThrow.mockResolvedValue(openInspection({ status: "RETURNED", submittedAt: FIXED_NOW }));
+    const r = await clearResponse({ inspectionId: "insp1", checklistItemId: "item1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/submitted/) });
+    expect(m.db.inspectionResponse.update).not.toHaveBeenCalled();
+  });
+
+  it("another operator cannot undo answers on someone else's record", async () => {
+    signIn("OPERATOR", "op2");
+    const r = await clearResponse({ inspectionId: "insp1", checklistItemId: "item1" });
+    expect(r).toEqual({ ok: false, error: "This record belongs to another operator." });
+  });
+
+  it("deletes a photo from a draft and audits who removed it", async () => {
+    m.db.photoEvidence.findUnique.mockResolvedValue({ id: "ph1", filename: "a.jpg", storagePath: "https://blob/a.jpg", createdAt: FIXED_NOW, inspection: draft() });
+    const r = await deletePhoto({ photoId: "ph1" });
+    expect(r).toEqual({ ok: true });
+    expect(m.db.photoEvidence.delete).toHaveBeenCalledWith({ where: { id: "ph1" } });
+    expect(m.db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "DELETED", entityType: "PhotoEvidence", userId: "op1" }) })
+    );
+  });
+
+  it("will not delete a photo from a submitted record", async () => {
+    m.db.photoEvidence.findUnique.mockResolvedValue({
+      id: "ph1",
+      filename: "a.jpg",
+      storagePath: "https://blob/a.jpg",
+      createdAt: FIXED_NOW,
+      inspection: openInspection({ status: "RETURNED", submittedAt: FIXED_NOW }),
+    });
+    const r = await deletePhoto({ photoId: "ph1" });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/submitted/) });
+    expect(m.db.photoEvidence.delete).not.toHaveBeenCalled();
   });
 });

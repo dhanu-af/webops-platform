@@ -3,7 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { Camera, X, Loader2 } from "lucide-react";
-import { attachPhoto } from "@/lib/actions/inspections";
+import { useRouter } from "next/navigation";
+import { attachPhoto, deletePhoto } from "@/lib/actions/inspections";
 
 export function PhotoUpload({
   inspectionId,
@@ -12,6 +13,7 @@ export function PhotoUpload({
   existingPhotos,
   required = false,
   maxPhotos = 5,
+  canDelete = false,
 }: {
   inspectionId: string;
   responseId?: string;
@@ -19,7 +21,10 @@ export function PhotoUpload({
   existingPhotos: Array<{ id: string; storagePath: string; caption: string | null }>;
   required?: boolean;
   maxPhotos?: number;
+  canDelete?: boolean;
 }) {
+  const router = useRouter();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -54,15 +59,41 @@ export function PhotoUpload({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {existingPhotos.map((p) => (
-          <a
-            key={p.id}
-            href={p.storagePath}
-            target="_blank"
-            rel="noreferrer"
-            className="relative size-16 overflow-hidden rounded-lg border border-border bg-surface-sunken"
-          >
-            <Image src={p.storagePath} alt={p.caption ?? "Evidence photo"} fill sizes="64px" className="object-cover" unoptimized />
-          </a>
+          <div key={p.id} className="relative size-16">
+            <a
+              href={p.storagePath}
+              target="_blank"
+              rel="noreferrer"
+              className="relative block size-16 overflow-hidden rounded-lg border border-border bg-surface-sunken"
+            >
+              <Image src={p.storagePath} alt={p.caption ?? "Evidence photo"} fill sizes="64px" className="object-cover" unoptimized />
+            </a>
+            {canDelete && (
+              <button
+                type="button"
+                aria-label="Delete photo"
+                title="Delete photo"
+                disabled={deletingId === p.id}
+                onClick={async () => {
+                  if (!window.confirm("Delete this photo?")) return;
+                  setError(null);
+                  setDeletingId(p.id);
+                  try {
+                    const result = await deletePhoto({ photoId: p.id });
+                    if (!result.ok) setError(result.error);
+                    else router.refresh();
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Could not delete the photo.");
+                  } finally {
+                    setDeletingId(null);
+                  }
+                }}
+                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-status-critical text-white shadow disabled:opacity-60"
+              >
+                {deletingId === p.id ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
+              </button>
+            )}
+          </div>
         ))}
         {preview && (
           <div className="relative size-16 overflow-hidden rounded-lg border border-accent">

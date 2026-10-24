@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { saveResponse, createFindingDetail, createCorrectiveAction } from "@/lib/actions/inspections";
+import { saveResponse, createFindingDetail, createCorrectiveAction, clearResponse } from "@/lib/actions/inspections";
+import { isAnswered } from "@/lib/inspection-rules";
 import { PhotoUpload } from "./photo-upload";
 import { formatAttribution } from "@/lib/format-attribution";
 import type { ResponseValue, Severity } from "@/app/generated/prisma/client";
@@ -53,12 +55,15 @@ type ItemResponse = {
 export function ChecklistItemCard({
   inspectionId,
   editable,
+  canUndo = false,
   item,
   response,
   timeZone,
 }: {
   inspectionId: string;
   editable: boolean;
+  /** True only until the record is first submitted: answers can be undone and photos deleted. */
+  canUndo?: boolean;
   timeZone: string;
   item: {
     id: string;
@@ -77,6 +82,8 @@ export function ChecklistItemCard({
   const [numeric, setNumeric] = useState(response?.numericValue?.toString() ?? "");
   const [text, setText] = useState(response?.textValue ?? "");
   const [comment, setComment] = useState(response?.comment ?? "");
+  const [undoError, setUndoError] = useState<string | null>(null);
+  const answered = isAnswered(item, response);
 
   const failed = response?.passFail === "FAIL";
   const needsPhoto = failed && (item.requiresPhotoOnFail || item.criticalFailure);
@@ -85,6 +92,17 @@ export function ChecklistItemCard({
   const allPhotos = Array.from(
     new Map([...(response?.photoEvidence ?? []), ...(response?.finding?.photoEvidence ?? [])].map((p) => [p.id, p])).values()
   );
+
+  function undoAnswer() {
+    setUndoError(null);
+    startTransition(async () => {
+      const result = await clearResponse({ inspectionId, checklistItemId: item.id });
+      if (!result.ok) return setUndoError(result.error);
+      setNumeric("");
+      setText("");
+      setComment("");
+    });
+  }
 
   function setPassFail(value: ResponseValue) {
     startTransition(async () => {
@@ -258,11 +276,21 @@ export function ChecklistItemCard({
         )}
       </div>
 
-      {response?.respondedBy && (
-        <p className="mt-2 font-mono-tabular text-[11px] text-muted">
-          {formatAttribution(response.respondedBy.name, response.updatedAt, timeZone)}
-        </p>
+      {answered && response?.respondedBy && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono-tabular text-[11px] text-muted">{formatAttribution(response.respondedBy.name, response.updatedAt, timeZone)}</p>
+          {canUndo && (
+            <button
+              type="button"
+              onClick={undoAnswer}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-surface-sunken"
+            >
+              <Undo2 className="size-3.5" /> Undo answer
+            </button>
+          )}
+        </div>
       )}
+      {undoError && <p className="mt-1 text-xs text-status-critical">{undoError}</p>}
 
       {failed && (
         <FindingDetail
@@ -289,6 +317,7 @@ export function ChecklistItemCard({
             existingPhotos={allPhotos}
             required={needsPhoto}
             maxPhotos={5}
+            canDelete={canUndo}
           />
         </div>
       )}

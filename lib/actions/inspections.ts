@@ -3,7 +3,7 @@
 import { db, withDbRetry } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { notify, notifyUsers } from "@/lib/notifications";
-import { storePhoto, getMaxPhotoBytes, isAllowedPhotoFile } from "@/lib/storage";
+import { storePhoto, getMaxPhotoBytes, isAllowedPhotoFile, deletePhotoFile } from "@/lib/storage";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone } from "@/lib/timezone";
 import { requireActiveUser, requireUserWithPermission } from "@/lib/session-user";
 import { verifySignaturePassword } from "@/lib/signature";
@@ -888,5 +888,83 @@ export async function markNoProduction(input: { scheduleId: string; reason?: str
       reason: `No production: ${reason}`,
     });
     revalidatePath("/today");
+  });
+}
+
+// Undo an answer before the record is first submitted. The row is kept (an
+// InspectionResponse is never deleted, URS-11) but emptied, and the old value
+// stays in the audit trail with who cleared it and when. Once submitted, answers
+// can only be changed through the audited correction flow, never undone.
+export async function clearResponse(input: { inspectionId: string; checklistItemId: string }): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await requireUserWithPermission("inspection.submit");
+    const inspection = await db.inspection.findUniqueOrThrow({ where: { id: input.inspectionId } });
+    assertEditable(inspection);
+    assertOwnRecord(inspection, user.id);
+    if (inspection.submittedAt) throw new UserFacingError("This record has been submitted, so answers can no longer be undone. Change the answer instead.");
+
+    const item = await db.checklistItem.findUniqueOrThrow({ where: { id: input.checklistItemId } });
+    const current = await db.inspectionResponse.findUnique({
+      where: { inspectionId_checklistItemId: { inspectionId: input.inspectionId, checklistItemId: input.checklistItemId } },
+      include: { finding: { include: { correctiveAction: true, photoEvidence: true } } },
+    });
+    if (!current) return;
+
+    // A failure that already has a corrective action or evidence photos is real
+    // history, so the answer has to be changed rather than undone.
+    if (current.finding?.correctiveAction) {
+      throw new UserFacingError("A corrective action was recorded for this failure, so the answer cannot be undone. Change the answer instead.");
+    }
+    if (current.finding && current.finding.photoEvidence.length > 0) {
+      throw new UserFacingError("Delete the photos on this failed item first, then undo the answer.");
+    }
+
+    const previous = current.passFail ?? current.numericValue ?? current.choiceValue ?? current.textValue ?? null;
+    await db.inspectionResponse.update({
+      where: { id: current.id },
+      data: { passFail: null, numericValue: null, textValue: null, choiceValue: null, comment: null },
+    });
+    if (current.finding) await db.finding.delete({ where: { id: current.finding.id } });
+
+    await logAudit({
+      entityType: "InspectionResponse",
+      entityId: current.id,
+      inspectionId: inspection.id,
+      action: "EDITED",
+      userId: user.id,
+      fieldName: "answer",
+      oldValue: { item: item.prompt, value: previous },
+      newValue: { item: item.prompt, value: null },
+      reason: "Answer cleared (undo)",
+    });
+    revalidatePath(`/inspections/${input.inspectionId}`);
+  });
+}
+
+// Delete a photo before the record is first submitted. After submission photos
+// are evidence and are kept. Who removed what is audited.
+export async function deletePhoto(input: { photoId: string }): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await requireUserWithPermission("inspection.submit");
+    const photo = await db.photoEvidence.findUnique({ where: { id: input.photoId }, include: { inspection: true } });
+    if (!photo) return;
+    const inspection = photo.inspection;
+    if (!inspection) throw new UserFacingError("This photo is not attached to an inspection record.");
+    assertEditable(inspection);
+    assertOwnRecord(inspection, user.id);
+    if (inspection.submittedAt) throw new UserFacingError("This record has been submitted, so its photos cannot be deleted.");
+
+    await db.photoEvidence.delete({ where: { id: photo.id } });
+    await logAudit({
+      entityType: "PhotoEvidence",
+      entityId: photo.id,
+      inspectionId: inspection.id,
+      action: "DELETED",
+      userId: user.id,
+      oldValue: { file: photo.filename, url: photo.storagePath },
+      reason: "Photo deleted from an open record",
+    });
+    await deletePhotoFile(photo.storagePath).catch((e) => console.error("Failed to remove photo file:", e));
+    revalidatePath(`/inspections/${inspection.id}`);
   });
 }
