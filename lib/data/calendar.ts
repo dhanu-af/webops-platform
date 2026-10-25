@@ -4,6 +4,9 @@ import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLab
 import { scopeWhere, type UserScope } from "@/lib/scope";
 import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
 import type { Frequency } from "@/app/generated/prisma/client";
+import { getCachedProductionCalendar } from "@/lib/cached-config";
+import { isFacilityLevelCategory } from "@/lib/inspection-rules";
+import { describeNoProduction, productionDayInfo } from "@/lib/production-calendar";
 
 // Only these three frequencies map onto a predictable calendar day — the
 // others (PER_SHIFT, AD_HOC, BEFORE/AFTER_PRODUCTION, AFTER_CLEANING,
@@ -29,6 +32,8 @@ async function getCalendarSchedules(filters: { areaId?: string; frequency?: stri
     orderBy: { dueTime: "asc" },
   });
 }
+
+export type CalendarDay = { date: Date; entries: CalendarEntry[]; closed: boolean; note: string | null };
 
 export type CalendarEntry = {
   scheduleId: string;
@@ -56,7 +61,7 @@ export async function getCalendarMonth(monthDate: Date, filters: { areaId?: stri
   // not the real Brisbane-midnight instant startOfDayInTimeZone returns.
   const today = todayLabelInTimeZone(timeZone);
 
-  const schedules = await getCalendarSchedules(filters, scope);
+  const [schedules, productionCalendar] = await Promise.all([getCalendarSchedules(filters, scope), getCachedProductionCalendar()]);
 
   const inspections = await db.inspection.findMany({
     where: {
@@ -71,15 +76,18 @@ export async function getCalendarMonth(monthDate: Date, filters: { areaId?: stri
     select: { id: true, scheduleId: true, status: true, createdAt: true },
   });
 
-  const days: { date: Date; entries: CalendarEntry[] }[] = [];
+  const days: CalendarDay[] = [];
   // Plain ms-arithmetic, not d.setDate() — every `from`..`to` step here is
   // an exact UTC-midnight label 24h apart, so this can't be thrown off by
   // the server process's own local timezone the way setDate() would be.
   for (let t = from.getTime(); t <= to.getTime(); t += 24 * 60 * 60 * 1000) {
     const day = new Date(t);
     const entries: CalendarEntry[] = [];
+    const production = productionDayInfo(day, productionCalendar);
     for (const schedule of schedules) {
       if (!scheduleAppliesOnDay(schedule, day)) continue;
+      // Nothing is due on a closed day (facility-level checks such as the generator still are).
+      if (!production.production && !isFacilityLevelCategory(schedule.checklist.category)) continue;
       const inspection = inspections.find(
         (i) =>
           i.scheduleId === schedule.id &&
@@ -102,7 +110,13 @@ export async function getCalendarMonth(monthDate: Date, filters: { areaId?: stri
         status,
       });
     }
-    days.push({ date: day, entries });
+    days.push({
+      date: day,
+      entries,
+      closed: !production.production,
+      // "Production day" marks a normally closed day that has been opened; closed days say why.
+      note: !production.production ? describeNoProduction(production) : production.reason === "OPENED" ? `Production day${production.note ? ` - ${production.note}` : ""}` : null,
+    });
   }
 
   return { days, from, to };

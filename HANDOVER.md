@@ -1,3 +1,13 @@
+# Production calendar — no production Saturday/Sunday (2026-10-25) — read this first
+
+Saturday and Sunday are no-production days by default (`SystemSettings.closedWeekdays`, default `{0,6}`); a single date can be opened or blocked (`ProductionDayException`, migration `20261025100000_production_calendar`, additive).
+- Pure rules: `lib/production-calendar.ts` (+ tests). Cached read: `getCachedProductionCalendar` in `lib/cached-config.ts` (cleared by `updateTag(PRODUCTION_CALENDAR_TAG)` in the actions). Helpers: `lib/production-calendar-data.ts`.
+- On a closed day: Today's Ops/dashboard and the checklist pages show nothing due; the Calendar shades the day and says why; every page shows a banner (`components/ui/no-production-banner.tsx`); starting a NEW production check (scheduled or on demand) is refused with the way out spelled out (`assertProductionDayToStart` in `lib/actions/inspections.ts`). Unfinished drafts can still be continued. Facility-level checks (generator) are exempt (`isFacilityLevelCategory`).
+- Admin: Settings > Production calendar (needs `areas.manage`): weekly pattern, "Open for production" on the coming closed days, block/open any date with a reason, remove. Every change is in the audit trail (`ProductionCalendar` entries).
+- Sunday can also be opened by date if ever needed; nothing is hard-wired to refuse it.
+
+---
+
 # Go-live hardening — independent GMP / data-integrity review (2026-10-24) — read this first
 
 An independent read-only review of the code (ALCOA+, SQF Ed.10) found 25 issues; everything below is fixed, tested (unit + local production-build browser runs) and deployed unless listed under "Not done".

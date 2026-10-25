@@ -67,6 +67,7 @@ model User {
   findingsCreated           Finding[]               @relation("FindingCreatedBy")
   correctiveActionsOwned    CorrectiveAction[]      @relation("CorrectiveActionResponsible")
   correctiveActionsCreated  CorrectiveAction[]      @relation("CorrectiveActionCreatedBy")
+  productionDayExceptions   ProductionDayException[] @relation("ProductionDayExceptionCreatedBy")
   correctiveActionsClosed   CorrectiveAction[]      @relation("CorrectiveActionClosedBy")
   correctiveActionsVerified CorrectiveAction[]      @relation("CorrectiveActionVerifiedBy")
   verificationRecords       VerificationRecord[]
@@ -968,7 +969,25 @@ model SystemSettings {
   // records; this is the policy figure shown to auditors, floored at 3.
   retentionYears   Int      @default(3)
   maxPhotoSizeMb   Int      @default(10) // mirrors lib/storage.ts's current hardcoded MAX_PHOTO_BYTES
+  // Weekdays with no production (0 = Sunday ... 6 = Saturday). Scheduled checks are not due on them.
+  closedWeekdays   Int[]    @default([0, 6])
   updatedAt        DateTime @updatedAt
+}
+
+enum ProductionDayType {
+  BLOCKED // a normal production day that is closed (holiday, shutdown)
+  OPEN // a normally closed day that is running (e.g. a Saturday shift)
+}
+
+// A single date that overrides the weekly pattern. `date` is the facility-local calendar day.
+model ProductionDayException {
+  id          String            @id @default(cuid())
+  date        DateTime          @unique @db.Date
+  type        ProductionDayType
+  reason      String?
+  createdById String
+  createdBy   User              @relation("ProductionDayExceptionCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
 }
 
 // One row per NotificationType, created on demand — a missing row means

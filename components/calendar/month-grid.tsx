@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { calendarEntryMeta } from "@/lib/calendar-status";
-import type { CalendarEntry } from "@/lib/data/calendar";
+import type { CalendarDay } from "@/lib/data/calendar";
 
 export const DOT_TONE_CLASSES: Record<string, string> = {
   pass: "bg-status-pass",
@@ -12,13 +12,13 @@ export const DOT_TONE_CLASSES: Record<string, string> = {
   accent: "bg-accent",
 };
 
-export function MonthGrid({ days, today }: { days: { date: Date; entries: CalendarEntry[] }[]; today: Date }) {
+export function MonthGrid({ days, today }: { days: CalendarDay[]; today: Date }) {
   if (days.length === 0) return null;
 
   const firstDay = days[0].date;
   const leadingBlanks = firstDay.getDay(); // 0 (Sun) - 6 (Sat)
 
-  const cells: ({ date: Date; entries: CalendarEntry[] } | null)[] = [
+  const cells: (CalendarDay | null)[] = [
     ...Array(leadingBlanks).fill(null),
     ...days,
   ];
@@ -46,7 +46,8 @@ export function MonthGrid({ days, today }: { days: { date: Date; entries: Calend
                 className={cn(
                   "min-h-[110px] border-b border-r border-border p-2 last:border-r-0",
                   di === 6 && "border-r-0",
-                  !cell && "bg-surface-sunken/40"
+                  !cell && "bg-surface-sunken/40",
+                  cell?.closed && "bg-surface-sunken/70"
                 )}
               >
                 {cell && (
@@ -55,6 +56,11 @@ export function MonthGrid({ days, today }: { days: { date: Date; entries: Calend
                       {cell.date.getDate()}
                       {isToday && <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide">Today</span>}
                     </div>
+                    {cell.note && (
+                      <p className={cn("mb-1 truncate text-[10px] font-medium uppercase tracking-wide", cell.closed ? "text-muted" : "text-accent-strong")} title={cell.note}>
+                        {cell.note}
+                      </p>
+                    )}
                     <div className="space-y-1">
                       {cell.entries.map((entry) => {
                         const meta = calendarEntryMeta(entry.status);
@@ -94,13 +100,14 @@ export function MonthGrid({ days, today }: { days: { date: Date; entries: Calend
       )}
       {days
         .filter((d) => d.entries.length > 0)
-        .map(({ date, entries }) => {
+        .map(({ date, entries, closed, note }) => {
           const isToday = date.getTime() === today.getTime();
           return (
             <section key={date.getTime()} className={cn("overflow-hidden rounded-[var(--radius)] border bg-surface", isToday ? "border-accent" : "border-border")}>
               <h3 className={cn("flex items-center gap-2 border-b border-border px-3.5 py-2 text-xs font-semibold uppercase tracking-wide", isToday ? "bg-accent-soft text-accent-strong" : "bg-surface-sunken text-muted-strong")}>
                 {date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}
                 {isToday && <span>· Today</span>}
+                {note && <span className={closed ? "text-muted" : "text-accent-strong"}>· {note}</span>}
               </h3>
               <ul className="divide-y divide-border">
                 {entries.map((entry) => {

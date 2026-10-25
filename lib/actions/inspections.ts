@@ -24,6 +24,7 @@ import { UserFacingError, guard, runAction, type ActionResult } from "@/lib/user
 import { revalidatePath } from "next/cache";
 import type { InspectionStatus, ResponseValue, Severity, VerificationAction, WorkflowRole } from "@/app/generated/prisma/client";
 import { SAFE_USER } from "@/lib/safe-user";
+import { assertProductionDayToStart } from "@/lib/production-calendar-data";
 
 // Statuses in which the operator may still change answers. Anything else is a
 // submitted/verified/closed record and is read-only (URS-11).
@@ -101,6 +102,7 @@ async function getOrCreateInspectionForSchedule__impl(scheduleId: string) {
     if (existing) return existing.id;
 
     assertInScope(schedule, schedule.checklist.category, user);
+    await assertProductionDayToStart(schedule.checklist.category);
     const version = schedule.checklist.versions[0];
     const inspection = await tx.inspection.create({
       data: {
@@ -923,6 +925,9 @@ export async function startAdHocInspection(input: {
       orderBy: { createdAt: "desc" },
     });
     if (open) return { ok: true, inspectionId: open.id };
+
+    // A new check cannot be started on a no-production day (an admin opens the day in Settings if work is going ahead).
+    await assertProductionDayToStart(checklist.category);
 
     const inspection = await db.inspection.create({
       data: {

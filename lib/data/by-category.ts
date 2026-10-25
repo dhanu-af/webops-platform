@@ -3,8 +3,12 @@ import type { ChecklistCategory } from "@/app/generated/prisma/client";
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import { scopeWhere, type UserScope } from "@/lib/scope";
 import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
+import { isFacilityLevelCategory } from "@/lib/inspection-rules";
+import { getTodayProductionDay } from "@/lib/production-calendar-data";
 
 export async function getSchedulesByCategory(category: ChecklistCategory, scope: UserScope) {
+  // No production today (weekend, holiday, blocked day): nothing is due. Facility checks such as the generator still are.
+  if (!isFacilityLevelCategory(category) && !(await getTodayProductionDay()).production) return [];
   const now = new Date();
   const timeZone = await getFacilityTimezone();
   const today = todayLabelInTimeZone(timeZone, now);

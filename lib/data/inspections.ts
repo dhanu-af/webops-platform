@@ -4,6 +4,8 @@ import { scopeWhere, type UserScope } from "@/lib/scope";
 import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
 import { statusesForRecordStatus } from "@/lib/record-status";
 import { SAFE_USER } from "@/lib/safe-user";
+import { isFacilityLevelCategory } from "@/lib/inspection-rules";
+import { getTodayProductionDay } from "@/lib/production-calendar-data";
 
 export async function getTodaySchedules(scope: UserScope) {
   const now = new Date();
@@ -26,7 +28,9 @@ export async function getTodaySchedules(scope: UserScope) {
   // Same recurrence-day fix as getSchedulesByCategory (lib/data/by-category.ts)
   // -- without it a WEEKLY/MONTHLY schedule shows as freshly "not started"
   // every day instead of only on its actual due day.
-  return schedules.filter((s) => scheduleAppliesOnDay(s, today));
+  // On a closed day (weekend, holiday, blocked day) only facility-level checks, such as the generator, are due.
+  const production = (await getTodayProductionDay()).production;
+  return schedules.filter((s) => scheduleAppliesOnDay(s, today) && (production || isFacilityLevelCategory(s.checklist.category)));
 }
 
 // Search filters for the record register (URS-14): date range, line/area,

@@ -30,9 +30,12 @@ vi.mock("@/lib/db", () => ({ db: m.db, withDbRetry: (f: () => unknown) => f() })
 vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => m.session.current) }));
 vi.mock("@/lib/notifications", () => ({ notify: vi.fn().mockResolvedValue(undefined), notifyUsers: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/storage", () => ({ storePhoto: vi.fn(), getMaxPhotoBytes: vi.fn(), isAllowedPhotoFile: vi.fn(), deletePhotoFile: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/production-calendar-data", () => ({ assertProductionDayToStart: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/timezone", () => ({ getFacilityTimezone: vi.fn(), startOfDayInTimeZone: vi.fn(), endOfDayInTimeZone: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+import { assertProductionDayToStart } from "@/lib/production-calendar-data";
+import { UserFacingError } from "@/lib/user-error";
 import {
   saveResponse,
   submitInspection,
@@ -869,5 +872,46 @@ describe("review fixes: who may start, reopen or close what", () => {
     signIn("OPERATOR", "bottling-op", { areas: [bottling] });
     const r = await getOrCreateInspectionForSchedule("sch1");
     expect(r).toEqual({ ok: false, error: expect.stringMatching(/another section/) });
+  });
+});
+
+describe("no-production days (weekend, holiday, blocked day)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    signIn("OPERATOR", "op1");
+    m.db.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(m.db));
+    m.db.checklist.findUnique.mockResolvedValue({ id: "ck1", active: true, category: "POST_OPERATION_CLEANING", versions: [{ id: "ver1" }] });
+    m.db.area.findUnique.mockResolvedValue({ id: "area1", sectionId: "sec1", section: { facilityId: "fac1" } });
+    m.db.facility.findFirst.mockResolvedValue({ id: "fac1" });
+    m.db.inspection.findFirst.mockResolvedValue(null);
+    m.db.inspection.create.mockResolvedValue({ id: "new1" });
+    m.db.checklistSchedule.findUniqueOrThrow.mockResolvedValue({
+      id: "sch1", facilityId: "fac1", sectionId: "sec1", areaId: "area1", equipmentId: null, frequency: "DAILY", priority: "NORMAL",
+      checklist: { category: "POST_OPERATION_CLEANING", versions: [{ id: "ver1" }] },
+    });
+    vi.mocked(assertProductionDayToStart).mockRejectedValue(new UserFacingError("Sunday - no production today."));
+  });
+
+  it("refuses to start an on-demand check", async () => {
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "area1" });
+    expect(r).toEqual({ ok: false, error: expect.stringContaining("no production") });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses to start a scheduled check", async () => {
+    const r = await getOrCreateInspectionForSchedule("sch1");
+    expect(r).toEqual({ ok: false, error: expect.stringContaining("no production") });
+    expect(m.db.inspection.create).not.toHaveBeenCalled();
+  });
+
+  it("still lets someone carry on a record that was already started", async () => {
+    m.db.inspection.findFirst.mockResolvedValue({ id: "open1" });
+    const r = await startAdHocInspection({ checklistId: "ck1", areaId: "area1" });
+    expect(r).toEqual({ ok: true, inspectionId: "open1" });
+  });
+
+  it("is asked about the checklist's category, so facility-level checks can be exempt", async () => {
+    await startAdHocInspection({ checklistId: "ck1", areaId: "area1" });
+    expect(assertProductionDayToStart).toHaveBeenCalledWith("POST_OPERATION_CLEANING");
   });
 });
