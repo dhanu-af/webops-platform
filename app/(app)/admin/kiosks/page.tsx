@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { getFacilityTimezone } from "@/lib/timezone";
 import { formatDateTimeInTimeZone } from "@/lib/timezone";
@@ -24,7 +23,7 @@ function toRows(devices: Awaited<ReturnType<typeof db.kioskDevice.findMany>>, ti
 
 export default async function KioskAdminPage() {
   const session = await auth();
-  if (!session?.user || !can(session.user.role, "users.manage")) notFound();
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") notFound();
 
   const [devices, timeZone, pinUsers, settings] = await Promise.all([
     db.kioskDevice.findMany({ orderBy: { createdAt: "asc" } }),

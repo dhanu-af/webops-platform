@@ -9,10 +9,11 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db", () => ({ db: m.db }));
-vi.mock("@/lib/session-user", () => ({ requireLiveUser: vi.fn(async () => ({ id: "admin1", name: "Ada Admin", role: "ADMIN" })) }));
+const actor = vi.hoisted(() => ({ current: { id: "boss1", name: "Dhanu", role: "SUPER_ADMIN" } }));
+vi.mock("@/lib/session-user", () => ({ requireLiveUser: vi.fn(async () => actor.current) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { clearUserPin, createKioskDevice, issueUserPin, revokeKioskDevice } from "./kiosk-admin";
+import { clearUserPin, createKioskDevice, issueUserPin, markChecklistTagWritten, revokeKioskDevice, setKioskAllowAnyPhone } from "./kiosk-admin";
 import { pinLookup, pinProblem } from "@/lib/pin";
 import { sha256 } from "@/lib/kiosk-token";
 
@@ -22,6 +23,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  actor.current = { id: "boss1", name: "Dhanu", role: "SUPER_ADMIN" };
   m.db.user.findUniqueOrThrow.mockResolvedValue({ id: "u1", name: "Olive Operator", role: "OPERATOR", active: true });
   m.db.user.findUnique.mockResolvedValue(null);
   m.db.kioskDevice.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: "dev1", ...data }));
@@ -101,5 +103,22 @@ describe("registering iPads", () => {
     expect(m.db.kioskDevice.update.mock.calls[0][0].data).toMatchObject({ tokenHash: null, setupCodeHash: null });
     expect(m.db.kioskDevice.update.mock.calls[0][0].data.revokedAt).toBeInstanceOf(Date);
     expect(m.db.auditLog.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("PIN sign-in and NFC tags are for a Super Admin only", () => {
+  it("an Admin (or anyone else) is refused every action", async () => {
+    for (const role of ["ADMIN", "SUPERVISOR", "QA", "MANAGEMENT"]) {
+      actor.current = { id: "x", name: "X", role };
+      const refused = { ok: false, error: expect.stringContaining("Only a Super Admin") };
+      expect(await issueUserPin("u1")).toEqual(refused);
+      expect(await clearUserPin("u1")).toEqual(refused);
+      expect(await createKioskDevice("Bottling iPad")).toEqual(refused);
+      expect(await revokeKioskDevice("dev1")).toEqual(refused);
+      expect(await setKioskAllowAnyPhone(false)).toEqual(refused);
+      expect(await markChecklistTagWritten("c1", true)).toEqual(refused);
+    }
+    expect(m.db.user.update).not.toHaveBeenCalled();
+    expect(m.db.kioskDevice.create).not.toHaveBeenCalled();
   });
 });

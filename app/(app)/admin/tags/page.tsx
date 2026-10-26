@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { can } from "@/lib/permissions";
 import { listTagRows, resolveTagBase, type TagRow } from "@/lib/tag-links";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ function TagList({ rows, base, documents }: { rows: TagRow[]; base: string; docu
 
 export default async function TagsAdminPage({ searchParams }: { searchParams: Promise<{ base?: string }> }) {
   const session = await auth();
-  if (!session?.user || !can(session.user.role, "areas.manage")) notFound();
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") notFound();
 
   const { base: requested } = await searchParams;
   const base = await resolveTagBase(requested);

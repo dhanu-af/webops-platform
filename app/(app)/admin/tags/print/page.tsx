@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
-import { can } from "@/lib/permissions";
 import { listTagRows, resolveTagBase } from "@/lib/tag-links";
 import { PrintButton } from "@/components/admin/print-button";
 
@@ -10,7 +9,7 @@ export const dynamic = "force-dynamic";
 // A sheet of QR codes, one label per area and machine, to print and stick next to each NFC tag.
 export default async function PrintTagsPage({ searchParams }: { searchParams: Promise<{ base?: string }> }) {
   const session = await auth();
-  if (!session?.user || !can(session.user.role, "areas.manage")) notFound();
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") notFound();
 
   const { base: requested } = await searchParams;
   const rows = await listTagRows(await resolveTagBase(requested));

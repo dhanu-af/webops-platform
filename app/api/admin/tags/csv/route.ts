@@ -5,7 +5,7 @@ import { listTagRows, resolveTagBase } from "@/lib/tag-links";
 // The list of tag addresses, for writing the NFC tags with a phone app.
 export async function GET(request: NextRequest) {
   const session = await liveSession("areas.manage");
-  if (!session?.user) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  if (session?.user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Not authorized" }, { status: 403 });
 
   const rows = await listTagRows(await resolveTagBase(request.nextUrl.searchParams.get("base") ?? undefined));
   const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;

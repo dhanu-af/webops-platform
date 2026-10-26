@@ -48,7 +48,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         areas={areas.map((a) => ({ id: a.id, label: `${a.section.facility.name} / ${a.section.name} / ${a.name}` }))}
       />
 
-      {canUsePin(user.role) && (
+      {canUsePin(user.role) && session.user.role === "SUPER_ADMIN" && (
         <div>
           <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">PIN sign-in</h2>
           <UserPinCard userId={user.id} userName={user.name} status={pinStatus} />

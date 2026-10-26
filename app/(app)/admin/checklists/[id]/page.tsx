@@ -40,7 +40,7 @@ export default async function ChecklistEditPage({ params }: { params: Promise<{ 
         <p className="text-sm text-muted">Editing creates a new version — historical inspections keep the version they were performed against.</p>
       </div>
 
-      <ChecklistTagCard checklistId={checklist.id} />
+      {session.user.role === "SUPER_ADMIN" && <ChecklistTagCard checklistId={checklist.id} />}
 
       <ChecklistEditor
         checklistId={checklist.id}

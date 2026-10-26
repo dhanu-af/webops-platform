@@ -14,7 +14,10 @@ import { canUsePin, generateTemporaryPin, hashPin, pinLookup } from "@/lib/pin";
 // Admin side of the shop-floor iPads: register or revoke a device, and manage people's PINs. Same permission as
 // the rest of user administration. Every change is audited; a PIN is never written to the audit trail or the log.
 async function requireManager() {
-  return requireLiveUser("users.manage");
+  // PIN sign-in and NFC tags are managed by a Super Admin only.
+  const user = await requireLiveUser("users.manage");
+  if (user.role !== "SUPER_ADMIN") throw new UserFacingError("Only a Super Admin can manage PIN sign-in and NFC tags.");
+  return user;
 }
 
 async function createKioskDevice__impl(name: string) {
@@ -86,7 +89,7 @@ async function setKioskAllowAnyPhone__impl(allow: boolean) {
 
 // Marks a document's NFC tag as written and stuck on, so documents still waiting for a tag stand out.
 async function markChecklistTagWritten__impl(checklistId: string, written: boolean) {
-  const actor = await requireLiveUser("checklist.manage");
+  const actor = await requireManager();
   const checklist = await db.checklist.findUniqueOrThrow({ where: { id: checklistId }, select: { name: true, tagWrittenAt: true } });
   await db.checklist.update({ where: { id: checklistId }, data: { tagWrittenAt: written ? new Date() : null } });
   await logAudit({
