@@ -25,7 +25,7 @@ import {
   TestTube,
   Beaker,
   Fan,
-  type LucideIcon, ShieldAlert, Printer, Zap, BookOpenCheck } from "lucide-react";
+  type LucideIcon, ShieldAlert, Printer, Zap, BookOpenCheck, Tablet, Nfc } from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -115,6 +115,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Areas & Equipment", href: "/admin/areas", icon: Factory, roles: ADMIN_ROLES },
       { label: "Checklist Builder", href: "/admin/checklists", icon: ListPlus, roles: ADMIN_ROLES },
       { label: "Users", href: "/admin/users", icon: Users, roles: ADMIN_ROLES },
+      { label: "Shop-floor iPads", href: "/admin/kiosks", icon: Tablet, roles: ADMIN_ROLES },
+      { label: "Machine tags", href: "/admin/tags", icon: Nfc, roles: ADMIN_ROLES },
       { label: "Verification Workflows", href: "/admin/workflows", icon: Workflow, roles: ADMIN_ROLES },
       { label: "System Settings", href: "/admin/settings", icon: Settings, roles: ADMIN_ROLES },
     ],

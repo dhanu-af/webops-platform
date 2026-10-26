@@ -3,6 +3,7 @@ import { db, withDbRetry } from "@/lib/db";
 import { can, type Permission } from "@/lib/permissions";
 import { getUserScope } from "@/lib/scope";
 import { UserFacingError } from "@/lib/user-error";
+import { pinSessionProblem } from "@/lib/pin-session";
 
 /**
  * The signed-in user, re-read from the database on every call (URS-02, URS-03).
@@ -23,12 +24,19 @@ export async function requireActiveUser() {
         role: true,
         active: true,
         mustChangePassword: true,
+        pinSetAt: true,
         assignedAreas: { select: { id: true, sectionId: true, section: { select: { facilityId: true } } } },
       },
     })
   );
   if (!user || !user.active) throw new UserFacingError("This account is deactivated. Contact an administrator.");
-  if (user.mustChangePassword) throw new UserFacingError("Change your temporary password before continuing.");
+  if (session.user.authMethod === "pin") {
+    // A shop-floor PIN session is short-lived and tied to a registered device; the password rules do not apply to it.
+    const problem = await pinSessionProblem(session.user, user);
+    if (problem) throw new UserFacingError(problem);
+  } else if (user.mustChangePassword) {
+    throw new UserFacingError("Change your temporary password before continuing.");
+  }
   return user;
 }
 

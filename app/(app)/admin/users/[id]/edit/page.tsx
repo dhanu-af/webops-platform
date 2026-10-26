@@ -4,6 +4,8 @@ import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { EditUserForm } from "./edit-user-form";
 import { ResetPasswordForm } from "@/components/admin/reset-password-form";
+import { UserPinCard, type PinStatus } from "@/components/admin/user-pin-card";
+import { canUsePin, isPinLocked } from "@/lib/pin";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -20,6 +22,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     }),
   ]);
   if (!user) notFound();
+
+  const pinStatus: PinStatus = !user.pinHash ? "NONE" : isPinLocked(user.pinLockedUntil) ? "LOCKED" : user.pinMustChange ? "TEMPORARY" : "SET";
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -39,6 +43,13 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         sections={sections.map((s) => ({ id: s.id, label: `${s.facility.name} / ${s.name}` }))}
         areas={areas.map((a) => ({ id: a.id, label: `${a.section.facility.name} / ${a.section.name} / ${a.name}` }))}
       />
+
+      {canUsePin(user.role) && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Shop-floor PIN</h2>
+          <UserPinCard userId={user.id} userName={user.name} status={pinStatus} />
+        </div>
+      )}
 
       {user.id === session.user.id ? (
         <div>

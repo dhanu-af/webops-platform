@@ -7,6 +7,9 @@ declare module "next-auth" {
     areaIds: string[];
     sectionIds: string[];
     facilityId: string | null;
+    /** "pin" for a shop-floor PIN sign-in; absent for a password sign-in. */
+    authMethod?: "password" | "pin";
+    kioskDeviceId?: string | null;
   }
   interface Session {
     user: {
@@ -15,6 +18,9 @@ declare module "next-auth" {
       areaIds: string[];
       sectionIds: string[];
       facilityId: string | null;
+      authMethod: "password" | "pin";
+      authAt: number;
+      kioskDeviceId: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -25,6 +31,9 @@ declare module "next-auth/jwt" {
     areaIds: string[];
     sectionIds: string[];
     facilityId: string | null;
+    authMethod?: "password" | "pin";
+    authAt?: number;
+    kioskDeviceId?: string | null;
   }
 }
 
@@ -37,5 +46,8 @@ declare module "@auth/core/jwt" {
     areaIds: string[];
     sectionIds: string[];
     facilityId: string | null;
+    authMethod?: "password" | "pin";
+    authAt?: number;
+    kioskDeviceId?: string | null;
   }
 }

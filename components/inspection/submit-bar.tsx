@@ -4,8 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { submitInspection } from "@/lib/actions/inspections";
+import { kioskSignOut } from "@/lib/actions-client/kiosk";
 
-export function SubmitBar({ inspectionId, answered, total }: { inspectionId: string; answered: number; total: number }) {
+// `kiosk`: on a shop-floor iPad the person is signed out as soon as the check is submitted, so the next person starts fresh.
+export function SubmitBar({ inspectionId, answered, total, kiosk = false }: { inspectionId: string; answered: number; total: number; kiosk?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,10 @@ export function SubmitBar({ inspectionId, answered, total }: { inspectionId: str
               }
               if (!result.ok) {
                 setError(result.error);
+                return;
+              }
+              if (kiosk) {
+                await kioskSignOut("done");
                 return;
               }
               router.refresh();

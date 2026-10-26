@@ -3,7 +3,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+// DB_POOL_MAX is only set for local testing against the embedded dev database, which serves a single connection at a time.
+const poolMax = Number(process.env.DB_POOL_MAX);
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, ...(Number.isInteger(poolMax) && poolMax > 0 ? { max: poolMax } : {}) });
 
 export const db = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 

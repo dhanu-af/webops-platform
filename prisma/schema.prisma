@@ -40,6 +40,13 @@ model User {
   // Sign-in lockout (lib/login-throttle.ts)
   failedLogins       Int       @default(0)
   lockedUntil        DateTime?
+  // Shop-floor PIN (operators and team leaders): a 4-digit code used on a registered iPad, after choosing your
+  // name. Stored as bcrypt(HMAC(secret, userId + pin)); never the PIN itself.
+  pinHash            String?
+  pinMustChange      Boolean   @default(false)
+  pinSetAt           DateTime?
+  pinFailedAttempts  Int       @default(0)
+  pinLockedUntil     DateTime?
   employeeId         String?   @unique
   role               UserRole
   jobTitle           String?
@@ -68,6 +75,7 @@ model User {
   correctiveActionsOwned    CorrectiveAction[]      @relation("CorrectiveActionResponsible")
   correctiveActionsCreated  CorrectiveAction[]      @relation("CorrectiveActionCreatedBy")
   productionDayExceptions   ProductionDayException[] @relation("ProductionDayExceptionCreatedBy")
+  kioskDevicesCreated       KioskDevice[]           @relation("KioskDeviceCreatedBy")
   correctiveActionsClosed   CorrectiveAction[]      @relation("CorrectiveActionClosedBy")
   correctiveActionsVerified CorrectiveAction[]      @relation("CorrectiveActionVerifiedBy")
   verificationRecords       VerificationRecord[]
@@ -928,6 +936,7 @@ enum AuditAction {
   QC_ATTACHMENT_ADDED
   QC_ATTACHMENT_REMOVED
   DRYING_STAGE_CHANGED
+  LOGIN_FAILED
 }
 
 model AuditLog {
@@ -971,6 +980,9 @@ model SystemSettings {
   maxPhotoSizeMb   Int      @default(10) // mirrors lib/storage.ts's current hardcoded MAX_PHOTO_BYTES
   // Weekdays with no production (0 = Sunday ... 6 = Saturday). Scheduled checks are not due on them.
   closedWeekdays   Int[]    @default([0, 6])
+  // Whether a staff member's own phone may open a machine tag (NFC / QR) and sign in with a PIN, as well as the
+  // registered shop-floor iPads. On by default; an admin can switch it off on the Shop-floor iPads page.
+  kioskAllowAnyPhone Boolean @default(true)
   updatedAt        DateTime @updatedAt
 }
 
@@ -980,6 +992,23 @@ enum ProductionDayType {
 }
 
 // A single date that overrides the weekly pattern. `date` is the facility-local calendar day.
+// A shop-floor iPad (or phone) registered by an admin. Only a registered device can show the shop-floor
+// screens (machine pages, "who are you?", PIN entry). The device holds a random token in a cookie; only its
+// hash is stored here, and revoking the row ends every session that was started on that device.
+model KioskDevice {
+  id               String    @id @default(cuid())
+  name             String
+  tokenHash        String?   @unique
+  // One-time link an admin opens on the device to register it; cleared once used.
+  setupCodeHash    String?   @unique
+  setupExpiresAt   DateTime?
+  lastSeenAt       DateTime?
+  revokedAt        DateTime?
+  createdById      String
+  createdBy        User      @relation("KioskDeviceCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime  @default(now())
+}
+
 model ProductionDayException {
   id          String            @id @default(cuid())
   date        DateTime          @unique @db.Date

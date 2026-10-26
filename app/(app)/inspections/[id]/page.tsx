@@ -202,7 +202,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
       {docControl && <ControlledFormFooter doc={docControl} />}
 
-      {editable && <SubmitBar inspectionId={inspection.id} answered={answered} total={total} />}
+      {editable && <SubmitBar inspectionId={inspection.id} answered={answered} total={total} kiosk={session.user.authMethod === "pin"} />}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { IdleLogout } from "@/components/auth/idle-logout";
 import { TableLabels } from "@/components/ui/table-labels";
 import { AppFooter } from "@/components/nav/app-footer";
 import { NoProductionBanner } from "@/components/ui/no-production-banner";
+import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { pinSessionProblem } from "@/lib/pin-session";
 import { signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getCachedRetentionYears } from "@/lib/cached-config";
@@ -22,11 +24,17 @@ export default async function AppLayout({
   // A deactivated user's token stays valid until it expires; refuse it here so
   // deactivation takes effect on the very next page load (URS-03).
   const [account, retentionYears] = await Promise.all([
-    db.user.findUnique({ where: { id: session.user.id }, select: { active: true, mustChangePassword: true } }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { active: true, mustChangePassword: true, role: true, pinSetAt: true } }),
     getCachedRetentionYears(),
   ]);
-  if (!account?.active) {
-    await signOut({ redirectTo: "/login" });
+  // (Cookies cannot be changed while a page renders, so signing out is done by a route: /k/end.)
+  if (!account?.active) redirect("/k/end?to=login");
+  // Shop-floor PIN session: its own rules (device still registered, PIN unchanged, not older than 30 minutes) and its own
+  // plain screen with no menu. The password rules below belong to password sign-ins only.
+  if (session.user.authMethod === "pin") {
+    const problem = account ? await pinSessionProblem(session.user, account) : "This account is deactivated. Contact an administrator.";
+    if (problem) redirect("/k/end?to=k");
+    return <KioskShell name={session.user.name ?? "You"}>{children}</KioskShell>;
   }
   // An admin-issued temporary password has to be replaced before anything else.
   if (account?.mustChangePassword) redirect("/change-password");

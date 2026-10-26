@@ -14,12 +14,11 @@ export default auth((req) => {
   return NextResponse.next();
 });
 
-// Excludes /api (routes authorize themselves), /login, /scan (QR landing
-// resolves publicly-scoped info only, real actions still require login on
-// the destination page), static assets, and the brand logo (shown
+// Excludes /api (routes authorize themselves), /login, /k (shop-floor screens: they check for a registered
+// device themselves and only a PIN or password sign-in opens a record), static assets, and the brand logo (shown
 // unauthenticated on /login itself, so it can't require a session to load).
 export const config = {
   matcher: [
-    "/((?!api|login|_next/static|_next/image|favicon.ico|eagle-labs-logo.jpg|manifest.webmanifest|icons/|$).*)",
+    "/((?!api|login|k(?:/|$)|_next/static|_next/image|favicon.ico|eagle-labs-logo.jpg|manifest.webmanifest|icons/|$).*)",
   ],
 };

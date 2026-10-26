@@ -40,6 +40,7 @@ Release 0.2.0. "Test" = how to verify by hand; automated tests run with `npm tes
 | QC decisions in the drying room are QA/Supervisor only | `updateBatchStage`, `updateTrolley` | browser run |
 | Database refuses: editing a signature, editing an answer on an approved/closed record, deleting a completed batch or a lab-tested QC sample | migration `20261024180000_record_protection_more` | local DB test, monthly restore drill checks the 9 triggers |
 | Deletions keep a full snapshot in the audit trail | mfg batch/dispatch, QC sample/attachment, drying batch, formulation | code review |
+| Shop-floor PIN sign-in: attributable to a named person, short session, lockout, device registration, audited | `lib/pin.ts`, `lib/pin-session.ts`, `lib/actions/kiosk.ts`, `lib/actions/kiosk-admin.ts`, provider `pin` in `lib/auth.ts` | `lib/pin*.test.ts`, `lib/actions/kiosk*.test.ts`, browser run `audit/kiosk.js` |
 | Health / uptime monitoring | `/api/health`, `.github/workflows/uptime-check.yml` | live probe |
 
 ## Items that need a person

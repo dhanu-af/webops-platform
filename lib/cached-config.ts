@@ -5,9 +5,8 @@ import { db } from "@/lib/db";
 // times a year, so they are kept for up to 5 minutes instead of being fetched
 // on each navigation. The actions that change them call updateTag() with the
 // tags below, so an admin sees their own change immediately.
-export const SETTINGS_TAG = "system-settings";
-export const FACILITY_TAG = "facility-config";
-export const PRODUCTION_CALENDAR_TAG = "production-calendar";
+import { FACILITY_TAG, KIOSK_POLICY_TAG, PRODUCTION_CALENDAR_TAG, SETTINGS_TAG } from "@/lib/cache-tags";
+export { FACILITY_TAG, KIOSK_POLICY_TAG, PRODUCTION_CALENDAR_TAG, SETTINGS_TAG };
 
 export const getCachedRetentionYears = unstable_cache(
   async () => (await db.systemSettings.findFirst({ select: { retentionYears: true } }))?.retentionYears ?? 3,
@@ -36,4 +35,11 @@ export const getCachedProductionCalendar = unstable_cache(
   },
   ["production-calendar"],
   { tags: [PRODUCTION_CALENDAR_TAG], revalidate: 300 }
+);
+
+// May a staff member's own phone use a machine tag with a PIN? Read on every shop-floor request.
+export const getCachedKioskAllowAnyPhone = unstable_cache(
+  async () => (await db.systemSettings.findFirst({ select: { kioskAllowAnyPhone: true } }))?.kioskAllowAnyPhone ?? true,
+  ["kiosk-allow-any-phone"],
+  { tags: [KIOSK_POLICY_TAG], revalidate: 300 }
 );

@@ -1,3 +1,17 @@
+# Shop-floor PIN + NFC/QR tags (2026-10-26) — read this first
+
+Operators and Team Leaders can fill in checks without a User ID and password: tap/scan the machine's tag, pick their name, enter a 4-digit PIN. Password sign-in is unchanged for everyone (and is still required for Supervisor/QA verification and every e-signature).
+- **Tags:** `Equipment.qrToken` / `Area.qrToken` (already existed) -> `/k/t/<token>` -> `/k/e/<id>` or `/k/a/<id>`. Admin: Machine tags (`/admin/tags`: list, printable QR sheet, CSV of addresses to write on NFC tags). iPads cannot read NFC; they scan the QR in-page (jsQR); phones tap NFC.
+- **Who may use the screens:** registered iPads (`KioskDevice`; admin adds one at `/admin/kiosks`, opens the one-time `/k/setup/<code>` link on the iPad -> httpOnly cookie, only a hash stored) AND, by default, any staff phone (`SystemSettings.kioskAllowAnyPhone`, switch on the same page; off = iPads only and phone sessions end at once). A device registers for ONE address, so print tags and register iPads on the final domain.
+- **PIN:** `User.pinHash` = bcrypt(HMAC(AUTH_SECRET, userId:pin)); admin issues a TEMPORARY random PIN (shown once, never stored/audited); the person chooses their own on first use. Weak PINs refused (`lib/pin.ts`). 5 wrong = locked 15 min (admin can unlock). Phones: also max 20 wrong phone PINs per network per 15 min. Optional "PIN only" switches off password sign-in for that person (random unknown password).
+- **Session:** a NextAuth session with `authMethod:"pin"` (provider `pin`, only accepts a 30-second HMAC ticket minted by `kioskSignIn` in `lib/actions/kiosk.ts`). Valid max 30 min, ends if the PIN changes, the device is revoked, phones are switched off, or the person is deactivated (`lib/pin-session.ts`, checked in `requireActiveUser` and the `(app)` layout). Screen: plain `KioskShell` (name + Done, no menu), auto sign-out after 3 idle minutes and right after submit. Ended sessions go through `/k/end` (cookies cannot be cleared while rendering).
+- **Audit:** PIN sign-ins `LOGIN`, wrong PINs `LOGIN_FAILED` (new enum value), PIN issue/clear/unlock, device add/revoke, phone switch — all in the audit trail; every answer is stamped with the person as before.
+- **Roles:** only OPERATOR and TEAM_LEADER can have a PIN.
+- **Not done / decide:** nothing is switched on in production until an admin registers an iPad (optional), gives PINs and prints/writes tags. NFC tags are plain URL tags (no signing); anyone who photographs a tag can open that machine's page (they still need a name + PIN). `DB_POOL_MAX` env var exists only for local testing against the embedded dev DB (one connection).
+- Tests: `lib/pin*.test.ts`, `lib/actions/kiosk*.test.ts`; browser run `scratchpad/audit/kiosk.js` (44 checks).
+
+---
+
 # Production calendar — no production Saturday/Sunday (2026-10-25) — read this first
 
 Saturday and Sunday are no-production days by default (`SystemSettings.closedWeekdays`, default `{0,6}`); a single date can be opened or blocked (`ProductionDayException`, migration `20261025100000_production_calendar`, additive).
