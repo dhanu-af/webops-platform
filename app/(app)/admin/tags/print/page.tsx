@@ -30,7 +30,7 @@ export default async function PrintTagsPage({ searchParams }: { searchParams: Pr
           <div key={l.url} className="break-inside-avoid border border-dashed border-border-strong p-3 text-center print:border-gray-400">
             <div className="mx-auto size-36 [&_svg]:size-full" dangerouslySetInnerHTML={{ __html: l.svg }} />
             <p className="mt-2 text-sm font-semibold leading-tight text-foreground">{l.name}</p>
-            <p className="text-[11px] leading-tight text-muted">{l.kind === "Area" ? `Area · ${l.area}` : l.area} · {l.code}</p>
+            <p className="text-[11px] leading-tight text-muted">{l.kind === "Document" ? "Document" : l.kind === "Area" ? `Area · ${l.area}` : l.area}{l.code ? ` · ${l.code}` : ""}</p>
           </div>
         ))}
       </div>

@@ -17,7 +17,7 @@ export async function resolveTagBase(requested: string | undefined): Promise<str
   return `${proto}://${host}`;
 }
 
-export type TagRow = { kind: "Area" | "Machine"; name: string; area: string; code: string; url: string };
+export type TagRow = { kind: "Document" | "Area" | "Machine"; name: string; area: string; code: string; url: string; checklistId?: string; written?: boolean };
 
 /** Every area and machine with the address its tag opens. */
 export async function listTagRows(base: string): Promise<TagRow[]> {
@@ -32,7 +32,20 @@ export async function listTagRows(base: string): Promise<TagRow[]> {
     },
     orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }],
   });
-  const rows: TagRow[] = [];
+  const checklists = await db.checklist.findMany({
+    where: { active: true },
+    select: { id: true, name: true, category: true, qrToken: true, tagWrittenAt: true },
+    orderBy: [{ createdAt: "desc" }],
+  });
+  const rows: TagRow[] = checklists.map((c) => ({
+    kind: "Document" as const,
+    name: c.name,
+    area: c.category.replace(/_/g, " ").toLowerCase(),
+    code: "",
+    url: `${base}/k/t/${c.qrToken}`,
+    checklistId: c.id,
+    written: !!c.tagWrittenAt,
+  }));
   for (const a of areas) {
     rows.push({ kind: "Area", name: a.name, area: a.section.name, code: a.code, url: `${base}/k/t/${a.qrToken}` });
     for (const e of a.equipment) rows.push({ kind: "Machine", name: e.name, area: a.name, code: e.code, url: `${base}/k/t/${e.qrToken}` });

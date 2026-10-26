@@ -8,6 +8,7 @@ import { ChecklistEditor } from "./checklist-editor";
 import { ScheduleManager } from "./schedule-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFacilityTimezone, formatDateTimeInTimeZone } from "@/lib/timezone";
+import { ChecklistTagCard } from "@/components/admin/checklist-tag-card";
 
 export default async function ChecklistEditPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -38,6 +39,8 @@ export default async function ChecklistEditPage({ params }: { params: Promise<{ 
         <h1 className="text-xl font-semibold tracking-tight text-foreground">{checklist.name}</h1>
         <p className="text-sm text-muted">Editing creates a new version — historical inspections keep the version they were performed against.</p>
       </div>
+
+      <ChecklistTagCard checklistId={checklist.id} />
 
       <ChecklistEditor
         checklistId={checklist.id}

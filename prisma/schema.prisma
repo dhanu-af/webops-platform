@@ -432,6 +432,10 @@ model Checklist {
   workflowId  String?
   workflow    VerificationWorkflow? @relation(fields: [workflowId], references: [id])
   active      Boolean               @default(true)
+  // The unguessable code on this document's NFC tag / QR code: /k/t/<qrToken> opens it on the shop floor.
+  qrToken     String                @unique @default(cuid())
+  // When someone marked this document's NFC tag as written and stuck on the document, so a new document shows as "needs a tag".
+  tagWrittenAt DateTime?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 

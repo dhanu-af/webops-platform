@@ -84,6 +84,25 @@ async function setKioskAllowAnyPhone__impl(allow: boolean) {
   revalidatePath("/admin/kiosks");
 }
 
+// Marks a document's NFC tag as written and stuck on, so documents still waiting for a tag stand out.
+async function markChecklistTagWritten__impl(checklistId: string, written: boolean) {
+  const actor = await requireLiveUser("checklist.manage");
+  const checklist = await db.checklist.findUniqueOrThrow({ where: { id: checklistId }, select: { name: true, tagWrittenAt: true } });
+  await db.checklist.update({ where: { id: checklistId }, data: { tagWrittenAt: written ? new Date() : null } });
+  await logAudit({
+    entityType: "Checklist",
+    entityId: checklistId,
+    action: "EDITED",
+    userId: actor.id,
+    fieldName: "nfcTag",
+    oldValue: { written: !!checklist.tagWrittenAt },
+    newValue: { written },
+    reason: written ? `NFC tag for "${checklist.name}" marked as written` : `NFC tag for "${checklist.name}" marked as not written`,
+  });
+  revalidatePath("/admin/tags");
+  revalidatePath(`/admin/checklists/${checklistId}`);
+}
+
 async function requirePinTarget(userId: string) {
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
   if (!canUsePin(user.role)) throw new UserFacingError("Shop-floor PINs are for Operators and Team Leaders. Everyone else signs in with their password.");
@@ -151,6 +170,10 @@ export async function renewKioskSetup(...args: Parameters<typeof renewKioskSetup
 
 export async function revokeKioskDevice(...args: Parameters<typeof revokeKioskDevice__impl>) {
   return guard(() => revokeKioskDevice__impl(...args));
+}
+
+export async function markChecklistTagWritten(...args: Parameters<typeof markChecklistTagWritten__impl>) {
+  return guard(() => markChecklistTagWritten__impl(...args));
 }
 
 export async function setKioskAllowAnyPhone(...args: Parameters<typeof setKioskAllowAnyPhone__impl>) {

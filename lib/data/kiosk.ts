@@ -30,14 +30,61 @@ export async function listKioskPlaces() {
 }
 
 /** Resolves the unguessable tag printed on a machine or area to the thing it stands for. */
-export async function resolveKioskTag(token: string): Promise<{ kind: "e" | "a"; id: string } | null> {
-  const [equipment, area] = await Promise.all([
+export async function resolveKioskTag(token: string): Promise<{ kind: "e" | "a" | "c"; id: string } | null> {
+  const [equipment, area, checklist] = await Promise.all([
     db.equipment.findUnique({ where: { qrToken: token }, select: { id: true, archived: true } }),
     db.area.findUnique({ where: { qrToken: token }, select: { id: true, archived: true } }),
+    db.checklist.findUnique({ where: { qrToken: token }, select: { id: true, active: true } }),
   ]);
   if (equipment && !equipment.archived) return { kind: "e", id: equipment.id };
   if (area && !area.archived) return { kind: "a", id: area.id };
+  if (checklist && checklist.active) return { kind: "c", id: checklist.id };
   return null;
+}
+
+/** A document (checklist) with the places it is scheduled for, so its tag opens it straight away. */
+export async function getKioskChecklist(id: string) {
+  const checklist = await db.checklist.findUnique({
+    where: { id },
+    select: { id: true, name: true, category: true, active: true, versions: { where: { isCurrent: true }, take: 1, select: { id: true } } },
+  });
+  if (!checklist || !checklist.active || checklist.versions.length === 0) return null;
+
+  const now = new Date();
+  const timeZone = await getFacilityTimezone();
+  const [production, schedules, areas] = await Promise.all([
+    getTodayProductionDay(),
+    db.checklistSchedule.findMany({
+      where: { checklistId: id, active: true, startDate: { lte: now } },
+      include: {
+        area: { select: { name: true } },
+        equipment: { select: { name: true } },
+        facility: { select: { name: true } },
+        inspections: { where: { createdAt: { gte: startOfDayInTimeZone(timeZone, now), lte: endOfDayInTimeZone(timeZone, now) } }, take: 1, select: { id: true, status: true } },
+      },
+      orderBy: [{ dueTime: "asc" }],
+    }),
+    // places to start it from when it has no schedule (a one-off document)
+    db.area.findMany({ where: { archived: false }, select: { id: true, name: true, section: { select: { name: true } } }, orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }] }),
+  ]);
+
+  const facilityLevel = isFacilityLevelCategory(checklist.category);
+  return {
+    id: checklist.id,
+    name: checklist.name,
+    production,
+    closed: !production.production && !facilityLevel,
+    schedules: schedules.map((s) => ({
+      id: s.id,
+      // which place this row is for: the machine, else the area, else the whole facility
+      checklistName: s.equipment?.name ?? s.area?.name ?? s.facility.name,
+      frequency: s.frequency,
+      dueTime: s.dueTime,
+      inspection: s.inspections[0] ?? null,
+    })),
+    areas: areas.map((a) => ({ id: a.id, label: `${a.name} · ${a.section.name}` })),
+    facilityLevel,
+  };
 }
 
 /** A machine (kind "e") or an area (kind "a") with the checks due there today. */
