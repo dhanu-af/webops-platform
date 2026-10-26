@@ -22,9 +22,12 @@ const ROLES: { value: UserRole; label: string }[] = [
 export function NewUserForm({
   sections,
   areas,
+  canCreateSuperAdmin,
 }: {
   sections: Array<{ id: string; label: string }>;
   areas: Array<{ id: string; label: string }>;
+  /** Only a Super Admin can create another Super Admin, so only they are offered the role. */
+  canCreateSuperAdmin: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +158,7 @@ export function NewUserForm({
           onChange={(e) => setRole(e.target.value as UserRole)}
           className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent"
         >
-          {ROLES.map((r) => (
+          {ROLES.filter((r) => canCreateSuperAdmin || r.value !== "SUPER_ADMIN").map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>

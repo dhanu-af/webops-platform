@@ -18,6 +18,7 @@ const ROLES: { value: UserRole; label: string }[] = [
 ];
 
 export function EditUserForm({
+  canGrantSuperAdmin,
   userId,
   isSelf,
   initialLoginId,
@@ -29,6 +30,7 @@ export function EditUserForm({
   sections,
   areas,
 }: {
+  canGrantSuperAdmin: boolean;
   userId: string;
   isSelf: boolean;
   initialLoginId: string;
@@ -104,7 +106,7 @@ export function EditUserForm({
           disabled={isSelf}
           className="mt-1.5 w-full rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent disabled:opacity-60"
         >
-          {ROLES.map((r) => (
+          {ROLES.filter((r) => canGrantSuperAdmin || r.value !== "SUPER_ADMIN").map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>

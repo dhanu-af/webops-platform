@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { visibleUsersWhere } from "@/lib/visible-users";
 import { listDryingBays, listMiscStorageItems } from "@/lib/data/drying-room";
 import { getDryingRoomMetrics } from "@/lib/actions/drying-room-actions";
 import DryingRoomClient from "./drying-room-client";
@@ -21,7 +22,7 @@ export default async function DryingRoomPage() {
   const [bays, misc, employees, metrics] = await Promise.all([
     listDryingBays(),
     listMiscStorageItems(),
-    db.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.user.findMany({ where: { active: true, ...visibleUsersWhere(session?.user?.role ?? "VIEWER") }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     getDryingRoomMetrics(),
   ]);
 

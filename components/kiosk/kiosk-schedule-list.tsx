@@ -19,10 +19,10 @@ export type KioskSchedule = {
 const EDITABLE = ["NOT_STARTED", "IN_PROGRESS", "RETURNED"];
 
 /**
- * The checks due at this machine. Tapping Start (or Continue) asks "Who are you?" first unless someone has already
- * signed in on this iPad; the check then opens with that person recorded against every answer.
+ * The checks due here. Tapping Start (or Continue) asks for your PIN first unless you are already signed in; the check
+ * then opens with you recorded against every answer.
  */
-export function KioskScheduleList({ schedules, signedIn, people }: { schedules: KioskSchedule[]; signedIn: boolean; people: { id: string; name: string }[] }) {
+export function KioskScheduleList({ schedules, signedIn }: { schedules: KioskSchedule[]; signedIn: boolean }) {
   const router = useRouter();
   const [pendingSchedule, setPendingSchedule] = useState<string | null>(null);
   const [identifying, setIdentifying] = useState(false);
@@ -44,7 +44,6 @@ export function KioskScheduleList({ schedules, signedIn, people }: { schedules: 
   if (identifying) {
     return (
       <KioskIdentify
-        people={people}
         onCancel={() => {
           setIdentifying(false);
           setPendingSchedule(null);

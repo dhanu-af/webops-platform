@@ -30,10 +30,10 @@ export function KioskPhonePolicy({ allowed }: { allowed: boolean }) {
           }
         />
         <span>
-          <span className="font-medium">Let staff use their own phone</span>
+          <span className="font-medium">Allow PIN sign-in on any phone</span>
           <span className="mt-0.5 block text-muted">
-            Anyone can tap the NFC tag (or scan the QR code) with any phone, pick their name and enter their PIN. Nothing needs installing and the phone does not have to be registered. Wrong
-            PINs are limited per person and per network. Switch this off to allow only the registered iPads; phone sessions then end straight away.
+            Anyone can tap an NFC tag (or scan a QR code) with any phone and type their PIN. Nothing needs installing and the phone does not have to be registered. Switch this off to allow
+            PIN sign-in only on the registered iPads below; phone sessions then end straight away.
           </span>
         </span>
       </label>

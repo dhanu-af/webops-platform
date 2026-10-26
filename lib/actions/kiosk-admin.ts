@@ -9,7 +9,7 @@ import { requireLiveUser } from "@/lib/session-user";
 import { revalidatePath, updateTag } from "next/cache";
 import { KIOSK_POLICY_TAG } from "@/lib/cache-tags";
 import { newToken, sha256, SETUP_LINK_HOURS } from "@/lib/kiosk-token";
-import { canUsePin, generateTemporaryPin, hashPin } from "@/lib/pin";
+import { canUsePin, generateTemporaryPin, hashPin, pinLookup } from "@/lib/pin";
 
 // Admin side of the shop-floor iPads: register or revoke a device, and manage people's PINs. Same permission as
 // the rest of user administration. Every change is audited; a PIN is never written to the audit trail or the log.
@@ -105,7 +105,7 @@ async function markChecklistTagWritten__impl(checklistId: string, written: boole
 
 async function requirePinTarget(userId: string) {
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
-  if (!canUsePin(user.role)) throw new UserFacingError("Shop-floor PINs are for Operators and Team Leaders. Everyone else signs in with their password.");
+  if (!canUsePin(user.role)) throw new UserFacingError("PINs are for Operators and Team Leaders. Everyone else signs in with their password.");
   return user;
 }
 
@@ -118,11 +118,18 @@ async function issueUserPin__impl(userId: string, options: { pinOnly?: boolean }
   const actor = await requireManager();
   const user = await requirePinTarget(userId);
   if (!user.active) throw new UserFacingError("That account is deactivated.");
-  const pin = generateTemporaryPin();
+  // The PIN alone signs a person in, so it must not be anyone else's: draw again until it is free.
+  let pin = generateTemporaryPin();
+  for (let tries = 0; tries < 200; tries++) {
+    const clash = await db.user.findUnique({ where: { pinLookup: pinLookup(pin) }, select: { id: true } });
+    if (!clash || clash.id === user.id) break;
+    pin = generateTemporaryPin();
+  }
   await db.user.update({
     where: { id: user.id },
     data: {
       pinHash: await hashPin(user.id, pin),
+      pinLookup: pinLookup(pin),
       pinMustChange: true,
       pinSetAt: new Date(),
       pinFailedAttempts: 0,
@@ -136,7 +143,7 @@ async function issueUserPin__impl(userId: string, options: { pinOnly?: boolean }
     action: "EDITED",
     userId: actor.id,
     fieldName: "pin",
-    reason: `Temporary shop-floor PIN issued for ${user.name}${options.pinOnly ? " (PIN only: password sign-in switched off)" : ""}`,
+    reason: `Temporary PIN issued for ${user.name}${options.pinOnly ? " (PIN only: password sign-in switched off)" : ""}`,
   });
   revalidatePath(`/admin/users/${user.id}/edit`);
   return { pin };
@@ -145,16 +152,8 @@ async function issueUserPin__impl(userId: string, options: { pinOnly?: boolean }
 async function clearUserPin__impl(userId: string) {
   const actor = await requireManager();
   const user = await requirePinTarget(userId);
-  await db.user.update({ where: { id: user.id }, data: { pinHash: null, pinMustChange: false, pinSetAt: new Date(), pinFailedAttempts: 0, pinLockedUntil: null } });
-  await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: actor.id, fieldName: "pin", reason: `Shop-floor PIN removed for ${user.name}` });
-  revalidatePath(`/admin/users/${user.id}/edit`);
-}
-
-async function unlockUserPin__impl(userId: string) {
-  const actor = await requireManager();
-  const user = await requirePinTarget(userId);
-  await db.user.update({ where: { id: user.id }, data: { pinFailedAttempts: 0, pinLockedUntil: null } });
-  await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: actor.id, fieldName: "pin", reason: `Shop-floor PIN unlocked for ${user.name}` });
+  await db.user.update({ where: { id: user.id }, data: { pinHash: null, pinLookup: null, pinMustChange: false, pinSetAt: new Date(), pinFailedAttempts: 0, pinLockedUntil: null } });
+  await logAudit({ entityType: "User", entityId: user.id, action: "EDITED", userId: actor.id, fieldName: "pin", reason: `PIN removed for ${user.name}` });
   revalidatePath(`/admin/users/${user.id}/edit`);
 }
 
@@ -188,6 +187,3 @@ export async function clearUserPin(...args: Parameters<typeof clearUserPin__impl
   return guard(() => clearUserPin__impl(...args));
 }
 
-export async function unlockUserPin(...args: Parameters<typeof unlockUserPin__impl>) {
-  return guard(() => unlockUserPin__impl(...args));
-}

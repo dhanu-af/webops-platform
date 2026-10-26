@@ -9,7 +9,7 @@ import { KIOSK_IDLE_MINUTES } from "@/lib/pin";
 const WARN_SECONDS = 30;
 const ACTIVITY_EVENTS = ["pointerdown", "touchstart", "keydown", "scroll"] as const;
 
-/** Ends the shop-floor session straight away and returns to the iPad's start screen. */
+/** Ends the PIN session straight away and returns to the start page. */
 export function KioskDoneButton() {
   const [busy, setBusy] = useState(false);
   return (

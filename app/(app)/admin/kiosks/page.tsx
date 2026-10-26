@@ -37,8 +37,8 @@ export default async function KioskAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Shop-floor iPads</h1>
-        <p className="text-sm text-muted">Operators and Team Leaders fill in checks on a shared iPad with a 4-digit PIN instead of a User ID and password.</p>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">PIN sign-in</h1>
+        <p className="text-sm text-muted">Operators and Team Leaders sign in with just a 4-digit PIN, on any phone or iPad, instead of a User ID and password.</p>
       </div>
 
       <Card>
@@ -46,13 +46,12 @@ export default async function KioskAdminPage() {
           <CardTitle>How it works</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 pt-2 text-sm text-muted">
-          <p>1. Add each iPad here and open its one-time setup link on that iPad. Only registered iPads can show the shop-floor screens.</p>
-          <p>2. Print the QR codes and write the NFC tags for your machines under <Link className="text-accent hover:underline" href="/admin/tags">Machine tags</Link>.</p>
-          <p>3. Give each Operator or Team Leader a temporary PIN on their user page. They choose their own PIN the first time. {pinUsers} {pinUsers === 1 ? "person has" : "people have"} a PIN now.</p>
-          <p>4. On an iPad: scan the machine&apos;s QR code. On any phone: tap the NFC tag (or scan the QR code). Then choose your name, enter your PIN and fill in the check. It signs you out when you submit, or after 3 quiet minutes.</p>
+          <p>1. Give each Operator or Team Leader a temporary PIN on their user page. They choose their own PIN the first time (no two people can have the same PIN). {pinUsers} {pinUsers === 1 ? "person has" : "people have"} a PIN now.</p>
+          <p>2. Write the NFC tags (or print the QR codes) for your documents and machines under <Link className="text-accent hover:underline" href="/admin/tags">NFC tags</Link>.</p>
+          <p>3. To fill in a document: tap its NFC tag with a phone (or scan the QR code), press Start, type your PIN and fill it in. You can also open the site and choose &ldquo;Sign in with your PIN&rdquo;. It signs you out when you submit, or after 3 quiet minutes.</p>
           <p className="rounded-md bg-surface-sunken px-3 py-2 text-xs">
-            Use the address you will keep using (for example your own domain) when you add iPads and print tags. An iPad is registered for one address, and the tags must point to the same one.
-            Supervisors, QA and admins keep signing in with a password; verification and approval still need the password.
+            Supervisors, QA and admins keep signing in with a password; verification and approval still need the password. Because the PIN alone identifies a person, wrong PINs are limited: 5 tries per
+            network and 25 overall every 15 minutes, after which people can still sign in with their password. Registering iPads below is optional.
           </p>
         </CardContent>
       </Card>

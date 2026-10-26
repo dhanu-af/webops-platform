@@ -7,7 +7,7 @@ import { IdleLogout } from "@/components/auth/idle-logout";
 import { TableLabels } from "@/components/ui/table-labels";
 import { AppFooter } from "@/components/nav/app-footer";
 import { NoProductionBanner } from "@/components/ui/no-production-banner";
-import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { KioskIdle } from "@/components/kiosk/kiosk-session";
 import { pinSessionProblem } from "@/lib/pin-session";
 import { signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -29,25 +29,30 @@ export default async function AppLayout({
   ]);
   // (Cookies cannot be changed while a page renders, so signing out is done by a route: /k/end.)
   if (!account?.active) redirect("/k/end?to=login");
-  // Shop-floor PIN session: its own rules (device still registered, PIN unchanged, not older than 30 minutes) and its own
-  // plain screen with no menu. The password rules below belong to password sign-ins only.
-  if (session.user.authMethod === "pin") {
+  // A PIN session follows its own rules (device still allowed, PIN unchanged, not older than 30 minutes) and signs itself
+  // out after a few quiet minutes. The password rules below belong to password sign-ins only.
+  const pinSession = session.user.authMethod === "pin";
+  if (pinSession) {
     const problem = account ? await pinSessionProblem(session.user, account) : "This account is deactivated. Contact an administrator.";
     if (problem) redirect("/k/end?to=k");
-    return <KioskShell name={session.user.name ?? "You"}>{children}</KioskShell>;
+  } else if (account?.mustChangePassword) {
+    // An admin-issued temporary password has to be replaced before anything else.
+    redirect("/change-password");
   }
-  // An admin-issued temporary password has to be replaced before anything else.
-  if (account?.mustChangePassword) redirect("/change-password");
 
   return (
     <MobileNavProvider>
       <TableLabels />
-      <IdleLogout
-        signOutAction={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-      />
+      {pinSession ? (
+        <KioskIdle />
+      ) : (
+        <IdleLogout
+          signOutAction={async () => {
+            "use server";
+            await signOut({ redirectTo: "/login" });
+          }}
+        />
+      )}
       <div className="flex min-h-screen">
         <Sidebar role={session.user.role} />
         <div className="flex min-w-0 flex-1 flex-col">

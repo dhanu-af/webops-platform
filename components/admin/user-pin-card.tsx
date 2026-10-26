@@ -4,15 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { clearUserPin, issueUserPin, unlockUserPin } from "@/lib/actions-client/kiosk-admin";
+import { clearUserPin, issueUserPin } from "@/lib/actions-client/kiosk-admin";
 
-export type PinStatus = "NONE" | "TEMPORARY" | "SET" | "LOCKED";
+export type PinStatus = "NONE" | "TEMPORARY" | "SET";
 
 const STATUS: Record<PinStatus, { label: string; tone: "neutral" | "warn" | "pass" | "critical" }> = {
   NONE: { label: "No PIN", tone: "neutral" },
   TEMPORARY: { label: "Temporary PIN issued: waiting for the person to choose their own", tone: "warn" },
   SET: { label: "PIN set", tone: "pass" },
-  LOCKED: { label: "Locked after wrong PINs", tone: "critical" },
 };
 
 export function UserPinCard({ userId, userName, status }: { userId: string; userName: string; status: PinStatus }) {
@@ -40,8 +39,8 @@ export function UserPinCard({ userId, userName, status }: { userId: string; user
         <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>
       </div>
       <p className="text-sm text-muted">
-        A 4-digit PIN lets {userName} fill in checks on a registered shop-floor iPad: they pick their name and enter the PIN. You hand over a temporary PIN and they choose their own the
-        first time, so you never know it. Verification and approvals still need their password.
+        A 4-digit PIN lets {userName} sign in on any phone or iPad by typing just the PIN, with no User ID or password, and fill in checks. You hand over a temporary PIN and they choose their own
+        the first time, so you never know it. No two people can have the same PIN. Verification and approvals still need their password.
       </p>
 
       {issued && (
@@ -55,7 +54,7 @@ export function UserPinCard({ userId, userName, status }: { userId: string; user
       <label className="flex items-start gap-2 text-sm text-foreground">
         <input type="checkbox" className="mt-0.5" checked={pinOnly} onChange={(e) => setPinOnly(e.target.checked)} />
         <span>
-          PIN only: switch off password sign-in for this person. Use this for people who only work on the shop-floor iPads, so nobody (you included) knows a password that could be used in
+          PIN only: switch off password sign-in for this person. Use this for people who only sign in with a PIN, so nobody (you included) knows a password that could be used in
           their name. A password can be set again later by resetting it.
         </span>
       </label>
@@ -74,18 +73,13 @@ export function UserPinCard({ userId, userName, status }: { userId: string; user
         >
           {status === "NONE" ? "Give a PIN" : "Issue a new temporary PIN"}
         </Button>
-        {status === "LOCKED" && (
-          <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => unlockUserPin(userId))}>
-            Unlock PIN
-          </Button>
-        )}
         {status !== "NONE" && (
           <Button
             size="sm"
             variant="destructive"
             disabled={pending}
             onClick={() => {
-              if (confirm(`Remove the shop-floor PIN for ${userName}?`)) {
+              if (confirm(`Remove the PIN for ${userName}?`)) {
                 setIssued(null);
                 run(() => clearUserPin(userId));
               }

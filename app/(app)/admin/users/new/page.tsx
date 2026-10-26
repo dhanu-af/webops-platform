@@ -27,6 +27,7 @@ export default async function NewUserPage() {
         <p className="text-sm text-muted">Add a new person and set their role, department and initial password.</p>
       </div>
       <NewUserForm
+        canCreateSuperAdmin={session.user.role === "SUPER_ADMIN"}
         sections={sections.map((s) => ({ id: s.id, label: `${s.facility.name} / ${s.name}` }))}
         areas={areas.map((a) => ({ id: a.id, label: `${a.section.facility.name} / ${a.section.name} / ${a.name}` }))}
       />

@@ -1,3 +1,12 @@
+# PIN-only sign-in + Super Admin hidden (2026-10-26, latest — supersedes the "pick your name" parts below) — read this first
+
+- **The PIN alone signs a person in** (no name list, no User ID, no password): on any phone or registered iPad, from an NFC tag / QR code / the "Sign in with your PIN" button on `/login` and `/k`. After the PIN the person is in the **normal app** (full layout), as themselves; a PIN session is capped at 30 minutes, signs out after 3 idle minutes and right after a check is submitted.
+- **Because the PIN identifies the person:** each PIN is unique (`User.pinLookup`, unique keyed hash; temporary PINs are drawn to be free; choosing an already-used PIN gives a vague refusal that also counts as a wrong try). Wrong PINs are limited per network (5 / 15 min) and overall (25 / 15 min, then PIN sign-in pauses and people use their password) via `PinAttempt` rows (`lib/actions/kiosk.ts`). 4 digits is inherently guessable: with ~40 PINs in use a random guess hits someone ~0.4% of the time, so these limits ARE the protection. If that is not acceptable, raise `PIN_LENGTH`/the regex in `lib/pin.ts` to 6 digits.
+- PINs issued before this change were cleared by migration `20261026130000_pin_only_sign_in`; admins issue new temporary PINs (user page > PIN sign-in). Admin page: `/admin/kiosks` (nav "PIN sign-in"; registering iPads is optional now).
+- **Super Admin accounts are invisible to everyone else** (`lib/visible-users.ts`): not in the Users list, login list or pickers, their edit page is "not found", the Super Admin role is not offered to Admins, and an Admin cannot create/edit/reset/deactivate one (server-side `assertMayManageRole`). The audit trail still names who did what (records must stay attributable).
+
+---
+
 # Shop-floor PIN + NFC/QR tags (2026-10-26) — read this first
 
 Operators and Team Leaders can fill in checks without a User ID and password: tap/scan the machine's tag, pick their name, enter a 4-digit PIN. Password sign-in is unchanged for everyone (and is still required for Supervisor/QA verification and every e-signature).

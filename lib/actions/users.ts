@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/app/generated/prisma/client";
 import { SAFE_USER } from "@/lib/safe-user";
+import { visibleUsersWhere } from "@/lib/visible-users";
 
 // Every action here that a person can get "wrong" (taken User ID, weak
 // password, wrong current password) returns an ActionResult instead of
@@ -198,6 +199,9 @@ export async function setUserActive(userId: string, active: boolean): Promise<Ac
     const actor = await requireUserManager();
 
     if (userId === actor.id) throw new UserFacingError("You can't deactivate your own account.");
+    // An Admin cannot switch a Super Admin on or off (and cannot tell the account exists).
+    const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { role: true } });
+    assertMayManageRole(actor.role, target.role);
 
     await db.user.update({ where: { id: userId }, data: { active } });
     await logAudit({
@@ -241,9 +245,9 @@ export async function adminResetPassword(userId: string, newPassword: string): P
 }
 
 export async function getRecentLogins(take = 20) {
-  await requireUserManager();
+  const actor = await requireUserManager();
   return db.auditLog.findMany({
-    where: { action: "LOGIN" },
+    where: { action: "LOGIN", user: visibleUsersWhere(actor.role) },
     include: { user: { select: SAFE_USER } },
     orderBy: { createdAt: "desc" },
     take,

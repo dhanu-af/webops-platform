@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarOff } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getKioskAccess } from "@/lib/kiosk";
-import { getKioskChecklist, listKioskPeople } from "@/lib/data/kiosk";
+import { getKioskChecklist } from "@/lib/data/kiosk";
 import { describeNoProduction } from "@/lib/production-calendar";
 import { KioskNotSetUp } from "@/components/kiosk/kiosk-gate";
 import { KioskScheduleList } from "@/components/kiosk/kiosk-schedule-list";
@@ -17,12 +17,11 @@ export async function KioskChecklistView({ id }: { id: string }) {
   const [doc, session] = await Promise.all([getKioskChecklist(id), auth()]);
   if (!doc) notFound();
   const signedIn = !!session?.user;
-  const people = signedIn ? [] : await listKioskPeople();
 
   return (
     <>
       <Link href="/k" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-strong">
-        <ArrowLeft className="size-4" /> Shop floor
+        <ArrowLeft className="size-4" /> Back
       </Link>
 
       <div>
@@ -47,9 +46,9 @@ export async function KioskChecklistView({ id }: { id: string }) {
           </span>
         </p>
       ) : doc.schedules.length > 0 ? (
-        <KioskScheduleList schedules={doc.schedules} signedIn={signedIn} people={people} />
+        <KioskScheduleList schedules={doc.schedules} signedIn={signedIn} />
       ) : (
-        <KioskAdHocStart checklistId={doc.id} areas={doc.areas} signedIn={signedIn} people={people} facilityLevel={doc.facilityLevel} />
+        <KioskAdHocStart checklistId={doc.id} areas={doc.areas} signedIn={signedIn} facilityLevel={doc.facilityLevel} />
       )}
     </>
   );

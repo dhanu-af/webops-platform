@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useActionState } from "react";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
 
@@ -67,6 +68,12 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
+      <p className="border-t border-border pt-4 text-center text-sm text-muted">
+        Operator or Team Leader?{" "}
+        <Link href="/k" className="font-medium text-accent hover:underline">
+          Sign in with your PIN
+        </Link>
+      </p>
     </form>
   );
 }

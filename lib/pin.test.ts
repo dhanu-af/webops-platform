@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { afterWrongPin, canUsePin, checkPin, generateTemporaryPin, hashPin, isPinLocked, PIN_LOCK_MINUTES, PIN_MAX_FAILED, pinProblem } from "./pin";
+import { afterWrongPin, canUsePin, checkPin, generateTemporaryPin, hashPin, isPinLocked, PIN_LOCK_MINUTES, PIN_MAX_FAILED, pinLookup, pinProblem } from "./pin";
 import { signKioskTicket, verifyKioskTicket } from "./kiosk-token";
 
 beforeAll(() => {
@@ -47,6 +47,21 @@ describe("PIN storage", () => {
 
   it("never stores the PIN itself", async () => {
     expect(await hashPin("user-1", "4827")).not.toContain("4827");
+  });
+});
+
+describe("PIN lookup", () => {
+  it("is the same for the same PIN and different for another, and does not contain the PIN", () => {
+    expect(pinLookup("4827")).toBe(pinLookup("4827"));
+    expect(pinLookup("4827")).not.toBe(pinLookup("4828"));
+    expect(pinLookup("4827")).not.toContain("4827");
+  });
+
+  it("depends on the server secret, so a copy of the database alone cannot be searched", () => {
+    const before = pinLookup("4827");
+    process.env.AUTH_SECRET = "another-secret";
+    expect(pinLookup("4827")).not.toBe(before);
+    process.env.AUTH_SECRET = "test-secret-for-unit-tests";
   });
 });
 

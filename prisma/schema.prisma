@@ -43,6 +43,9 @@ model User {
   // Shop-floor PIN (operators and team leaders): a 4-digit code used on a registered iPad, after choosing your
   // name. Stored as bcrypt(HMAC(secret, userId + pin)); never the PIN itself.
   pinHash            String?
+  // Keyed hash of the PIN (HMAC with the server secret) used to find whose PIN was typed, since the PIN alone signs
+  // a person in. Unique, so two people can never share a PIN. Useless without the server secret.
+  pinLookup          String?   @unique
   pinMustChange      Boolean   @default(false)
   pinSetAt           DateTime?
   pinFailedAttempts  Int       @default(0)
@@ -988,6 +991,17 @@ model SystemSettings {
   // registered shop-floor iPads. On by default; an admin can switch it off on the Shop-floor iPads page.
   kioskAllowAnyPhone Boolean @default(true)
   updatedAt        DateTime @updatedAt
+}
+
+// A wrong PIN typed on the sign-in screen, kept briefly so repeated guessing from one place (or against the whole system)
+// can be stopped. `net` is a non-reversible tag of the network address. Rows older than two days are deleted.
+model PinAttempt {
+  id        String   @id @default(cuid())
+  net       String
+  createdAt DateTime @default(now())
+
+  @@index([net, createdAt])
+  @@index([createdAt])
 }
 
 enum ProductionDayType {

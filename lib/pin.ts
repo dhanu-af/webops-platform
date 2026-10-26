@@ -7,6 +7,10 @@ import bcrypt from "bcryptjs";
 export const PIN_LENGTH = 4;
 export const PIN_MAX_FAILED = 5;
 export const PIN_LOCK_MINUTES = 15;
+/** Wrong PINs one network may type in PIN_WINDOW_MINUTES before it must wait, and the same for the system as a whole. */
+export const PIN_WINDOW_MINUTES = 15;
+export const PIN_MAX_WRONG_PER_NETWORK = 5;
+export const PIN_MAX_WRONG_OVERALL = 25;
 /** A shop-floor session is cut off this long after the PIN was entered, however busy the screen is. */
 export const PIN_SESSION_MAX_MINUTES = 30;
 /** The shop-floor screen signs itself out after this long with no touch. */
@@ -38,6 +42,16 @@ function pepper(userId: string, pin: string): string {
   const secret = process.env.AUTH_SECRET;
   if (!secret) throw new Error("AUTH_SECRET is not set");
   return createHmac("sha256", secret).update(`${userId}:${pin}`).digest("base64");
+}
+
+/**
+ * What is stored so a typed PIN can be matched to a person without trying everyone's bcrypt hash. Keyed with the
+ * server secret, so the 10,000 possible PINs cannot be worked out from a copy of the database alone.
+ */
+export function pinLookup(pin: string): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("AUTH_SECRET is not set");
+  return createHmac("sha256", secret).update(`pin-lookup:${pin}`).digest("hex");
 }
 
 export async function hashPin(userId: string, pin: string): Promise<string> {

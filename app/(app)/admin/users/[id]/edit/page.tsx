@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { EditUserForm } from "./edit-user-form";
 import { ResetPasswordForm } from "@/components/admin/reset-password-form";
 import { UserPinCard, type PinStatus } from "@/components/admin/user-pin-card";
-import { canUsePin, isPinLocked } from "@/lib/pin";
+import { canUsePin } from "@/lib/pin";
+import { canSeeSuperAdmins } from "@/lib/visible-users";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -22,8 +23,10 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     }),
   ]);
   if (!user) notFound();
+  // A Super Admin account does not exist as far as anyone else is concerned.
+  if (user.role === "SUPER_ADMIN" && !canSeeSuperAdmins(session.user.role)) notFound();
 
-  const pinStatus: PinStatus = !user.pinHash ? "NONE" : isPinLocked(user.pinLockedUntil) ? "LOCKED" : user.pinMustChange ? "TEMPORARY" : "SET";
+  const pinStatus: PinStatus = !user.pinHash ? "NONE" : user.pinMustChange ? "TEMPORARY" : "SET";
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -32,6 +35,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         <p className="text-sm text-muted">{user.name} · {user.loginId}</p>
       </div>
       <EditUserForm
+        canGrantSuperAdmin={canSeeSuperAdmins(session.user.role)}
         userId={user.id}
         isSelf={user.id === session.user.id}
         initialLoginId={user.loginId}
@@ -46,7 +50,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
 
       {canUsePin(user.role) && (
         <div>
-          <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">Shop-floor PIN</h2>
+          <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">PIN sign-in</h2>
           <UserPinCard userId={user.id} userName={user.name} status={pinStatus} />
         </div>
       )}

@@ -1,6 +1,6 @@
 import { Smartphone } from "lucide-react";
 
-/** Shown instead of any shop-floor screen on a device that has not been registered by an admin. */
+/** Shown instead of the PIN pages when PIN sign-in is not available on this device. */
 export function KioskNotSetUp({ invalidLink }: { invalidLink?: boolean }) {
   return (
     <div className="rounded-[var(--radius)] border border-border bg-surface p-6 text-center">
@@ -9,7 +9,7 @@ export function KioskNotSetUp({ invalidLink }: { invalidLink?: boolean }) {
       <p className="mx-auto mt-2 max-w-md text-sm text-muted">
         {invalidLink
           ? "That setup link is not valid any more (it can be used once, for 24 hours). Ask an admin for a new one."
-          : "Shop-floor checks only work on an iPad an admin has registered. Ask an admin to add this iPad under Administration > Shop-floor iPads and open the setup link they give you. (Phones are not being accepted at the moment.)"}
+          : "PIN sign-in is not available on this device at the moment. Sign in with your User ID and password, or ask an admin."}
       </p>
     </div>
   );

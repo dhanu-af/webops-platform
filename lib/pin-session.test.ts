@@ -37,9 +37,9 @@ describe("a shop-floor PIN session is only valid while its conditions hold", () 
 
   it("ends when the iPad is revoked, or the session has no device", async () => {
     m.db.kioskDevice.findUnique.mockResolvedValue({ revokedAt: new Date() });
-    expect(await pinSessionProblem(pinSession(), live())).toMatch(/no longer set up/);
+    expect(await pinSessionProblem(pinSession(), live())).toMatch(/no longer registered/);
     m.db.kioskDevice.findUnique.mockResolvedValue(null);
-    expect(await pinSessionProblem(pinSession(), live())).toMatch(/no longer set up/);
+    expect(await pinSessionProblem(pinSession(), live())).toMatch(/no longer registered/);
   });
 
   it("a staff-phone session (no device) lasts only while phones are allowed", async () => {

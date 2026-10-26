@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarOff } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getKioskAccess } from "@/lib/kiosk";
-import { getKioskTarget, listKioskPeople } from "@/lib/data/kiosk";
+import { getKioskTarget } from "@/lib/data/kiosk";
 import { describeNoProduction } from "@/lib/production-calendar";
 import { KioskNotSetUp } from "@/components/kiosk/kiosk-gate";
 import { KioskScheduleList } from "@/components/kiosk/kiosk-schedule-list";
 import { KioskDoneButton } from "@/components/kiosk/kiosk-session";
 
-/** A machine (kind "e") or area (kind "a") with the checks due today and the "who are you?" step before starting one. */
+/** A machine (kind "e") or area (kind "a") with the checks due today and the PIN step before starting one. */
 export async function KioskTargetView({ kind, id }: { kind: "e" | "a"; id: string }) {
   if (!(await getKioskAccess()).allowed) return <KioskNotSetUp />;
 
@@ -17,12 +17,11 @@ export async function KioskTargetView({ kind, id }: { kind: "e" | "a"; id: strin
   if (!target) notFound();
 
   const signedIn = !!session?.user;
-  const people = signedIn ? [] : await listKioskPeople();
 
   return (
     <>
       <Link href="/k" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-strong">
-        <ArrowLeft className="size-4" /> All machines
+        <ArrowLeft className="size-4" /> Back
       </Link>
 
       <div>
@@ -51,7 +50,7 @@ export async function KioskTargetView({ kind, id }: { kind: "e" | "a"; id: strin
         </p>
       )}
 
-      <KioskScheduleList schedules={target.schedules} signedIn={signedIn} people={people} />
+      <KioskScheduleList schedules={target.schedules} signedIn={signedIn} />
 
       {target.machines.length > 0 && (
         <section>

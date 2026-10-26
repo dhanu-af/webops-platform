@@ -1,17 +1,17 @@
 import { db } from "@/lib/db";
-import { PIN_ROLES } from "@/lib/pin";
+
 import { getFacilityTimezone, startOfDayInTimeZone, endOfDayInTimeZone, todayLabelInTimeZone } from "@/lib/timezone";
 import { scheduleAppliesOnDay } from "@/lib/schedule-recurrence";
 import { isFacilityLevelCategory } from "@/lib/inspection-rules";
 import { getTodayProductionDay } from "@/lib/production-calendar-data";
 
-/** People who can pick their name on a shop-floor iPad: active operators / team leaders who have a PIN. Names only. */
-export async function listKioskPeople() {
-  return db.user.findMany({
-    where: { active: true, role: { in: [...PIN_ROLES] }, pinHash: { not: null } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+/** Every document (checklist) that can be opened on the shop floor, for choosing one by hand when a tag is missing. */
+export async function listKioskDocuments() {
+    return db.checklist.findMany({
+      where: { active: true, versions: { some: { isCurrent: true } } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
 }
 
 /** Every area and its machines, for choosing a machine by hand when a tag is missing or damaged. */

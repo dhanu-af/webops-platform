@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   db: {
-    user: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    user: { findUniqueOrThrow: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     kioskDevice: { create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
   },
@@ -12,8 +12,8 @@ vi.mock("@/lib/db", () => ({ db: m.db }));
 vi.mock("@/lib/session-user", () => ({ requireLiveUser: vi.fn(async () => ({ id: "admin1", name: "Ada Admin", role: "ADMIN" })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { clearUserPin, createKioskDevice, issueUserPin, revokeKioskDevice, unlockUserPin } from "./kiosk-admin";
-import { pinProblem } from "@/lib/pin";
+import { clearUserPin, createKioskDevice, issueUserPin, revokeKioskDevice } from "./kiosk-admin";
+import { pinLookup, pinProblem } from "@/lib/pin";
 import { sha256 } from "@/lib/kiosk-token";
 
 beforeAll(() => {
@@ -23,6 +23,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   m.db.user.findUniqueOrThrow.mockResolvedValue({ id: "u1", name: "Olive Operator", role: "OPERATOR", active: true });
+  m.db.user.findUnique.mockResolvedValue(null);
   m.db.kioskDevice.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: "dev1", ...data }));
   m.db.kioskDevice.findUniqueOrThrow.mockResolvedValue({ id: "dev1", name: "Bottling iPad", revokedAt: null });
 });
@@ -35,8 +36,18 @@ describe("temporary PINs", () => {
     const data = m.db.user.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ pinMustChange: true, pinFailedAttempts: 0, pinLockedUntil: null });
     expect(data.pinHash).not.toContain(r.data.pin);
+    expect(data.pinLookup).toBe(pinLookup(r.data.pin));
     expect(data.passwordHash).toBeUndefined();
     expect(JSON.stringify(m.db.auditLog.create.mock.calls)).not.toContain(r.data.pin);
+  });
+
+  it("never hands out a PIN that another person already has", async () => {
+    // the first two draws collide with someone else's PIN, the third is free
+    m.db.user.findUnique.mockResolvedValueOnce({ id: "other" }).mockResolvedValueOnce({ id: "other" }).mockResolvedValue(null);
+    const r = await issueUserPin("u1");
+    if (!r.ok) throw new Error(r.error);
+    expect(m.db.user.findUnique).toHaveBeenCalledTimes(3);
+    expect(m.db.user.update.mock.calls[0][0].data.pinLookup).toBe(pinLookup(r.data.pin));
   });
 
   it("PIN only: replaces the password with one nobody knows", async () => {
@@ -61,13 +72,11 @@ describe("temporary PINs", () => {
     expect(await issueUserPin("u1")).toMatchObject({ ok: false });
   });
 
-  it("removing or unlocking a PIN is audited and ends running sessions (the PIN timestamp moves)", async () => {
+  it("removing a PIN is audited, frees the PIN, and ends running sessions (the PIN timestamp moves)", async () => {
     await clearUserPin("u1");
-    expect(m.db.user.update.mock.calls[0][0].data).toMatchObject({ pinHash: null, pinMustChange: false });
+    expect(m.db.user.update.mock.calls[0][0].data).toMatchObject({ pinHash: null, pinLookup: null, pinMustChange: false });
     expect(m.db.user.update.mock.calls[0][0].data.pinSetAt).toBeInstanceOf(Date);
-    await unlockUserPin("u1");
-    expect(m.db.user.update.mock.calls[1][0].data).toEqual({ pinFailedAttempts: 0, pinLockedUntil: null });
-    expect(m.db.auditLog.create).toHaveBeenCalledTimes(2);
+    expect(m.db.auditLog.create).toHaveBeenCalledTimes(1);
   });
 });
 

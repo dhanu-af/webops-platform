@@ -9,10 +9,10 @@ import { startAdHocInspection } from "@/lib/actions/inspections";
 type Area = { id: string; label: string };
 
 /**
- * For a document that has no schedule: choose where it is for, say who you are, and it opens. The same
- * "who are you?" step as the scheduled checks, so the person is recorded on every answer.
+ * For a document that has no schedule: choose where it is for, enter your PIN, and it opens. The same PIN step as
+ * the scheduled checks, so the person is recorded on every answer.
  */
-export function KioskAdHocStart({ checklistId, areas, signedIn, people, facilityLevel }: { checklistId: string; areas: Area[]; signedIn: boolean; people: { id: string; name: string }[]; facilityLevel: boolean }) {
+export function KioskAdHocStart({ checklistId, areas, signedIn, facilityLevel }: { checklistId: string; areas: Area[]; signedIn: boolean; facilityLevel: boolean }) {
   const router = useRouter();
   const [pendingArea, setPendingArea] = useState<string | null | undefined>(undefined);
   const [identifying, setIdentifying] = useState(false);
@@ -31,7 +31,6 @@ export function KioskAdHocStart({ checklistId, areas, signedIn, people, facility
   if (identifying) {
     return (
       <KioskIdentify
-        people={people}
         onCancel={() => {
           setIdentifying(false);
           setPendingArea(undefined);
