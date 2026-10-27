@@ -194,6 +194,47 @@ export async function updateUser(
   redirect("/admin/users");
 }
 
+// Permanently deletes an account that was never used. Super Admin only. An account with any history (a sign-in, an answer,
+// a signature, an audit entry...) cannot be deleted, because records and the audit trail must keep naming who did what:
+// deactivate it instead. The database itself refuses the delete in that case, which is what is relied on here.
+export async function deleteUser(userId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const actor = await requireUserManager();
+    if (actor.role !== "SUPER_ADMIN") throw new UserFacingError("Only a Super Admin can delete an account.");
+    if (userId === actor.id) throw new UserFacingError("You can't delete your own account.");
+
+    const target = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, loginId: true, role: true, active: true } });
+    if (target.role === "SUPER_ADMIN") {
+      const others = await db.user.count({ where: { role: "SUPER_ADMIN", active: true, id: { not: userId } } });
+      if (others === 0) throw new UserFacingError("This is the only active Super Admin, so it cannot be deleted.");
+    }
+
+    try {
+      await db.$transaction(async (tx) => {
+        await tx.user.delete({ where: { id: userId } });
+        await logAudit(
+          {
+            entityType: "User",
+            entityId: userId,
+            action: "DELETED",
+            userId: actor.id,
+            oldValue: { name: target.name, loginId: target.loginId, role: target.role },
+            reason: `Account ${target.name} (${target.loginId}) deleted: it had no activity`,
+          },
+          tx
+        );
+      });
+    } catch (e) {
+      const code = (e as { code?: string } | null)?.code;
+      if (code === "P2003" || code === "P2014" || /foreign key|restrict|cannot be deleted|read-only/i.test(String((e as Error)?.message ?? ""))) {
+        throw new UserFacingError(`${target.name} has history (sign-ins, records or audit entries), so the account is kept to keep the records attributable. Deactivate it instead.`);
+      }
+      throw e;
+    }
+    revalidatePath("/admin/users");
+  });
+}
+
 export async function setUserActive(userId: string, active: boolean): Promise<ActionResult> {
   return runAction(async () => {
     const actor = await requireUserManager();

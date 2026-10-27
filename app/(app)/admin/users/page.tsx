@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleUserActiveButton } from "@/components/admin/toggle-user-active-button";
+import { DeleteUserButton } from "@/components/admin/delete-user-button";
 import { Plus } from "lucide-react";
 import { SAFE_USER } from "@/lib/safe-user";
 import { visibleUsersWhere } from "@/lib/visible-users";
@@ -63,6 +64,7 @@ export default async function UsersAdminPage() {
                     Edit
                   </Button>
                   {u.id !== currentUserId && <ToggleUserActiveButton userId={u.id} active={u.active} />}
+                  {u.id !== currentUserId && session.user.role === "SUPER_ADMIN" && <DeleteUserButton userId={u.id} name={u.name} />}
                 </div>
               </div>
             ))}
